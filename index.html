@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cardomancer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="vignette"></div>
+
+<div id="loading" class="on">A baralhar as cartas...</div>
+
+<section id="title">
+  <h1>Cardomancer</h1>
+  <p id="title-sub">Uma aventura que nunca se escolhe por inteiro.</p>
+  <button id="start">Nova Partida</button>
+</section>
+
+<div id="prompt"><h2 id="prompt-title"></h2><p id="prompt-sub"></p></div>
+<div id="toast"></div>
+
+<aside id="hud">
+  <div id="hud-name"></div>
+  <div class="stats">
+    <span class="stat vida"><b id="hud-vida">0</b> Vida</span>
+    <span class="stat ouro"><b id="hud-ouro">0</b> Ouro</span>
+    <span class="stat pistas"><b id="hud-pistas">0</b> Pistas</span>
+  </div>
+  <div id="hud-attrs"></div>
+  <div class="tools">
+    <button id="peek-map">Mapa</button>
+    <button id="peek-sheet">Ficha</button>
+    <button id="mute">Som: sim</button>
+  </div>
+</aside>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script src="js/data.js"></script>
+<script src="js/textures.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
