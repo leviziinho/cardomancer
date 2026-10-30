@@ -139,7 +139,9 @@ const ui = {
     await world.fly(cartaSelada, { pos: [AREA.draft.x + 3, 1.6, -1.2], rot: [FACE_DOWN, 0, 0], scale: 1.38 }, .9, { arc: 3 });
     await wait(.5);
 
-    await ui.escolha([{ tema: 'escolha', etiqueta: 'Seguir', titulo: 'Aceitar a Missão', desc: 'Faltam poucos dias.', glyph: 'hourglass' }].map(s => s), {});
+    ui.prompt('A sua missão', 'Há uma parte que continua selada. Clique na missão para a aceitar.');
+    cartaMissao.hoverScale = .1; cartaMissao.hoverLift = 1.1;
+    await world.choose([cartaMissao]);
     ui.prompt('');
     const vai = world.shot('reading', 1.6);
     await Promise.all([
@@ -161,6 +163,8 @@ const ui = {
   },
 
   async fim(titulo, texto, bom, verdade) {
+    // A partida pode acabar em viagem, com a câmara ainda sobre o mapa.
+    await world.shot('reading', 1);
     if (cartaSelada && cartaSelada.group.rotation.x > 0) await ui.revelar();
     await ui.livro({
       capitulo: bom ? 'Epílogo' : 'O fim', titulo,
