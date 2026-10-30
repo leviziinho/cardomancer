@@ -59,7 +59,7 @@ const SHOTS = {
   reading: { pos: [0, 24, 10], look: [0, 0, -0.7] },
   draft: { pos: [AREA.draft.x, 24, 10.5], look: [AREA.draft.x, 0, 0.2] },
   map: { pos: [AREA.map.x, 17.5, 7.2], look: [AREA.map.x, 0, -0.9] },
-  mapChoice: { pos: [AREA.map.x, 23, 10], look: [AREA.map.x, 0, 1.1] },
+  mapChoice: { pos: [AREA.map.x, 25, 11.5], look: [AREA.map.x, 0, 2.2] },
 };
 
 function roundedRect(w, h, r) {
@@ -210,6 +210,15 @@ function createWorld(canvasEl) {
       right.material.map = tex.rightPage(pages); right.material.needsUpdate = true;
     }
 
+    // Procura uma palavra clicável na página direita a partir do ponto tocado.
+    function linkAt(uv) {
+      const map = right.material.map;
+      const links = map && map.userData.links;
+      if (!links || flip.visible) return null;
+      const x = uv.x * map.image.width, y = (1 - uv.y) * map.image.height;
+      return links.find(l => x >= l.x && x <= l.x + l.w && y >= l.y && y <= l.y + l.h) || null;
+    }
+
     async function turn(pages) {
       const oldL = left.material.map, oldR = right.material.map;
       const newL = tex.leftPage(pages), newR = tex.rightPage(pages);
@@ -226,7 +235,7 @@ function createWorld(canvasEl) {
       flip.visible = false;
       oldL && oldL.dispose(); oldR && oldR.dispose();
     }
-    return { group: g, showFirst, turn };
+    return { group: g, showFirst, turn, linkAt, rightSurface: right };
   })();
 
   // ---- Mapa ----
@@ -253,7 +262,7 @@ function createWorld(canvasEl) {
     const p = LUGARES[key];
     return new THREE.Vector3(AREA.map.x + (p.x - .5) * AREA.map.w, 0.05, AREA.map.z + (p.y - .5) * AREA.map.h);
   };
-  const updateMap = (visitados, destaque) => tex.mapTexture(mapPlane.material.map, visitados, destaque);
+  const updateMap = (visitados, destaque, suspeitos) => tex.mapTexture(mapPlane.material.map, visitados, destaque, suspeitos);
 
   // Pino de viagem
   const pin = (() => {
@@ -305,7 +314,7 @@ function createWorld(canvasEl) {
     scene.add(g);
     candles.push({ sprite, light, flame, seed: Math.random() * 40 });
   }
-  candle(9.3, -6.6, 3.1);
+  candle(11.4, -7.4, 3.1);
   candle(-10.4, -7.4, 2.2);
   candle(9.4, 10, 1.5);
   candle(-29.6, -6.8, 2.6);
@@ -376,6 +385,7 @@ function createWorld(canvasEl) {
   const backTex = tex.cardBack();
   const backMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: .5, envMapIntensity: .6 });
 
+  const hitMat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
   const cards = new Set();
 
   function createCard(spec, { at = [AREA.draft.x + 9.2, .9, -.8], back = null } = {}) {
@@ -392,18 +402,25 @@ function createWorld(canvasEl) {
     g.add(body, front, backMesh);
     g.rotation.x = FACE_DOWN;
     scene.add(g);
+    // Área de clique que não se mexe com o hover, para a carta não fugir do rato.
+    const hit = new THREE.Mesh(faceGeo, hitMat);
+    hit.visible = false;
+    scene.add(hit);
+    g.userData.hit = hit;
     const card = {
-      group: g, spec, front, backMesh,
+      group: g, spec, front, backMesh, hit,
       pos: new THREE.Vector3(...at), scale: 1,
       hover: 0, hoverTarget: 0, hoverScale: .32, hoverLift: 1.6, enabled: false, shake: 0,
     };
     g.userData.card = card;
+    hit.userData.hitOf = card;
     cards.add(card);
     return card;
   }
 
   function removeCard(card) {
     scene.remove(card.group);
+    scene.remove(card.hit);
     card.front.material.map.dispose();
     card.front.material.dispose();
     cards.delete(card);
@@ -441,51 +458,121 @@ function createWorld(canvasEl) {
     return g;
   })();
 
-  // ---- Dados ----
-  const dice = (() => {
-    const s = .86, r = .15;
-    const geo = new THREE.BoxGeometry(s, s, s, 10, 10, 10);
-    const pos = geo.attributes.position, nor = geo.attributes.normal, v = new THREE.Vector3(), inner = s / 2 - r;
-    for (let i = 0; i < pos.count; i++) {
-      v.fromBufferAttribute(pos, i);
-      const c = new THREE.Vector3(THREE.MathUtils.clamp(v.x, -inner, inner), THREE.MathUtils.clamp(v.y, -inner, inner), THREE.MathUtils.clamp(v.z, -inner, inner));
-      const n = v.clone().sub(c).normalize();
-      pos.setXYZ(i, c.x + n.x * r, c.y + n.y * r, c.z + n.z * r);
-      nor.setXYZ(i, n.x, n.y, n.z);
-    }
-    const faces = [3, 4, 1, 6, 2, 5].map(n => new THREE.MeshStandardMaterial({ map: tex.diceFace(n), roughness: .32, envMapIntensity: .6 }));
-    const make = () => {
-      const m = shadowed(new THREE.Mesh(geo, faces));
-      m.rotation.order = 'YXZ';
-      m.visible = false;
-      scene.add(m);
-      return m;
-    };
-    return [make(), make()];
-  })();
-  const FACE_ROT = { 1: [0, 0], 6: [Math.PI, 0], 3: [0, Math.PI / 2], 4: [0, -Math.PI / 2], 2: [-Math.PI / 2, 0], 5: [Math.PI / 2, 0] };
+  // ---- Dados: d6, d8, d10, d12, d20 e o par de d10 das percentagens ----
+  // Cada face é um polígono com a sua célula numa textura com os números.
+  function dieFromPolygons(polys, labels, color, ink) {
+    const cols = 5, rows = 4;
+    const atlas = tex.diceAtlas(labels, color, ink, cols, rows);
+    const positions = [], normals = [], uvs = [], faces = [];
+    polys.forEach((poly, f) => {
+      const c = new THREE.Vector3();
+      poly.forEach(p => c.add(p));
+      c.divideScalar(poly.length);
+      const n = new THREE.Vector3().crossVectors(poly[1].clone().sub(poly[0]), poly[2].clone().sub(poly[0])).normalize();
+      if (n.dot(c) < 0) { n.negate(); poly = [...poly].reverse(); }
+      // O "cima" do número aponta para o primeiro vértice do polígono.
+      const up = poly[0].clone().sub(c).projectOnPlane(n).normalize();
+      const right = new THREE.Vector3().crossVectors(up, n).normalize();
+      const radius = Math.max(...poly.map(p => p.distanceTo(c)));
+      const cu = ((f % cols) + .5) / cols, cv = 1 - (Math.floor(f / cols) + .5) / rows;
+      const uvOf = p => {
+        const d = p.clone().sub(c);
+        return [cu + d.dot(right) / radius * .46 / cols, cv + d.dot(up) / radius * .46 / rows];
+      };
+      for (let i = 1; i < poly.length - 1; i++) {
+        [poly[0], poly[i], poly[i + 1]].forEach(p => {
+          positions.push(p.x, p.y, p.z);
+          normals.push(n.x, n.y, n.z);
+          uvs.push(...uvOf(p));
+        });
+      }
+      faces.push({ n, up, right, height: c.dot(n), value: f });
+    });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    const mesh = shadowed(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: atlas, roughness: .28, metalness: .05, envMapIntensity: .9 })));
+    mesh.visible = false;
+    scene.add(mesh);
+    return { mesh, faces };
+  }
 
-  function rollDice(a, b) {
-    const targets = [[-1, .43, 2.6], [1.05, .43, 2.9]];
-    return Promise.all([a, b].map((val, i) => {
-      const m = dice[i], [tx, ty, tz] = targets[i], [rx, rz] = FACE_ROT[val];
-      const yaw = Math.random() * 6.28, spinX = (4 + i) * Math.PI * 2, spinZ = (3 + i) * Math.PI * 2;
+  // Junta os triângulos de um poliedro regular nas suas faces.
+  function polysOf(geometry) {
+    const g = geometry.index ? geometry.toNonIndexed() : geometry;
+    const pos = g.attributes.position, groups = [];
+    for (let i = 0; i < pos.count; i += 3) {
+      const tri = [0, 1, 2].map(k => new THREE.Vector3().fromBufferAttribute(pos, i + k));
+      const n = new THREE.Vector3().crossVectors(tri[1].clone().sub(tri[0]), tri[2].clone().sub(tri[0])).normalize();
+      const group = groups.find(q => q.n.dot(n) > .99);
+      if (group) group.verts.push(...tri); else groups.push({ n, verts: tri });
+    }
+    return groups.map(({ n, verts }) => {
+      const unique = verts.filter((v, i) => verts.findIndex(o => o.distanceTo(v) < 1e-3) === i);
+      const c = unique.reduce((a, v) => a.add(v), new THREE.Vector3()).divideScalar(unique.length);
+      const a = unique[0].clone().sub(c).normalize(), b = new THREE.Vector3().crossVectors(n, a);
+      return unique.sort((p, q) => {
+        const ang = v => { const d = v.clone().sub(c); return Math.atan2(d.dot(b), d.dot(a)); };
+        return ang(p) - ang(q);
+      });
+    });
+  }
+
+  function d10Polys() {
+    const belt = [];
+    for (let i = 0; i < 10; i++) {
+      const a = i * Math.PI / 5;
+      belt.push(new THREE.Vector3(Math.cos(a), i % 2 ? .105 : -.105, Math.sin(a)));
+    }
+    const top = new THREE.Vector3(0, 1, 0), bottom = new THREE.Vector3(0, -1, 0), polys = [];
+    for (let i = 0; i < 10; i += 2) {
+      polys.push([top, belt[i + 1], belt[i], belt[(i + 9) % 10]].map(v => v.clone()));
+      polys.push([bottom, belt[i], belt[i + 1], belt[(i + 2) % 10]].map(v => v.clone()));
+    }
+    return polys;
+  }
+
+  const seq = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => String(a + i));
+  const DICE = {
+    d20: dieFromPolygons(polysOf(new THREE.IcosahedronGeometry(1, 0)), seq(1, 20), '#7c1f1f', '#f2d48a'),
+    d12: dieFromPolygons(polysOf(new THREE.DodecahedronGeometry(.92, 0)), seq(1, 12), '#23304f', '#f0e2bd'),
+    d10: dieFromPolygons(d10Polys().map(p => p.map(v => v.multiplyScalar(.86))), seq(1, 10), '#2c4a35', '#f0e2bd'),
+    d8: dieFromPolygons(polysOf(new THREE.OctahedronGeometry(.92, 0)), seq(1, 8), '#4f2f73', '#f0e2bd'),
+    d6: dieFromPolygons(polysOf(new THREE.BoxGeometry(1.12, 1.12, 1.12)), seq(1, 6), '#efe5cc', '#7c1f1f'),
+    dez: dieFromPolygons(d10Polys().map(p => p.map(v => v.multiplyScalar(.86))), ['00', '10', '20', '30', '40', '50', '60', '70', '80', '90'], '#191310', '#f2d48a'),
+    uni: dieFromPolygons(d10Polys().map(p => p.map(v => v.multiplyScalar(.86))), seq(0, 9), '#efe5cc', '#191310'),
+  };
+  const worldFrame = new THREE.Matrix4().makeBasis(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 1, 0));
+
+  // lista: [{ tipo: 'd20', face: 0–n }]. A face é o índice do número, a contar de 0.
+  function rollDice(lista) {
+    const n = lista.length;
+    return Promise.all(lista.map(({ tipo, face }, i) => {
+      const die = DICE[tipo], f = die.faces[face], m = die.mesh;
+      const frame = new THREE.Matrix4().makeBasis(f.right, f.up, f.n);
+      const rest = new THREE.Quaternion().setFromRotationMatrix(worldFrame.clone().multiply(frame.invert()));
+      const yaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (Math.random() - .5) * .7);
+      const final = yaw.multiply(rest);
+      const axis = new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize();
+      const spin = (5 + i) * Math.PI * 2;
+      const q = new THREE.Quaternion();
+      const tx = (i - (n - 1) / 2) * 2.5, tz = 2.8 + (i % 2) * .35;
       m.visible = true;
       let last = 0;
-      return tween(1.15, (e, raw) => {
-        m.position.set(tx + (1 - e) * (7 + i), ty, tz + (1 - e) * 5);
+      return tween(1.25, (e, raw) => {
+        m.position.x = tx + (1 - e) * (7 + i);
+        m.position.z = tz + (1 - e) * 5;
         // saltos decrescentes
-        const bounce = Math.abs(Math.cos(raw * Math.PI * 3.5)) * Math.pow(1 - raw, 1.7) * 3.2;
-        m.position.y = ty + bounce;
-        m.rotation.x = rx + spinX * (1 - e);
-        m.rotation.z = rz + spinZ * (1 - e);
-        m.rotation.y = yaw + 3 * (1 - e);
+        m.position.y = f.height + Math.abs(Math.cos(raw * Math.PI * 3.5)) * Math.pow(1 - raw, 1.7) * 3.2;
+        q.setFromAxisAngle(axis, spin * (1 - e));
+        m.quaternion.copy(q).multiply(final);
         const hit = Math.floor(raw * 3.5 + .5);
         if (hit !== last && raw < .92) { last = hit; sfx.dice(); }
       }, { ease: easeOut });
     }));
   }
-  const hideDice = () => dice.forEach(d => (d.visible = false));
+  const hideDice = () => Object.values(DICE).forEach(d => (d.mesh.visible = false));
 
   // ---- Fichas de Vida, Ouro e Pistas sobre a mesa ----
   const tokens = (() => {
@@ -562,14 +649,28 @@ function createWorld(canvasEl) {
   const ray = new THREE.Raycaster();
   let choice = null, hovered = null;
 
+  // A área fixa decide quem é apanhado. Uma carta já levantada continua apanhada
+  // enquanto o rato estiver sobre ela ou sobre o sítio de onde saiu.
   function pickCardAtMouse() {
     ray.setFromCamera(mouse.ndc, camera);
-    const groups = [...cards].filter(c => c.enabled || c.inspectable).map(c => c.group);
-    const hit = ray.intersectObjects(groups, true)[0];
-    if (!hit) return null;
-    let o = hit.object;
-    while (o && !o.userData.card) o = o.parent;
-    return o ? o.userData.card : null;
+    const live = [...cards].filter(c => c.enabled || c.inspectable);
+    const targets = live.map(c => c.hit);
+    if (hovered && live.includes(hovered)) targets.push(hovered.group);
+    const hits = ray.intersectObjects(targets, true);
+    if (!hits.length) return null;
+    const owner = o => {
+      if (o.userData.hitOf) return o.userData.hitOf;
+      while (o && !o.userData.card) o = o.parent;
+      return o ? o.userData.card : null;
+    };
+    const owners = hits.map(h => owner(h.object));
+    return hovered && owners.includes(hovered) ? hovered : owners[0];
+  }
+
+  function bookLinkAtMouse() {
+    ray.setFromCamera(mouse.ndc, camera);
+    const hit = ray.intersectObject(book.rightSurface, false)[0];
+    return hit ? book.linkAt(hit.uv) : null;
   }
 
   function choose(list) {
@@ -590,14 +691,19 @@ function createWorld(canvasEl) {
   }
 
   const trackMouse = e => {
-    mouse.ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+    const r = canvasEl.getBoundingClientRect();
+    mouse.ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     mouse.x = mouse.ndc.x; mouse.y = mouse.ndc.y;
   };
   window.addEventListener('pointermove', trackMouse);
+  canvasEl.addEventListener('pointerleave', () => mouse.ndc.set(-5, -5));
+  const handlers = { link: null };
   canvasEl.addEventListener('click', e => {
     trackMouse(e);
     const c = pickCardAtMouse();
-    if (c) select(c);
+    if (c) { select(c); return; }
+    const link = bookLinkAtMouse();
+    if (link && handlers.link) handlers.link(link);
   });
   window.addEventListener('keydown', e => {
     if (!choice) return;
@@ -606,8 +712,10 @@ function createWorld(canvasEl) {
   });
 
   function resize() {
-    renderer.setSize(innerWidth, innerHeight);
-    camera.aspect = innerWidth / innerHeight;
+    const rail = document.getElementById('rail');
+    const w = innerWidth - (rail ? rail.offsetWidth : 0);
+    renderer.setSize(w, innerHeight);
+    camera.aspect = w / innerHeight;
     camera.updateProjectionMatrix();
   }
   window.addEventListener('resize', resize);
@@ -615,6 +723,7 @@ function createWorld(canvasEl) {
 
   // ---- Ciclo ----
   const clock = new THREE.Clock();
+  let lastHoverSound = 0;
   function loop() {
     requestAnimationFrame(loop);
     const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
@@ -632,14 +741,6 @@ function createWorld(canvasEl) {
 
     applyCamera(t);
 
-    const over = pickCardAtMouse();
-    if (over !== hovered) {
-      hovered && (hovered.hoverTarget = 0);
-      hovered = over;
-      if (hovered) { hovered.hoverTarget = 1; if (!hovered.spec.locked) sfx.card(); }
-    }
-    canvasEl.style.cursor = over && over.enabled && !over.spec.locked ? 'pointer' : 'default';
-
     for (const c of cards) {
       c.hover += (c.hoverTarget - c.hover) * Math.min(1, dt * 11);
       c.shake = Math.max(0, c.shake - dt * 2.6);
@@ -649,10 +750,29 @@ function createWorld(canvasEl) {
       g.position.z -= c.hover * .5;
       g.position.x += Math.sin(c.shake * 26) * c.shake * .18;
       g.scale.setScalar(c.scale * (1 + c.hover * c.hoverScale));
+      g.updateMatrixWorld(true);
+      c.hit.position.copy(c.pos);
+      c.hit.rotation.copy(g.rotation);
+      c.hit.scale.setScalar(c.scale);
+      c.hit.updateMatrixWorld(true);
     }
+
+    camera.updateMatrixWorld();
+    const over = pickCardAtMouse();
+    if (over !== hovered) {
+      hovered && (hovered.hoverTarget = 0);
+      hovered = over;
+      if (hovered) {
+        hovered.hoverTarget = 1;
+        if (!hovered.spec.locked && t - lastHoverSound > .12) { lastHoverSound = t; sfx.card(); }
+      }
+    }
+    const link = !over && bookLinkAtMouse();
+    canvasEl.style.cursor = (over && over.enabled && !over.spec.locked) || link ? 'pointer' : 'default';
+
     renderer.render(scene, camera);
   }
   loop();
 
-  return { scene, camera, renderer, tex, book, updateMap, pin, movePin, mapToWorld, tokens, shot, cam, createCard, removeCard, fly, choose, rollDice, hideDice, cards };
+  return { scene, camera, renderer, tex, book, updateMap, pin, movePin, mapToWorld, tokens, shot, cam, createCard, removeCard, fly, choose, rollDice, hideDice, cards, resize, handlers };
 }

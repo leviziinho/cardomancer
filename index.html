@@ -23,26 +23,42 @@
 
 <div id="prompt"><h2 id="prompt-title"></h2><p id="prompt-sub"></p></div>
 <div id="toast"></div>
+<div id="aviso"></div>
 
-<aside id="hud">
-  <div id="hud-name"></div>
-  <div class="stats">
-    <span class="stat vida"><b id="hud-vida">0</b> Vida</span>
-    <span class="stat ouro"><b id="hud-ouro">0</b> Ouro</span>
-    <span class="stat pistas"><b id="hud-pistas">0</b> Pistas</span>
-  </div>
-  <div id="hud-attrs"></div>
-  <div class="tools">
+<nav id="rail" aria-label="Estado da personagem">
+  <div class="r-stat vida"><b id="r-vida">-</b><span>Vida</span></div>
+  <div class="r-stat ouro"><b id="r-ouro">0</b><span>Ouro</span></div>
+  <div class="r-stat dia"><b id="r-dia">-</b><span>Dia</span></div>
+  <div class="r-stat pistas"><b id="r-pistas">-</b><span>Pistas</span></div>
+  <div class="r-stat nivel"><b id="r-nivel">1</b><span>Nível</span></div>
+  <div class="r-tools">
+    <button id="abrir-painel">Ficha</button>
     <button id="peek-map">Mapa</button>
-    <button id="peek-sheet">Ficha</button>
+    <button id="peek-mesa">Mesa</button>
     <button id="mute">Som: sim</button>
   </div>
+</nav>
+
+<aside id="painel" aria-label="Ficha da personagem">
+  <button id="fechar-painel" aria-label="Fechar a ficha">Fechar</button>
+  <div id="painel-corpo"></div>
 </aside>
+
+<div id="lore" role="dialog" aria-modal="true">
+  <article>
+    <h2 id="lore-titulo"></h2>
+    <p id="lore-texto"></p>
+    <small>Clique em qualquer sítio para fechar.</small>
+  </article>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 <script src="js/data.js"></script>
+<script src="js/historia.js"></script>
+<script src="js/regras.js"></script>
+<script src="js/partida.js"></script>
 <script src="js/textures.js"></script>
 <script src="js/scene.js"></script>
-<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
 </body>
 </html>

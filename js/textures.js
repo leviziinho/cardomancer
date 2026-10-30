@@ -22,6 +22,14 @@ const GLYPHS = {
   tower: 'M24 92V32h-7V10h13v9h8v-9h24v9h8v-9h13v22h-7v60H58V68a8 8 0 0 0-16 0v24z',
   lock: 'M30 44V30a20 20 0 0 1 40 0v14h8v48H22V44z M41 44h18V30a9 9 0 0 0-18 0z',
   crown: 'M10 76L4 26l24 20L50 12l22 34 24-20-6 50z M12 82h76v9H12z',
+  peak: 'M3 90L36 22l17 30 12-20 32 58z',
+  drop: 'M50 5C62 30 84 46 84 64a34 34 0 0 1-68 0C16 46 38 30 50 5z',
+  sword: 'M50 3l8 12v52h15v8H57v12l5 9H38l5-9V75H27v-8h15V15z',
+  shield: 'M50 5l36 12v30c0 24-16 40-36 48-20-8-36-24-36-48V17z',
+  coin: 'M50 8a42 42 0 1 0 .01 0z M50 24a26 26 0 1 1-.01 0z',
+  rune: 'M28 6h10v36l24-36h12L50 42l26 52H64L40 48l-2 2v44H28z',
+  person: 'M50 8a19 19 0 1 0 .01 0z M50 50c24 0 36 14 36 42H14c0-28 12-42 36-42z',
+  hourglass: 'M20 6h60v9h-6c0 16-8 26-18 35 10 9 18 19 18 35h6v9H20v-9h6c0-16 8-26 18-35-10-9-18-19-18-35h-6z',
   moon: 'M62 6a44 44 0 1 0 32 74A38 38 0 0 1 62 6z',
   flame: 'M50 4c6 22 30 30 30 58 0 20-14 34-30 34S20 82 20 62c0-14 8-22 12-30 2 10 8 14 12 14 4-14-2-28 6-42z',
   seal: 'M50 8l11 8 14-1 5 13 12 8-4 14 4 14-12 8-5 13-14-1-11 8-11-8-14 1-5-13-12-8 4-14-4-14 12-8 5-13 14 1z',
@@ -34,7 +42,12 @@ const CARD_THEMES = {
   equipamento: { band: '#6e4a1e', accent: '#d8b45e', label: 'Equipamento' },
   cidade: { band: '#27505f', accent: '#c9a24a', label: 'Cidade' },
   escolha: { band: '#4a3a28', accent: '#b8914a', label: 'Escolha' },
-  especial: { band: '#6d1a4f', accent: '#e0bb62', label: 'Especial' },
+  combate: { band: '#7c1f1f', accent: '#c9a24a', label: 'Combate' },
+  social: { band: '#234a7a', accent: '#c9a24a', label: 'Social' },
+  habilidade: { band: '#2f5a33', accent: '#c9a24a', label: 'Habilidade' },
+  investigacao: { band: '#4f2f73', accent: '#c9a24a', label: 'Investigação' },
+  talento: { band: '#14535a', accent: '#d8b45e', label: 'Talento' },
+  rara: { band: '#8a6414', accent: '#f4d675', label: 'Rara' },
   destino: { band: '#191310', accent: '#c9a24a', label: 'Trama Secreta' },
 };
 
@@ -94,7 +107,7 @@ function wrapLines(ctx, text, maxW) {
   const out = [];
   for (const para of String(text).split('\n')) {
     let line = '';
-    for (const word of para.split(/\s+/)) {
+    for (const word of para.split(' ')) {
       const test = line ? line + ' ' + word : word;
       if (ctx.measureText(test).width > maxW && line) { out.push(line); line = word; }
       else line = test;
@@ -238,8 +251,27 @@ function textures(renderer) {
     x.beginPath(); x.moveTo(170, 878); x.lineTo(CARD_W - 170, 878); x.stroke();
     drawGlyph(x, 'star', CARD_W / 2, 878, 44, th.band);
 
+    // brilho dourado das cartas raras
+    if (spec.tema === 'rara') {
+      x.save();
+      x.strokeStyle = '#f4d675'; x.lineWidth = 10; x.strokeRect(30, 30, CARD_W - 60, CARD_H - 60);
+      const foil = x.createLinearGradient(0, 0, CARD_W, CARD_H);
+      foil.addColorStop(0, 'rgba(255,225,130,.2)');
+      foil.addColorStop(.5, 'rgba(255,255,255,0)');
+      foil.addColorStop(1, 'rgba(255,205,90,.24)');
+      x.fillStyle = foil; x.fillRect(0, 0, CARD_W, CARD_H);
+      x.restore();
+    }
+
     // descrição
-    fitText(x, spec.desc || '', CARD_W / 2, 898, CARD_W - 170, 330, 56, 34, FONT_BODY, '#33230f');
+    fitText(x, spec.desc || '', CARD_W / 2, 898, CARD_W - 170, spec.ganho ? 250 : 330, 56, 32, FONT_BODY, '#33230f');
+
+    // o que a escolha pode render
+    if (spec.ganho) {
+      x.textAlign = 'center'; x.fillStyle = th.band;
+      x.font = `italic 42px ${FONT_BODY}`;
+      x.fillText(spec.ganho, CARD_W / 2, CARD_H - 192);
+    }
 
     // rodapé
     if (spec.rodape) {
@@ -366,20 +398,59 @@ function textures(renderer) {
       y += 76;
     }
 
+    // Os termos clicáveis ficam presos por espaços inseparáveis, para não partirem na linha.
+    const termos = (p.termos || []).slice().sort((a, b) => b.nome.length - a.nome.length);
+    let texto = p.texto || '';
+    termos.forEach(t => { texto = texto.split(t.nome).join(t.nome.replace(/ /g, ' ')); });
+    const presos = termos.map(t => ({ nome: t.nome.replace(/ /g, ' '), id: t.id }));
+
     // Escolhe o maior tamanho de letra que cabe na página.
-    let size = 66, lines, lh;
-    const footerH = (p.rodape ? 90 : 0);
+    let size = 62, lines, lh;
+    const footerH = (p.rodape ? 90 : 0) + (p.fundo ? 80 : 0);
     for (; size >= 34; size -= 2) {
       x.font = `${size}px ${FONT_BODY}`;
-      lines = wrapLines(x, p.texto || '', maxW);
+      lines = wrapLines(x, texto, maxW);
       lh = size * 1.3;
       if (y + lines.length * lh + footerH < PAGE_H - 80) break;
     }
-    x.fillStyle = '#26170a';
     x.textAlign = 'left';
     x.font = `${size}px ${FONT_BODY}`;
     y += size;
-    lines.forEach((l, i) => x.fillText(l, marginL, y + i * lh));
+    const links = [];
+    lines.forEach((l, i) => {
+      const by = y + i * lh;
+      let cursor = marginL, rest = l;
+      while (rest) {
+        let best = null;
+        presos.forEach(t => {
+          const at = rest.indexOf(t.nome);
+          if (at >= 0 && (!best || at < best.at)) best = { at, t };
+        });
+        const plain = best ? rest.slice(0, best.at) : rest;
+        x.fillStyle = '#26170a';
+        x.fillText(plain, cursor, by);
+        cursor += x.measureText(plain).width;
+        if (!best) break;
+        const w = x.measureText(best.t.nome).width;
+        x.fillStyle = '#8a1d16';
+        x.fillText(best.t.nome, cursor, by);
+        x.fillRect(cursor, by + 6, w, 3);
+        links.push({ x: cursor, y: by - size, w, h: size * 1.3, id: best.t.id });
+        cursor += w;
+        rest = rest.slice(best.at + best.t.nome.length);
+      }
+    });
+
+    if (p.fundo) {
+      const label = 'Ler mais sobre esta cena';
+      x.font = `italic 44px ${FONT_BODY}`;
+      x.textAlign = 'left';
+      const w = x.measureText(label).width, lx = marginL, ly = PAGE_H - (p.rodape ? 190 : 110);
+      x.fillStyle = '#8a1d16';
+      x.fillText(label, lx, ly);
+      x.fillRect(lx, ly + 7, w, 3);
+      links.push({ x: lx, y: ly - 44, w, h: 62, id: 'cena' });
+    }
 
     if (p.rodape) {
       x.textAlign = 'center';
@@ -387,7 +458,9 @@ function textures(renderer) {
       x.font = `italic 40px ${FONT_BODY}`;
       x.fillText(p.rodape, marginL + maxW / 2, PAGE_H - 110);
     }
-    return toTexture(c, renderer);
+    const tex = toTexture(c, renderer);
+    tex.userData.links = links;
+    return tex;
   }
 
   function gutter(x, w, h, side) {
@@ -480,7 +553,7 @@ function textures(renderer) {
   }
 
   // visitados: lista ordenada de chaves de LUGARES; destaque: chaves a realçar.
-  function mapTexture(tex, visitados = [], destaque = []) {
+  function mapTexture(tex, visitados = [], destaque = [], suspeitos = []) {
     if (!mapBase) buildMapBase();
     const [c, x] = tex ? [tex.image, tex.image.getContext('2d')] : canvas(MAP_W, MAP_H);
     x.drawImage(mapBase, 0, 0);
@@ -510,6 +583,11 @@ function textures(renderer) {
         x.beginPath(); x.arc(px, py, 19, 0, 7); x.fill();
         x.strokeStyle = '#e9dbb8'; x.lineWidth = 5; x.stroke();
       }
+      if (suspeitos.includes(key)) {
+        x.strokeStyle = '#a4161a'; x.lineWidth = 9;
+        x.beginPath(); x.arc(px, py, 58, 0, 7); x.stroke();
+        drawGlyph(x, 'eye', px, py - 96, 64, '#a4161a');
+      }
       x.font = `700 ${p.cidade ? 58 : 48}px ${FONT_TITLE}`;
       x.textAlign = 'center';
       x.lineWidth = 11; x.strokeStyle = 'rgba(232,216,176,.92)'; x.lineJoin = 'round';
@@ -521,13 +599,19 @@ function textures(renderer) {
     return toTexture(c, renderer);
   }
 
-  function diceFace(n) {
-    const [c, x] = canvas(256, 256);
-    x.fillStyle = '#efe5cc'; x.fillRect(0, 0, 256, 256);
-    speckle(x, 256, 256, 1000, 0.06);
-    const P = { 1: [[2, 2]], 2: [[1, 1], [3, 3]], 3: [[1, 1], [2, 2], [3, 3]], 4: [[1, 1], [3, 1], [1, 3], [3, 3]], 5: [[1, 1], [3, 1], [2, 2], [1, 3], [3, 3]], 6: [[1, 1], [3, 1], [1, 2], [3, 2], [1, 3], [3, 3]] };
-    x.fillStyle = '#7c1f1f';
-    P[n].forEach(([a, b]) => { x.beginPath(); x.arc(a * 64, b * 64, 25, 0, 7); x.fill(); });
+  // Textura com os números de um dado, uma célula por face.
+  function diceAtlas(labels, color, ink, cols, rows) {
+    const cell = 200;
+    const [c, x] = canvas(cols * cell, rows * cell);
+    x.fillStyle = color; x.fillRect(0, 0, c.width, c.height);
+    speckle(x, c.width, c.height, 1800, .1);
+    x.fillStyle = ink; x.textAlign = 'center'; x.textBaseline = 'middle';
+    labels.forEach((l, i) => {
+      const px = (i % cols + .5) * cell, py = (Math.floor(i / cols) + .5) * cell;
+      x.font = `700 ${l.length > 1 ? 66 : 82}px ${FONT_TITLE}`;
+      x.fillText(l, px, py);
+      if (l === '6' || l === '9') x.fillRect(px - 20, py + 36, 40, 7);
+    });
     return toTexture(c, renderer);
   }
 
@@ -548,5 +632,5 @@ function textures(renderer) {
     return toTexture(c, renderer);
   }
 
-  return { wood, leather, cardBack, cardFace, leftPage, rightPage, mapTexture, diceFace, glowSprite, pageEdge, CARD_W, CARD_H };
+  return { wood, leather, cardBack, cardFace, leftPage, rightPage, mapTexture, diceAtlas, glowSprite, pageEdge, CARD_W, CARD_H };
 }

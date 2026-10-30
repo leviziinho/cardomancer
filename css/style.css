@@ -6,7 +6,7 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: #070403; overflow: hidden; color: var(--cream); font-family: "EB Garamond", Georgia, serif; }
-#view { position: fixed; inset: 0; display: block; width: 100%; height: 100%; }
+#view { position: fixed; left: 0; top: 0; display: block; }
 #vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 46%, transparent 52%, rgba(0, 0, 0, .62) 100%); }
 
 button {
@@ -26,7 +26,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #title p { margin: 14px 0 30px; font-size: clamp(20px, 2vw, 30px); font-style: italic; }
 #start { font-size: 22px; padding: 14px 34px; }
 
-#prompt { position: fixed; top: 22px; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; opacity: 0; transition: opacity .35s; text-shadow: 0 2px 14px #000, 0 0 3px #000; width: min(760px, 90vw); }
+#prompt { position: fixed; top: 14px; left: calc(50% - 46px); transform: translateX(-50%); text-align: center; pointer-events: none; opacity: 0; transition: opacity .35s; text-shadow: 0 1px 3px #000; width: min(760px, 80vw); padding: 8px 22px 10px; background: rgba(20, 11, 7, .82); border: 1px solid var(--line); border-radius: 3px; }
 #prompt.on { opacity: 1; }
 #prompt h2 { margin: 0; font: 600 clamp(22px, 2.4vw, 36px) "Cinzel", Georgia, serif; color: var(--gold); }
 #prompt p { margin: 4px 0 0; font-size: clamp(16px, 1.4vw, 21px); font-style: italic; }
@@ -36,19 +36,56 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #toast.good { border-color: #6ea56e; color: #cfe8c4; }
 #toast.bad { border-color: #b4534c; color: #f0bcb4; }
 
-#hud { position: fixed; left: 0; right: 0; bottom: 0; display: none; align-items: center; gap: 22px; padding: 6px 14px; background: var(--ink); border-top: 1px solid var(--line); font-size: 16px; white-space: nowrap; }
-#hud.on { display: flex; }
-#hud-name { font: 600 16px "Cinzel", Georgia, serif; color: var(--gold); }
-.stats { display: flex; gap: 14px; }
-.stat b { font: 700 18px "Cinzel", Georgia, serif; }
-.stat.vida b { color: #e8675f; }
-.stat.ouro b { color: #e4bf63; }
-.stat.pistas b { color: #d9cba2; }
-#hud-attrs { font-size: 15px; opacity: .9; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
-.tools { display: flex; gap: 6px; margin-left: auto; }
-.tools button { font-size: 12px; padding: 5px 11px; }
-@media (max-width: 1050px) { #hud-attrs { display: none; } }
-@media (max-width: 720px) { #hud-name { display: none; } }
+#aviso { position: fixed; left: calc(50% - 46px); top: 18%; transform: translateX(-50%); width: min(640px, 80vw); padding: 18px 26px; text-align: center; font-size: clamp(19px, 1.6vw, 25px); font-style: italic; background: rgba(50, 10, 8, .92); border: 1px solid #b4534c; border-radius: 3px; opacity: 0; pointer-events: none; transition: opacity .3s; }
+#aviso.on { opacity: 1; }
+
+#rail { position: fixed; top: 0; right: 0; bottom: 0; width: 92px; display: none; flex-direction: column; gap: 5px; padding: 12px 8px; background: #120a06; border-left: 1px solid var(--line); text-align: center; }
+#rail.on { display: flex; }
+#rail.pressa .dia b { color: #ff6a5c; animation: pulso 1.2s infinite; }
+.r-stat b { display: block; font: 700 19px/1.2 "Cinzel", Georgia, serif; }
+.r-stat span { font-size: 13px; opacity: .78; }
+.r-stat.vida b { color: #e8675f; }
+.r-stat.ouro b { color: #e4bf63; }
+.r-stat.dia b { color: var(--cream); }
+.r-stat.pistas b { color: #c9a6e8; }
+.r-stat.nivel b { color: #7fd0c8; }
+.r-tools { margin-top: auto; display: flex; flex-direction: column; gap: 5px; }
+.r-tools button { font-size: 12px; padding: 7px 2px; }
+@keyframes pulso { 50% { opacity: .45; } }
+
+#painel { position: fixed; top: 0; right: 92px; bottom: 0; width: min(390px, calc(100vw - 92px)); padding: 16px 18px 24px; overflow-y: auto; background: #1c120b; border-left: 1px solid var(--line); box-shadow: -14px 0 34px rgba(0, 0, 0, .55); transform: translateX(110%); visibility: hidden; transition: transform .25s ease, visibility .25s; }
+#painel.on { transform: none; visibility: visible; }
+#fechar-painel { float: right; font-size: 12px; padding: 5px 10px; }
+#painel header h2 { margin: 0 0 3px; font: 600 19px/1.25 "Cinzel", Georgia, serif; color: var(--gold); padding-right: 64px; }
+#painel header p { margin: 0 0 7px; font-size: 16px; }
+.barra { height: 7px; background: #3a271a; border-radius: 4px; overflow: hidden; }
+.barra i { display: block; height: 100%; background: #7fd0c8; }
+#painel section { margin-top: 17px; }
+#painel h3 { margin: 0 0 7px; padding-bottom: 3px; font: 600 14px "Cinzel", Georgia, serif; letter-spacing: .05em; color: var(--gold); border-bottom: 1px solid var(--line); }
+#painel ul { list-style: none; margin: 0; padding: 0; }
+.grelha { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px; }
+.grelha li { display: flex; justify-content: space-between; font-size: 16px; }
+.grelha b { font-family: "Cinzel", Georgia, serif; }
+.missao { margin: 0 0 3px; font-size: 18px; font-weight: 600; }
+.pequeno { margin: 0; font-size: 15px; opacity: .85; }
+.slot, .talento { position: relative; padding: 6px 8px; margin-bottom: 4px; background: rgba(255, 235, 195, .05); border-left: 3px solid #6e4a1e; }
+.slot.vazio { opacity: .55; border-left-color: #4a3a28; }
+.slot .rotulo { display: block; font: 600 11px "Cinzel", Georgia, serif; letter-spacing: .05em; opacity: .75; }
+.slot .nome, .talento .nome { display: block; font-size: 17px; font-weight: 600; }
+.slot .desc, .talento .desc { display: block; font-size: 14.5px; line-height: 1.25; opacity: .82; }
+.slot button { margin-top: 5px; font-size: 12px; padding: 4px 12px; }
+.slot button:disabled { opacity: .4; cursor: default; }
+.talento { opacity: .42; border-left-color: #4a3a28; }
+.talento.pode { opacity: .72; border-left-color: #14535a; }
+.talento.tem { opacity: 1; border-left-color: #7fd0c8; background: rgba(127, 208, 200, .1); }
+.talento.filho { margin-left: 18px; }
+
+#lore { position: fixed; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(0, 0, 0, .55); }
+#lore.on { display: flex; }
+#lore article { width: min(560px, 100%); max-height: 85vh; overflow-y: auto; padding: 26px 30px; color: #2a1a0d; background: #e9dbb8; border: 3px double #6e4a1e; border-radius: 3px; box-shadow: 0 18px 50px rgba(0, 0, 0, .7); }
+#lore h2 { margin: 0 0 10px; font: 700 26px/1.2 "Cinzel", Georgia, serif; color: #6d1f1a; }
+#lore p { margin: 0 0 14px; font-size: 20px; line-height: 1.4; }
+#lore small { font-size: 15px; font-style: italic; opacity: .75; }
 
 @keyframes rise { from { opacity: 0; transform: translateY(calc(-50% + 18px)); } }
 @media (prefers-reduced-motion: reduce) { #title.on { animation: none; } }
