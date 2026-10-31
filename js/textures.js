@@ -5,6 +5,7 @@ const FONT_TITLE = '"Cinzel", Georgia, serif';
 const FONT_BODY = '"EB Garamond", Georgia, serif';
 
 const GLYPHS = {
+  fist: 'M20 44h12V24h11v20h5V16h11v28h5V24h11v20h5c4 0 6 3 6 7v9c0 22-14 36-34 36S20 82 20 60z',
   axe: 'M40 4h10v92H40z M50 18l10 4c5-9 13-15 24-18 12 15 12 43 0 60-11-3-19-9-24-18l-10 4z M40 22L24 30l16 8z',
   heart: 'M50 92C20 68 5 51 5 32 5 18 16 8 29 8c9 0 17 5 21 14C54 13 62 8 71 8c13 0 24 10 24 24 0 19-15 36-45 60z',
   dagger: 'M50 4l10 52H40z M28 56h44v8H28z M44 64h12v22H44z M40 86h20v9H40z',
@@ -521,30 +522,53 @@ function textures(renderer) {
 
   // Mapa: desenha a base uma vez e volta a desenhar o trilho percorrido em cima.
   const MAP_W = 2800, MAP_H = 2000;
-  let mapBase = null;
+  const mapBases = {};
 
   function buildMapBase() {
     const [c, x] = canvas(MAP_W, MAP_H);
     paintParchment(x, MAP_W, MAP_H, '#dcc899');
     const W = MAP_W, H = MAP_H;
 
-    // Mar a leste e a sul
+    const azul = 'rgba(70,110,120,.42)';
+
+    // O mar. Só os pontos na costa tremem: os da moldura ficam onde estão.
     x.beginPath();
-    x.moveTo(W, H * .34);
-    const coast = [[.92, .40], [.86, .46], [.83, .55], [.87, .64], [.82, .72], [.80, .82], [.68, .87], [.58, .94], [.40, .96], [.26, .91], [.13, .85], [.05, .80], [0, .76]];
-    coast.forEach(([a, b]) => x.lineTo(W * a + (Math.random() - .5) * 18, H * b + (Math.random() - .5) * 18));
-    x.lineTo(0, H); x.lineTo(W, H); x.closePath();
-    x.fillStyle = 'rgba(70,110,120,.42)'; x.fill();
+    MAPA.mar.forEach(([a, b], i) => {
+      const borda = a === 0 || a === 1 || b === 0 || b === 1;
+      const px = W * a + (borda ? 0 : (Math.random() - .5) * 18), py = H * b + (borda ? 0 : (Math.random() - .5) * 18);
+      if (i) x.lineTo(px, py); else x.moveTo(px, py);
+    });
+    x.closePath();
+    x.fillStyle = azul; x.fill();
     x.lineWidth = 7; x.strokeStyle = '#3a2412'; x.stroke();
     x.save(); x.clip();
     x.strokeStyle = 'rgba(30,60,70,.42)'; x.lineWidth = 3;
-    for (let r = 0; r < 260; r++) {
-      const px = Math.random() * W, py = H * .34 + Math.random() * H * .66;
+    for (let r = 0; r < 640; r++) {
+      const px = Math.random() * W, py = Math.random() * H;
       x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + 22, py - 12, px + 44, py); x.quadraticCurveTo(px + 66, py + 12, px + 88, py); x.stroke();
     }
     x.restore();
 
-    // Serra a norte
+    // Ilhas e lagos
+    (MAPA.ilhas || []).forEach(i => {
+      x.beginPath(); x.ellipse(W * i.x, H * i.y, W * i.rx, H * i.ry, .3, 0, 7);
+      x.fillStyle = i.cor; x.fill();
+      x.lineWidth = 7; x.strokeStyle = '#3a2412'; x.stroke();
+    });
+    (MAPA.lagos || []).forEach(l => {
+      x.beginPath(); x.ellipse(W * l.x, H * l.y, W * l.rx, H * l.ry, 0, 0, 7);
+      x.fillStyle = 'rgba(70,110,120,.6)'; x.fill();
+      x.lineWidth = 5; x.strokeStyle = '#3a2412'; x.stroke();
+    });
+    (MAPA.rios || []).forEach(rio => {
+      x.beginPath();
+      rio.forEach(([a, b], i) => (i ? x.lineTo(W * a, H * b) : x.moveTo(W * a, H * b)));
+      x.lineCap = 'round'; x.lineJoin = 'round';
+      x.lineWidth = 17; x.strokeStyle = '#3a2412'; x.stroke();
+      x.lineWidth = 10; x.strokeStyle = '#7c9ca2'; x.stroke();
+    });
+
+    // Serras
     const mountain = (mx, my, s) => {
       x.fillStyle = '#d6c08f';
       x.beginPath(); x.moveTo(mx - s, my); x.lineTo(mx, my - s * 1.25); x.lineTo(mx + s, my); x.closePath(); x.fill();
@@ -552,37 +576,43 @@ function textures(renderer) {
       x.lineWidth = 2.6;
       for (let i = 1; i < s / 9; i++) { x.beginPath(); x.moveTo(mx + i * 4, my - s * 1.25 + i * 10); x.lineTo(mx + i * 7.4, my - 3); x.stroke(); }
     };
-    const ridge = [];
-    for (let i = 0; i < 56; i++) ridge.push([W * (.24 + Math.random() * .58), H * (.03 + Math.random() * .20)]);
-    ridge.sort((a, b) => a[1] - b[1]).forEach(([a, b]) => mountain(a, b + 60, 46 + Math.random() * 44));
+    MAPA.serras.forEach(z => {
+      const ridge = [];
+      for (let i = 0; i < z.n; i++) ridge.push([W * (z.x + Math.random() * z.w), H * (z.y + Math.random() * z.h)]);
+      ridge.sort((a, b) => a[1] - b[1]).forEach(([a, b]) => mountain(a, b + 60, 46 + Math.random() * 44));
+    });
 
-    // Floresta
+    // Florestas
     const tree = (tx, ty, s) => {
       x.fillStyle = '#4e6b3c';
       x.beginPath(); x.moveTo(tx, ty - s); x.lineTo(tx - s * .46, ty); x.lineTo(tx + s * .46, ty); x.closePath(); x.fill();
       x.strokeStyle = '#26361e'; x.lineWidth = 3; x.stroke();
     };
-    const forest = [];
-    for (let i = 0; i < 190; i++) {
-      const a = Math.random() * 6.28, r = Math.sqrt(Math.random());
-      forest.push([W * (.30 + Math.cos(a) * r * .15), H * (.50 + Math.sin(a) * r * .14)]);
-    }
-    forest.sort((a, b) => a[1] - b[1]).forEach(([a, b]) => tree(a, b, 34 + Math.random() * 22));
+    MAPA.florestas.forEach(z => {
+      const forest = [];
+      for (let i = 0; i < z.n; i++) {
+        const a = Math.random() * 6.28, r = Math.sqrt(Math.random());
+        forest.push([W * (z.x + Math.cos(a) * r * z.rx), H * (z.y + Math.sin(a) * r * z.ry)]);
+      }
+      forest.sort((a, b) => a[1] - b[1]).forEach(([a, b]) => tree(a, b, 34 + Math.random() * 22));
+    });
 
-    // Pântano
+    // Pântanos
     x.strokeStyle = '#34452c'; x.lineWidth = 3;
-    for (let i = 0; i < 180; i++) {
-      const a = Math.random() * 6.28, r = Math.sqrt(Math.random());
-      const px = W * (.58 + Math.cos(a) * r * .09), py = H * (.66 + Math.sin(a) * r * .08);
-      x.beginPath(); x.moveTo(px - 14, py); x.lineTo(px + 14, py); x.moveTo(px - 5, py); x.lineTo(px - 9, py - 16); x.moveTo(px + 4, py); x.lineTo(px + 8, py - 18); x.stroke();
-    }
+    MAPA.pantanos.forEach(z => {
+      for (let i = 0; i < z.n; i++) {
+        const a = Math.random() * 6.28, r = Math.sqrt(Math.random());
+        const px = W * (z.x + Math.cos(a) * r * z.rx), py = H * (z.y + Math.sin(a) * r * z.ry);
+        x.beginPath(); x.moveTo(px - 14, py); x.lineTo(px + 14, py); x.moveTo(px - 5, py); x.lineTo(px - 9, py - 16); x.moveTo(px + 4, py); x.lineTo(px + 8, py - 18); x.stroke();
+      }
+    });
 
     // Estradas
     x.strokeStyle = '#6b3f1d'; x.lineWidth = 7; x.setLineDash([22, 16]); x.lineCap = 'round';
     for (const [a, b] of ESTRADAS) {
       const A = LUGARES[a], B = LUGARES[b];
-      const mx = (A.x + B.x) / 2 + (A.y - B.y) * .05, my = (A.y + B.y) / 2 + (B.x - A.x) * .05;
-      x.beginPath(); x.moveTo(A.x * W, A.y * H); x.quadraticCurveTo(mx * W, my * H, B.x * W, B.y * H); x.stroke();
+      const C = controloDaEstrada(A, B);
+      x.beginPath(); x.moveTo(A.x * W, A.y * H); x.quadraticCurveTo(C.x * W, C.y * H, B.x * W, B.y * H); x.stroke();
     }
     x.setLineDash([]);
 
@@ -594,15 +624,15 @@ function textures(renderer) {
     x.font = `700 58px ${FONT_TITLE}`;
     x.fillText('N', W * .92, H * .18 - 134);
     x.font = `700 72px ${FONT_TITLE}`;
-    x.fillText('As Terras de Vésper', W * .22, H * .94);
-    mapBase = c;
+    x.fillText(MAPA.titulo, W * MAPA.tituloX, H * .94);
+    mapBases[MAPA.titulo] = c;
   }
 
   // visitados: lista ordenada de chaves de LUGARES; destaque: chaves a realçar.
   function mapTexture(tex, visitados = [], destaque = [], suspeitos = [], rasto = null) {
-    if (!mapBase) buildMapBase();
+    if (!mapBases[MAPA.titulo]) buildMapBase();
     const [c, x] = tex ? [tex.image, tex.image.getContext('2d')] : canvas(MAP_W, MAP_H);
-    x.drawImage(mapBase, 0, 0);
+    x.drawImage(mapBases[MAPA.titulo], 0, 0);
 
     // Trilho percorrido
     x.strokeStyle = '#a4161a'; x.lineWidth = 15; x.lineCap = 'round'; x.lineJoin = 'round';
@@ -671,6 +701,55 @@ function textures(renderer) {
     return toTexture(c, renderer);
   }
 
+  // O dado de uma classe aprimorada: fundo perolado com veios, e os números à parte, numa textura que brilha.
+  function diceAtlasTema(labels, tema, cols, rows) {
+    const cell = 200, w = cols * cell, h = rows * cell;
+    const [c, x] = canvas(w, h);
+    const [cb, b] = canvas(w, h);
+    x.fillStyle = tema.perola[0]; x.fillRect(0, 0, w, h);
+    b.fillStyle = '#000'; b.fillRect(0, 0, w, h);
+    for (let i = 0; i < 260; i++) {
+      const px = Math.random() * w, py = Math.random() * h, r = 30 + Math.random() * 110;
+      const g = x.createRadialGradient(px, py, 0, px, py, r);
+      g.addColorStop(0, tema.perola[i % tema.perola.length]); g.addColorStop(1, `${tema.perola[i % tema.perola.length]}00`);
+      x.fillStyle = g; x.globalAlpha = .55;
+      x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+    }
+    x.globalAlpha = 1;
+    // Os veios passam pelo fundo e também brilham, muito ao de leve.
+    const veio = ctx => {
+      ctx.beginPath();
+      let px = Math.random() * w, py = Math.random() * h;
+      ctx.moveTo(px, py);
+      for (let k = 0; k < 5; k++) {
+        const qx = px + (Math.random() - .5) * 240, qy = py + (Math.random() - .5) * 240;
+        px += (Math.random() - .5) * 300; py += (Math.random() - .5) * 300;
+        ctx.quadraticCurveTo(qx, qy, px, py);
+      }
+      ctx.stroke();
+    };
+    x.strokeStyle = tema.veia; b.strokeStyle = tema.brilho; b.globalAlpha = .28;
+    for (let i = 0; i < 46; i++) {
+      x.lineWidth = b.lineWidth = .8 + Math.random() * 2;
+      x.globalAlpha = .55; veio(x); veio(b);
+    }
+    x.globalAlpha = 1; b.globalAlpha = 1;
+    [x, b].forEach(ctx => { ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; });
+    labels.forEach((l, i) => {
+      const px = (i % cols + .5) * cell, py = (Math.floor(i / cols) + .5) * cell;
+      const fonte = `700 ${l.length > 1 ? 72 : 88}px ${FONT_TITLE}`;
+      x.font = b.font = fonte;
+      x.lineWidth = 7; x.strokeStyle = 'rgba(10,6,4,.85)'; x.strokeText(l, px, py);
+      x.fillStyle = tema.brilho; x.fillText(l, px, py);
+      b.shadowColor = tema.brilho; b.shadowBlur = 34; b.fillStyle = tema.brilho;
+      b.fillText(l, px, py); b.fillText(l, px, py);
+      b.shadowBlur = 8; b.fillStyle = tema.nucleo; b.fillText(l, px, py);
+      b.shadowBlur = 0;
+      if (l === '6' || l === '9') { [x, b].forEach(ctx => { ctx.fillStyle = tema.brilho; ctx.fillRect(px - 20, py + 38, 40, 7); }); }
+    });
+    return { map: toTexture(c, renderer), brilho: toTexture(cb, renderer) };
+  }
+
   // Medalhão do pino: o símbolo da classe, para se ver de longe no mapa.
   function pinFace(glyph, cor) {
     const [c, x] = canvas(256, 256);
@@ -723,5 +802,5 @@ function textures(renderer) {
     return toTexture(c, renderer);
   }
 
-  return { characterBoard, wood, leather, cardBack, cardFace, leftPage, rightPage, mapTexture, diceAtlas, glowSprite, pinFace, pageEdge, CARD_W, CARD_H };
+  return { characterBoard, wood, leather, cardBack, cardFace, leftPage, rightPage, mapTexture, diceAtlas, diceAtlasTema, glowSprite, pinFace, pageEdge, CARD_W, CARD_H };
 }

@@ -7,7 +7,7 @@ const vm = require('vm');
 
 const raiz = path.join(__dirname, '..', 'js');
 const ctx = vm.createContext({ console, Math, setTimeout });
-['data.js', 'historia.js', 'regras.js', 'partida.js'].forEach(f => vm.runInContext(fs.readFileSync(path.join(raiz, f), 'utf8'), ctx, { filename: f }));
+['data.js', 'historia.js', 'daraan.js', 'regras.js', 'partida.js'].forEach(f => vm.runInContext(fs.readFileSync(path.join(raiz, f), 'utf8'), ctx, { filename: f }));
 vm.runInContext('globalThis.__api = { partida, vidaMax, get G() { return G; }, CLASSES, RACAS, ANTECEDENTES, ITENS, TIPOS };', ctx);
 const api = ctx.__api;
 
@@ -69,7 +69,7 @@ function uiFalso(estilo) {
   };
   let visitasCidade = 0;
   return {
-    som() {}, prompt() {}, async aviso() {}, async resultado() {}, async dados() {}, async critico() {}, async pista() {}, pino() {}, async fecharLivro() {}, async evoluir() {},
+    som() {}, prompt() {}, async aviso() {}, async resultado() {}, async dados() {}, async critico() {}, async pista() {}, pino() {}, async fecharLivro() {}, async evoluir() {}, mundo() {}, async meioCaminho() {}, async chegar() {},
     async livro() {}, mapa() {}, async andar() {}, sync() {}, async seguir() {}, async missao() {}, async revelar() {}, async fim() {}, musica() {},
     async draft(t, s, specs) { return Math.floor(Math.random() * specs.length); },
     async escolha(specs, { ctx: c } = {}) {
@@ -93,13 +93,14 @@ const p = (a, b) => `${Math.round(a / Math.max(1, b) * 100)}%`.padStart(4);
 const m = (a, b) => (a / Math.max(1, b)).toFixed(1).padStart(4);
 
 async function correr(estilo, N) {
-  const total = nova(), por = { classe: {}, raca: {}, antecedente: {}, arma: {}, vilao: {}, reviravolta: {} };
+  const total = nova(), por = { mundo: {}, classe: {}, raca: {}, antecedente: {}, arma: {}, vilao: {}, reviravolta: {} };
   const reg = (grupo, chave, r, G) => { somar(por[grupo][chave] = por[grupo][chave] || nova(), r, G); };
   for (let i = 0; i < N; i++) {
     aprimorou = 0;
     const r = await api.partida(uiFalso(estilo));
     const G = api.G;
     somar(total, r, G);
+    reg('mundo', G.mundo, r, G);
     reg('classe', api.CLASSES[G.cls].nome, r, G);
     reg('raca', api.RACAS[G.raca].nome, r, G);
     reg('antecedente', api.ANTECEDENTES[G.bg].nome, r, G);

@@ -324,10 +324,8 @@ function createWorld(canvasEl) {
     scene.add(m);
     return m;
   })();
-  const mapToWorld = key => {
-    const p = LUGARES[key];
-    return new THREE.Vector3(AREA.map.x + (p.x - .5) * AREA.map.w, 0.05, AREA.map.z + (p.y - .5) * AREA.map.h);
-  };
+  const pontoNoMapa = p => new THREE.Vector3(AREA.map.x + (p.x - .5) * AREA.map.w, 0.05, AREA.map.z + (p.y - .5) * AREA.map.h);
+  const mapToWorld = key => pontoNoMapa(LUGARES[key]);
   const updateMap = (visitados, destaque, suspeitos, rasto) => tex.mapTexture(mapPlane.material.map, visitados, destaque, suspeitos, rasto);
 
   // ---- Tabuleiro da personagem ----
@@ -370,16 +368,17 @@ function createWorld(canvasEl) {
     pin.position.copy(mapToWorld(lugar));
     pin.visible = true;
   }
+  // Um troço de estrada, de t0 a t1: 0 é a origem, 1 é o destino, .5 é o meio do caminho.
+  async function movePinTroco(a, b, t0 = 0, t1 = 1) {
+    const dur = Math.max(.4, mapToWorld(a).distanceTo(mapToWorld(b)) * .17 * (t1 - t0));
+    await tween(dur, e => {
+      pin.position.copy(pontoNoMapa(pontoDaEstrada(a, b, t0 + (t1 - t0) * e)));
+      pin.position.y += Math.abs(Math.sin(e * Math.PI * 3 * (t1 - t0))) * .3;
+    });
+    sfx.coin();
+  }
   async function movePin(path) {
-    for (let i = 1; i < path.length; i++) {
-      const a = mapToWorld(path[i - 1]), b = mapToWorld(path[i]);
-      const dur = Math.max(.5, a.distanceTo(b) * .17);
-      await tween(dur, e => {
-        pin.position.lerpVectors(a, b, e);
-        pin.position.y = a.y + Math.abs(Math.sin(e * Math.PI * 3)) * .3;
-      });
-      sfx.coin();
-    }
+    for (let i = 1; i < path.length; i++) await movePinTroco(path[i - 1], path[i]);
   }
 
   // ---- Adereços ----
@@ -670,6 +669,28 @@ function createWorld(canvasEl) {
   }
   const hideDice = () => Object.values(DICE).forEach(d => (d.mesh.visible = false));
 
+  // O d20 de quem chega a uma classe aprimorada: perolado, com os números acesos.
+  let d20Tema = null, d20Halo = null;
+  function tornarD20(tema) {
+    const { map, brilho } = tex.diceAtlasTema(seq(1, 20), tema, 5, 4);
+    DICE.d20.mesh.material = new THREE.MeshPhysicalMaterial({
+      map, emissive: 0xffffff, emissiveMap: brilho, emissiveIntensity: 1.2,
+      roughness: .2, metalness: tema.metal, clearcoat: 1, clearcoatRoughness: .08,
+      iridescence: 1, iridescenceIOR: 1.35, iridescenceThicknessRange: [120, 480], envMapIntensity: 1.3,
+    });
+    if (d20Halo) DICE.d20.mesh.remove(d20Halo);
+    d20Halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex.glowSprite(tema.halo), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .4 }));
+    d20Halo.scale.set(4.2, 4.2, 1);
+    DICE.d20.mesh.add(d20Halo);
+    d20Tema = tema;
+  }
+  function pulsarD20(t) {
+    const p = d20Tema.pulso;
+    const v = p === 'fogo' ? .35 * Math.sin(t * 7) * Math.sin(t * 3.1) : p === 'raio' ? (Math.random() < .07 ? 1.1 : 0) : .2 * Math.sin(t * 1.6);
+    DICE.d20.mesh.material.emissiveIntensity = 1.2 + v;
+    d20Halo.material.opacity = .4 + v * .35;
+  }
+
   // Crítico: a mesa treme, o dado acende e saltam faíscas.
   function efeitoCritico(bom) {
     const cor = bom ? 0xffd778 : 0xff3a2a;
@@ -854,6 +875,7 @@ function createWorld(canvasEl) {
     requestAnimationFrame(loop);
     const bruto = clock.getDelta();
     const dt = Math.min(bruto, .05), t = clock.elapsedTime;
+    if (d20Tema) pulsarD20(t);
     // Se a máquina não aguentar, abdica da folga. Os saltos grandes são o separador escondido, e não contam.
     if (nitidez > 1 && bruto < .5) {
       medida.tempo += bruto; medida.frames++;
@@ -927,5 +949,5 @@ function createWorld(canvasEl) {
   }
   loop();
 
-  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, mapToWorld, tokens, cam, createCard, removeCard, fly, choose, rollDice, hideDice, efeitoCritico, cards, resize, handlers };
+  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, hideDice, efeitoCritico, cards, resize, handlers };
 }

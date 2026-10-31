@@ -15,8 +15,19 @@ const umDe = arr => arr[Math.floor(Math.random() * arr.length)];
 const tirar = (obj, n) => baralhar(Object.keys(obj)).slice(0, n);
 const dado = lados => 1 + Math.floor(Math.random() * lados);
 
+// O que este mundo tem: uma entrada pode ser só de um mundo, ou não existir noutro.
+function doMundo(catalogo) {
+  const out = {};
+  Object.keys(catalogo).forEach(k => {
+    const o = catalogo[k];
+    if ((!o.mundo || o.mundo === G.mundo) && !(o.foraDe || []).includes(G.mundo)) out[k] = o;
+  });
+  return out;
+}
+
 function novoEstado() {
   G = {
+    mundo: null, naEstrada: false,
     cls: null, bg: null, raca: null, cidade: null, lugar: null,
     equip: { arma: null, armadura: null, acessorio: null }, mochila: [],
     talentos: [], aliados: [], marcas: new Set(),
@@ -151,7 +162,23 @@ function preencher(texto) {
     .replace(/\{destino\}/g, LUGARES[v.destino].nome)
     .replace(/\{proximo\}/g, G.rastro ? LUGARES[G.rastro].nome : LUGARES[v.destino].nome)
     .replace(/^(\w)/, m => m.toUpperCase())
-    .replace(/([.!?"] )(o|a) (Rei|Sacerdotisa|Homem|Bruxa|Capitão|Adaga|Sino|Olho|Códice|Irmã|Herdeira|Cartógrafa|Filha)/g, (m, p, art, nome) => p + art.toUpperCase() + ' ' + nome);
+    .replace(/([.!?"] )(o|a) (?=[A-ZÀ-Ú])/g, (m, p, art) => `${p}${art.toUpperCase()} `);
+}
+
+// O terreno onde o herói está agora: a meio de uma viagem, é a estrada.
+const terrenoAqui = () => (G.naEstrada ? 'estrada' : LUGARES[G.lugar].terreno);
+
+// A estrada desenha-se em curva, e o pino anda por cima dela.
+function controloDaEstrada(A, B) {
+  return { x: (A.x + B.x) / 2 + (A.y - B.y) * .05, y: (A.y + B.y) / 2 + (B.x - A.x) * .05 };
+}
+function pontoDaEstrada(a, b, t) {
+  // A curva depende do sentido em que a estrada foi escrita.
+  const direta = ESTRADAS.some(([x, y]) => x === a && y === b);
+  const A = LUGARES[direta ? a : b], B = LUGARES[direta ? b : a], u = direta ? t : 1 - t;
+  const C = controloDaEstrada(A, B);
+  const curva = k => (1 - u) * (1 - u) * A[k] + 2 * u * (1 - u) * C[k] + u * u * B[k];
+  return { x: curva('x'), y: curva('y') };
 }
 
 function vizinhos(lugar) {
@@ -295,14 +322,15 @@ function maoDaCena(cena) {
   const especiais = cena.opcoes.filter(o => o.req);
 
   const raras = [];
-  (G.tokens[G.lugar] || []).forEach(req => {
+  // A meio da viagem ainda não se chegou: nem a pista nem as cartas raras do lugar estão aqui.
+  (G.naEstrada ? [] : G.tokens[G.lugar] || []).forEach(req => {
     const escrita = especiais.find(o => mesmaReq(o.req, req));
     raras.push({ ...(escrita || cartaRara(req)), req, tokenReq: req, rara: true });
   });
 
   const porItem = especiais.filter(o => o.req.item && temItem(o.req.item)).map(o => ({ ...o, rara: true }));
 
-  const rasto = G.rastro === G.lugar && G.pistas < PISTAS_PRECISAS && G.dia <= G.rastroLimite ? [cartaDeRasto()] : [];
+  const rasto = !G.naEstrada && G.rastro === G.lugar && G.pistas < PISTAS_PRECISAS && G.dia <= G.rastroLimite ? [cartaDeRasto()] : [];
 
   // Por vezes, a classe tem uma magia ou técnica própria para a situação.
   const taticas = Math.random() < .5 && TATICAS[G.cls] ? [umDe(TATICAS[G.cls])] : [];

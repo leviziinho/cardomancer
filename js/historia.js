@@ -7,7 +7,7 @@
 
 // ---------- Peças da trama: cada partida sorteia uma de cada ----------
 
-const OBJETIVOS = {
+let OBJETIVOS = {
   reliquia: { titulo: 'Encontre {reliquia}', glyph: 'star', desc: 'Alguém está a matar para a ter primeiro. Junte as pistas antes de se esgotar o tempo.',
     vitoria: 'Sai dali com {reliquia} nas mãos, ainda quente do que quase aconteceu.' },
   resgate: { titulo: 'Resgate {refem}', glyph: 'person', desc: 'Foi levada e tem pouco tempo. Quem a levou não deixou um único rasto às claras.',
@@ -18,11 +18,11 @@ const OBJETIVOS = {
     vitoria: 'A lista acaba aqui. Queima-a à chama da última vela, e o nome de ninguém volta a ser riscado.' },
 };
 
-const RELIQUIAS = ['a Adaga de Azyr', 'o Sino Mudo de Lumiar', 'o Olho de Cárdeo', 'o Códice de Vésper'];
-const REFENS = ['a Irmã Maior de Lumiar', 'a Herdeira de Pedra-Alta', 'a Cartógrafa Iseu', 'a Filha do Rei Mineiro'];
+let RELIQUIAS = ['a Adaga de Azyr', 'o Sino Mudo de Lumiar', 'o Olho de Cárdeo', 'o Códice de Vésper'];
+let REFENS = ['a Irmã Maior de Lumiar', 'a Herdeira de Pedra-Alta', 'a Cartógrafa Iseu', 'a Filha do Rei Mineiro'];
 
-const VILOES = {
-  afogado: { nome: 'o Rei Afogado', destino: 'torre', glyph: 'crown', fraqueza: ['barbaro', 'clerigo'],
+let VILOES = {
+  afogado: { nome: 'o Rei Afogado', destino: 'torre', glyph: 'crown', fraqueza: ['barbaro', 'clerigo', 'guerreiro'],
     efeitos: [{ t: 'A maré fecha-lhe as feridas.', tipo: 'cura', v: 4 }, { t: 'A água enche-lhe os pulmões.', tipo: 'dreno', v: 2 }],
     motivos: ['Quer de volta o reino que o mar lhe levou, nem que seja debaixo de água.', 'Jurou que a maré voltaria a obedecer-lhe, e um rei não quebra juramentos.', 'Ainda dá ordens a uma frota que só ele consegue ver.'],
     pistas: [
@@ -32,7 +32,7 @@ const VILOES = {
     ],
     finalTexto: 'A maré vira ao contrário e a torre emerge a pingar. No topo, sobre um trono de coral, {vilao} volta para si a face inchada. "Vieste beijar a mão ao teu soberano", diz, com uma voz cheia de água.',
     ronda: { combate: 'A armadura range e a água jorra das juntas.', social: 'Por um instante ele lembra-se de que já foi homem.', habilidade: 'A água recua e abre-lhe um caminho até ao trono.', investigacao: 'Tudo o que descobriu sobre ele encaixa, peça a peça.' } },
-  sacerdotisa: { nome: 'a Sacerdotisa Velada', destino: 'ossario', glyph: 'moon', fraqueza: ['mago', 'bardo'],
+  sacerdotisa: { nome: 'a Sacerdotisa Velada', destino: 'ossario', glyph: 'moon', fraqueza: ['mago', 'bardo', 'feiticeiro'],
     efeitos: [{ t: 'O cântico faz-lhe tremer a mão.', tipo: 'fraco', v: 3 }, { t: 'O círculo de pó fecha-se à volta dela.', tipo: 'ca', v: 1 }],
     motivos: ['Prega que só o fim do mundo põe fim à dor, e já convenceu muitos.', 'Paga uma dívida antiga a algo que não aceita moedas.', 'Viu o futuro uma vez, e decidiu que ninguém o há de viver.'],
     pistas: [
@@ -42,7 +42,7 @@ const VILOES = {
     ],
     finalTexto: 'O céu escurece ao meio-dia. Em Ossário, sete figuras formam um círculo em torno de {vilao}, de mãos abertas, enquanto o pó dos mortos sobe à sua volta.',
     ronda: { combate: 'A guarda quebra, e o círculo perde um elo.', social: 'Metade dos cultistas está ali por medo, e a dúvida espalha-se.', habilidade: 'Atravessa o círculo sem que o pó o toque.', investigacao: 'Encontra o erro nas contas do ritual, e o céu hesita.' } },
-  luvas: { nome: 'o Homem das Luvas Brancas', destino: 'cardeo', glyph: 'flame', fraqueza: ['bardo', 'ladino'],
+  luvas: { nome: 'o Homem das Luvas Brancas', destino: 'cardeo', glyph: 'flame', fraqueza: ['bardo', 'ladino', 'monge'],
     efeitos: [{ t: 'Um capanga aponta-lhe uma besta, e custa-lhe a atenção.', tipo: 'fraco', v: 3 }, { t: 'Alguém pago por ele leva-lhe a bolsa.', tipo: 'ouro', v: 4 }],
     motivos: ['Foi pago para acordar o que dorme na montanha, e nunca falhou um contrato.', 'Quer vender o mundo a quem pagar mais, e já tem comprador.', 'Vai fazer arder as cortes que um dia lhe recusaram a mão.'],
     pistas: [
@@ -52,7 +52,7 @@ const VILOES = {
     ],
     finalTexto: 'Os túneis terminam numa câmara do tamanho de uma catedral. As correntes já prendem uma asa imensa. {vilao} ergue o braço para o último golpe de martelo, e um olho dourado abre-se no escuro.',
     ronda: { combate: 'O martelo fica mais longe da mão dele.', social: 'Os mineiros olham para o olho, e depois para ele.', habilidade: 'Salta de corrente em corrente, cada vez mais perto.', investigacao: 'Conhece agora o elo que segura todos os outros.' } },
-  bruxa: { nome: 'a Bruxa do Junco', destino: 'velas', glyph: 'drop', fraqueza: ['clerigo', 'mago'],
+  bruxa: { nome: 'a Bruxa do Junco', destino: 'velas', glyph: 'drop', fraqueza: ['clerigo', 'mago', 'druida'],
     efeitos: [{ t: 'Uma moeda na boca de um sapo, e a ferida dela fecha.', tipo: 'cura', v: 4 }, { t: 'Cobra-lhe um favor que não sabia dever.', tipo: 'dreno', v: 2 }],
     motivos: ['Está a cobrar todos os favores que emprestou em cem anos.', 'Enche a panela para um inverno que só ela sabe que vem.', 'Riram-se dela uma vez, e agora ri-se por último, e devagar.'],
     pistas: [
@@ -75,7 +75,7 @@ const VILOES = {
 };
 
 // Reviravoltas: acontecem de surpresa depois da segunda pista.
-const REVIRAVOLTAS = {
+let REVIRAVOLTAS = {
   traidor: { nome: 'O Traidor', resumo: 'Havia alguém a vender os seus passos.',
     titulo: 'Quem Vendeu os Seus Passos',
     texto: 'Abre a porta e já estão à sua espera. Sabem o seu nome, o caminho que fez e até o que trazia na mochila. Alguém anda a contar tudo a {vilao}, e o seu sangue gela ao perceber quem esteve sempre perto o suficiente.',
@@ -138,7 +138,7 @@ const REVIRAVOLTAS = {
 // ---------- O início ----------
 
 // Cada missão tem mais do que uma forma de começar.
-const GANCHOS = {
+let GANCHOS = {
   reliquia: [
     { titulo: 'O Leilão Interrompido', terreno: 'cidade',
       texto: 'Na sala de leilões de {cidade}, o lote seguinte é um mapa antigo que diz levar a {reliquia}. O leiloeiro abre a boca para anunciar o preço e cai para a frente, com os lábios azuis. Quando as pessoas olham, o mapa já não está na mesa.',
@@ -232,7 +232,7 @@ const CENA_PISTA = {
 
 // ---------- Encontros por terreno ----------
 
-const ENCONTROS = [
+let ENCONTROS = [
   { id: 'porta', terreno: 'ruina', titulo: 'A Porta de Ferro',
     texto: 'Uma porta de ferro barra o corredor, com um arame finíssimo esticado à altura do tornozelo. Do outro lado ouve-se alguém a respirar. Nas ombreiras, runas gastas repetem a mesma palavra.',
     fundo: 'Estas portas foram forjadas no tempo em que os mortos de Ossário ainda tinham quem os guardasse. A palavra das runas é "espera", e os eruditos discutem há séculos se é um aviso para quem entra ou uma ordem para quem está lá dentro.',
@@ -365,7 +365,7 @@ const ENCONTROS = [
 
 // ---------- Consequências: voltam mais tarde se a marca estiver registada ----------
 
-const CONSEQUENCIAS = [
+let CONSEQUENCIAS = [
   { id: 'volta_bandidos', marca: 'bandidos', titulo: 'Velhos Conhecidos',
     texto: 'Na curva do caminho, reconhece o carro virado e os mesmos três homens, agora de roupa nova. O mais velho tira o chapéu. "Disse que não me esquecia. Há gente paga para o matar, a meia légua daqui. Quer companhia?"',
     fundo: 'A bondade é rara nestas estradas, e por isso é cara. Estes três não mudaram de vida, mas mudaram de lado, pelo menos enquanto lhes deve bem.',
@@ -389,7 +389,7 @@ const CONSEQUENCIAS = [
 ];
 
 // Encontros surpresa: "contra" apanham-no desprevenido, "favor" é você quem os vê primeiro.
-const SURPRESAS = [
+let SURPRESAS = [
   { inimigo: 'Salteadores', pv: 6,
     contra: 'Uma rede cai sobre o caminho e três vultos saem da erva. Não teve sequer tempo de sacar da arma.',
     favor: 'Graças à sua cautela, vê-os primeiro: três salteadores, deitados na erva, à espera de alguém menos atento. Não o viram.',
@@ -405,7 +405,7 @@ const SURPRESAS = [
 ];
 
 // Nem tudo o que se encontra na estrada é mau.
-const BONS_ENCONTROS = [
+let BONS_ENCONTROS = [
   { id: 'curandeiro', titulo: 'O Curandeiro Errante',
     texto: 'Um homem de sacola ao ombro está sentado numa pedra, a ver quem passa. Olha para as suas feridas antes de olhar para si. "Isso trata-se", diz. "E eu estava mesmo a precisar de companhia."',
     opcoes: [
@@ -426,7 +426,7 @@ const BONS_ENCONTROS = [
     ] },
 ];
 
-const MERCADOR_SECRETO = {
+let MERCADOR_SECRETO = {
   titulo: 'O Mercador Secreto',
   texto: 'Fora da estrada, uma tenda sem insígnia tem uma lanterna acesa em pleno dia. O homem lá dentro nem levanta os olhos. "Sei o que traz, e sei o que lhe falta. Por aqui, os preços são outros, e ninguém pergunta nada."',
   fundo: 'Dizem que a tenda nunca está duas vezes no mesmo sítio, e que o ferreiro que lá trabalha foi expulso da Guilda por fazer aço bom de mais. Ninguém sabe quem são os seus clientes. Ninguém quer ser o primeiro a contar que o é.',
@@ -448,7 +448,7 @@ const MENTORES = {
 };
 
 // Atrasos: o que se passa quando o tempo é contado ao dia.
-const ATRASOS = {
+let ATRASOS = {
   cidade: [
     { id: 'preso', titulo: 'A Noite na Cela',
       texto: 'Uma discussão de taberna acaba como acabam todas, e por azar é você quem está de pé quando chegam os guardas. O sargento tem pouca paciência, um livro de multas e uma cela vazia.',
@@ -526,23 +526,23 @@ const CARTAS_UNICAS = {
 
 // ---------- O mercado e a cidade ----------
 
-const FIM_MORTE = {
+let FIM_MORTE = {
   titulo: 'Fim da Linha',
   texto: 'As forças abandonam-no longe de casa, numa estrada sem nome. A missão fica por cumprir, e nas tabernas ainda hão de contar a história ao contrário.',
 };
-const FIM_TARDE = {
+let FIM_TARDE = {
   titulo: 'Tarde Demais',
   texto: 'O céu muda de cor antes de você chegar, e já não há nada a fazer. {vilao} venceu, sem sequer precisar de saber que você existia.',
 };
 
-const PRESSAGIOS = [
+let PRESSAGIOS = [
   'O tempo aperta. Os presságios já se veem em todas as vilas, e tudo vai ser mais difícil a partir de agora.',
   'O prazo chegou ao fim. {vilao} está mais forte a cada dia, e a própria terra adoece à sua passagem.',
 ];
 
 // ---------- Textos de contexto: abrem-se ao clicar nos nomes a vermelho no livro ----------
 
-const LORE = {
+let LORE = {
   porto: { nome: 'Porto Salgado', titulo: 'Porto Salgado', texto: 'Cidade de armadores falidos e marinheiros a quem ainda devem dinheiro. Toda a gente em Porto Salgado tem uma dívida, e quase toda a gente a tem com a mesma família. Diz-se que o sal ali tira o gosto a tudo, menos ao ouro.' },
   vale: { nome: 'Vale Cinza', titulo: 'Vale Cinza', texto: 'Os moinhos pararam há doze anos, quando o rio mudou de cor. Quem ficou ficou por teimosia. O vale é conhecido pelos seus silêncios longos e pelas suas ruas onde as pessoas se cumprimentam sem se olhar.' },
   lumiar: { nome: 'Lumiar', titulo: 'Lumiar', texto: 'A cidade dos sinos tem uma torre em cada bairro, e cada torre tem o seu próprio toque. Há gente em Lumiar que sabe dizer as horas, o tempo e quem morreu só de ouvir. Há três noites que nenhum desses toques faz sentido.' },

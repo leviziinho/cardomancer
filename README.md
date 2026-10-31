@@ -25,7 +25,8 @@ Faça duplo clique em `index.html`. É preciso Internet para descarregar o motor
 - **Tempo:** a missão tem um prazo em dias, e cada viagem e cada noite gastam tempo. Nos últimos dias, os testes ficam mais difíceis. Quatro dias depois do prazo, a partida está perdida.
 - **Vida:** a pressa e os falhanços gastam Vida, e recuperá-la gasta tempo. Durma numa estalagem, acampe na estrada (+35% de Vida, 1 dia e algum risco) ou guarde uma poção.
 - **Pistas:** 3 revelam o caminho até ao chefe final. O olho vermelho no mapa marca a pista seguinte, sempre a 1 ou mais estradas. Cada ponto à volta do olho é um dia antes de ela esfriar. Lá chegado, é a carta vermelha A PISTA que a procura. Se escolher outra carta ou falhar, pode procurar outra vez por 1 dia, enquanto houver pontos. Se esfriar, a pista muda de sítio. Cada pista encontrada fica numa carta na mesa e na Ficha.
-- **Viagem:** a Marcha Forçada gasta 1 dia e 2 de Vida, e pode ser apanhado de surpresa. Pelos Trilhos gasta 2 dias e pode ser você a surpreender.
+- **Mundos:** cada partida começa pela escolha do mundo. As Terras de Vésper e Daraan, o Império da Espada, têm mapa, missões, vilões e encontros próprios. Guerreiro, Feiticeiro, Monge e Druida existem nos dois, e Daraan tem ainda raça, antecedentes e objetos só seus.
+- **Viagem:** o pino para a meio da estrada, e é aí que escolhe a postura e resolve o que aparecer. A Marcha Forçada gasta 1 dia e 2 de Vida, e pode ser apanhado de surpresa. Pelos Trilhos gasta 2 dias e pode ser você a surpreender. Só depois de resolver o encontro é que chega ao destino, por isso a carta da pista nunca aparece na estrada.
 - **Tabuleiro:** cada carta do herói tem o seu lugar marcado, e os lugares vazios mostram o que falta.
 - **Equipamento:** um objeto por espaço (arma, armadura, acessório) e 3 lugares na mochila. Um objeto substituído rende 1/4 do preço.
 - **Melhorias:** o ferreiro do mercado aprimora o que traz no corpo, com um máximo de duas melhorias por objeto. O mercador secreto da estrada cobra menos 30%.
@@ -40,6 +41,7 @@ Faça duplo clique em `index.html`. É preciso Internet para descarregar o motor
 | --- | --- |
 | `js/data.js` | Catálogo: classes, raças, antecedentes, objetos, talentos, aliados, lugares e estradas |
 | `js/historia.js` | Histórias: objetivos, vilões, reviravoltas, encontros, surpresas, cartas raras e textos dos nomes clicáveis |
+| `js/daraan.js` | O mundo de Daraan e as classes novas. No fim, `MUNDOS` junta os mundos e `ativarMundo` troca-os |
 | `js/regras.js` | Regras puras: testes, chances, opções de cada cena |
 | `js/partida.js` | Ordem da partida, sem nada de 3D |
 | `js/ui.js` | Liga a partida à mesa e desenha o painel |
@@ -47,7 +49,7 @@ Faça duplo clique em `index.html`. É preciso Internet para descarregar o motor
 | `js/scene.js` | Mesa 3D, luz, câmara, dados e animações |
 | `tools/sim.js` | Simulador de partidas |
 
-Para acrescentar um encontro, basta copiar um bloco de `ENCONTROS` em `js/historia.js` e alterar o texto.
+Para acrescentar um encontro, basta copiar um bloco de `ENCONTROS` em `js/historia.js`, ou de `ENCONTROS_DARAAN` em `js/daraan.js`, e alterar o texto.
 
 ## Testar o equilíbrio
 

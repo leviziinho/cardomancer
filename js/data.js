@@ -267,7 +267,7 @@ const ALIADOS = {
 };
 
 // Coordenadas normalizadas sobre o mapa (0–1).
-const LUGARES = {
+let LUGARES = {
   porto: { nome: 'Porto Salgado', x: 0.13, y: 0.72, terreno: 'cidade', cidade: true, desc: 'Cheiro a sal e dívidas. Começa na costa do sudoeste.' },
   vale: { nome: 'Vale Cinza', x: 0.17, y: 0.30, terreno: 'cidade', cidade: true, desc: 'Moinhos parados e gente de poucas falas. Começa no noroeste.' },
   lumiar: { nome: 'Lumiar', x: 0.47, y: 0.86, terreno: 'cidade', cidade: true, desc: 'Os sinos tocam sem razão há três noites. Começa no sul.' },
@@ -283,7 +283,7 @@ const LUGARES = {
   torre: { nome: 'Torre Afogada', x: 0.90, y: 0.62, terreno: 'costa' },
 };
 
-const ESTRADAS = [
+let ESTRADAS = [
   ['porto', 'ponte'], ['porto', 'vesper'], ['vale', 'vesper'], ['vale', 'corvo'],
   ['corvo', 'pedra'], ['pedra', 'cruz'], ['pedra', 'cardeo'], ['corvo', 'cruz'],
   ['vesper', 'cruz'], ['vesper', 'ponte'], ['ponte', 'lumiar'], ['lumiar', 'velas'],
@@ -301,6 +301,15 @@ const TERRENOS = {
   costa: { nome: 'Costa', glyph: 'moon', desc: 'A maré não pede licença.' },
 };
 
+// Como se desenha o mapa deste mundo. Tudo em frações do tamanho do mapa.
+let MAPA = {
+  titulo: 'As Terras de Vésper', tituloX: .22,
+  mar: [[1, .34], [.92, .40], [.86, .46], [.83, .55], [.87, .64], [.82, .72], [.80, .82], [.68, .87], [.58, .94], [.40, .96], [.26, .91], [.13, .85], [.05, .80], [0, .76], [0, 1], [1, 1]],
+  serras: [{ x: .24, w: .58, y: .03, h: .20, n: 56 }],
+  florestas: [{ x: .30, y: .50, rx: .15, ry: .14, n: 190 }],
+  pantanos: [{ x: .58, y: .66, rx: .09, ry: .08, n: 180 }],
+};
+
 // O relógio da missão, em dias.
 const PRAZO_DIAS = 20;
 const PISTAS_PRECISAS = 3;
@@ -308,3 +317,24 @@ const SURPRESA_CHANCE = 30;
 // Uma pista dá para lá chegar pela estrada mais curta, e mais estes dias de folga.
 const RASTO_FOLGA = 2;
 const ATRASO_CHANCE = .15;
+
+// O d20 de quem chega a uma classe aprimorada: fundo perolado e números acesos.
+const D20_TEMAS = {
+  fogo: { frase: 'Os números ardem em fogo.', perola: ['#3a0d05', '#8a2408', '#c9571a', '#2a0a08'], veia: '#ffb03a', brilho: '#ff7a1a', nucleo: '#fff0b0', halo: '255,130,40', metal: .25, pulso: 'fogo' },
+  gelo: { frase: 'Os números acendem-se em gelo.', perola: ['#cfe8f5', '#8fc3de', '#eaf6ff', '#6ea4c8'], veia: '#ffffff', brilho: '#1e9cf0', nucleo: '#eafaff', halo: '130,210,255', metal: .1, pulso: 'lento' },
+  raio: { frase: 'Os números estalam em eletricidade.', perola: ['#1a1f52', '#2c3aa0', '#7f8fe8', '#101338'], veia: '#bcd0ff', brilho: '#6fb4ff', nucleo: '#ffffff', halo: '140,190,255', metal: .35, pulso: 'raio' },
+  metal: { frase: 'Os números correm em metal derretido.', perola: ['#8a8f96', '#c8ccd2', '#5c6168', '#e6e8ec'], veia: '#2a2d31', brilho: '#ff8a2a', nucleo: '#fff0d0', halo: '255,180,110', metal: .95, pulso: 'lento' },
+  lua: { frase: 'Os números brilham em prata de lua.', perola: ['#d9d6e6', '#b4b1cc', '#f2f0fa', '#8e8bb0'], veia: '#6a6790', brilho: '#7f9cff', nucleo: '#f4f6ff', halo: '190,205,255', metal: .6, pulso: 'lento' },
+  sombra: { frase: 'Os números acendem-se na sombra.', perola: ['#17141c', '#2a2433', '#0c0a10', '#3d3450'], veia: '#6a5a88', brilho: '#a66bff', nucleo: '#f0e4ff', halo: '160,110,255', metal: .5, pulso: 'lento' },
+  arcano: { frase: 'Os números giram em luz arcana.', perola: ['#3a1a6e', '#6a33b8', '#2a8fa8', '#1c0f40'], veia: '#8ff0ff', brilho: '#c86bff', nucleo: '#ffffff', halo: '190,120,255', metal: .3, pulso: 'lento' },
+  veneno: { frase: 'Os números crescem em seiva viva.', perola: ['#12301c', '#2c6a38', '#89b84a', '#0c2014'], veia: '#d6ff7a', brilho: '#7aff5a', nucleo: '#f4ffd0', halo: '130,255,110', metal: .15, pulso: 'lento' },
+  espectro: { frase: 'Os números ardem em fogo-fátuo.', perola: ['#0c1a18', '#1c3a34', '#3f7a6a', '#08100f'], veia: '#9fffe0', brilho: '#4dffc0', nucleo: '#e8fff6', halo: '90,255,200', metal: .2, pulso: 'lento' },
+  ouro: { frase: 'Os números resplandecem em ouro.', perola: ['#b8892a', '#e8c866', '#fff1b8', '#8a6414'], veia: '#fff7d0', brilho: '#ff9d1a', nucleo: '#fffbe0', halo: '255,215,120', metal: .9, pulso: 'lento' },
+  som: { frase: 'Os números vibram como uma corda.', perola: ['#6e2a52', '#c0527f', '#f0b070', '#3c1530'], veia: '#ffd9a8', brilho: '#ff8ac0', nucleo: '#fff0f6', halo: '255,150,200', metal: .3, pulso: 'lento' },
+  transe: { frase: 'Os números ondulam, e custa desviar os olhos.', perola: ['#45106a', '#b01a8c', '#1a8cb0', '#d8b0ff'], veia: '#ffffff', brilho: '#ff5ae0', nucleo: '#ffffff', halo: '255,100,230', metal: .25, pulso: 'lento' },
+  dragao: { frase: 'Os números ardem em sangue de dragão.', perola: ['#5a1010', '#b8861e', '#2a0808', '#e0a030'], veia: '#ffd24a', brilho: '#ff9a1a', nucleo: '#fff4b0', halo: '255,170,60', metal: .7, pulso: 'fogo' },
+};
+const D20_DA_EVOLUCAO = {
+  arquimago: 'raio', invocador: 'sombra', berserker: 'fogo', lobisomem: 'lua', lamina: 'metal', arcano: 'arcano',
+  arqueiro: 'gelo', feras: 'veneno', necromante: 'espectro', bispo: 'ouro', melodico: 'som', hipnotizador: 'transe',
+};

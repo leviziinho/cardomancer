@@ -162,7 +162,7 @@ async function receberItem(ui, id) {
 }
 
 async function mercado(ui, titulo = 'O Mercado') {
-  let stock = baralhar(Object.keys(ITENS).filter(k => !temItem(k))).slice(0, 3);
+  let stock = baralhar(Object.keys(doMundo(ITENS)).filter(k => !temItem(k))).slice(0, 3);
   for (;;) {
     ui.prompt(titulo, `Tem ${G.ouro} de Ouro. Só leva um objeto de cada slot.`);
     const specs = stock.map(k => especItem(k, {
@@ -388,7 +388,7 @@ async function combate(ui, ini, arte) {
 const quandoEsfria = () => (diasDoRasto() === 0 ? 'hoje' : `em ${diasDoRasto()} ${diasDoRasto() === 1 ? 'dia' : 'dias'}`);
 
 async function jogarCena(ui, cena, capitulo = null) {
-  const arte = cena.terreno || LUGARES[G.lugar].terreno;
+  const arte = cena.terreno || terrenoAqui();
   const cap = capitulo || `Dia ${G.dia}`;
   await ui.livro({ capitulo: cap, titulo: fmt(cena.titulo), arte, texto: fmt(cena.texto), fundo: fmt(cena.fundo) });
 
@@ -610,7 +610,7 @@ async function encontroDaEstrada(ui, postura) {
 async function encontroMestre(ui) {
   G.mentorVisto = true;
   const m = MENTORES[G.cls], ops = EVOLUCOES[G.cls];
-  const arte = LUGARES[G.lugar].terreno;
+  const arte = terrenoAqui();
   await ui.livro({ capitulo: 'Encontro raríssimo', titulo: m.titulo, arte, texto: m.texto });
   ui.prompt('Um encontro raríssimo', 'A sua classe pode mudar para sempre. Só acontece uma vez.');
   const specs = ops.map(e => ({ tema: 'rara', etiqueta: 'Nova Classe', titulo: e.nome, glyph: e.glyph, desc: `${e.desc} Nova carta: ${e.manobra.t}.`, rodape: e.resumo }));
@@ -726,19 +726,25 @@ async function jogarFinal(ui) {
 // ---------- A partida inteira ----------
 
 async function fazerDraft(ui) {
-  const cls = tirar(CLASSES, 3);
+  const mundos = Object.keys(MUNDOS);
+  ativarMundo(mundos[await ui.draft('Escolha o seu mundo', 'Cada um tem o seu mapa, as suas missões e os seus vilões.', mundos.map(k => ({
+    tema: 'cidade', etiqueta: 'Mundo', titulo: MUNDOS[k].MAPA.titulo, glyph: MUNDOS[k].glyph, desc: MUNDOS[k].desc,
+  })))]);
+  ui.mundo();
+
+  const cls = tirar(doMundo(CLASSES), 3);
   G.cls = cls[await ui.draft('Escolha a sua classe', 'O baralho oferece três. As outras voltam ao monte.', cls.map(k => ({
     tema: 'classe', titulo: CLASSES[k].nome, glyph: CLASSES[k].glyph, desc: CLASSES[k].desc, rodape: `Vida ${CLASSES[k].vida}`, rodapeGlyph: 'heart', cls: k,
   })), { lugar: 'classe' })];
   ui.sync();
 
-  const bgs = tirar(ANTECEDENTES, 3);
+  const bgs = tirar(doMundo(ANTECEDENTES), 3);
   G.bg = bgs[await ui.draft('Escolha o seu antecedente', 'De onde você vem muda o que consegue fazer.', bgs.map(k => ({
     tema: 'antecedente', titulo: ANTECEDENTES[k].nome, glyph: ANTECEDENTES[k].glyph, desc: ANTECEDENTES[k].desc,
   })), { lugar: 'antecedente' })];
   ui.sync();
 
-  const racas = tirar(RACAS, 3);
+  const racas = tirar(doMundo(RACAS), 3);
   G.raca = racas[await ui.draft('Escolha a sua raça', 'Algumas portas só se abrem para certos povos.', racas.map(k => ({
     tema: 'raca', titulo: RACAS[k].nome, glyph: RACAS[k].glyph, desc: RACAS[k].desc,
   })), { lugar: 'raca' })];
@@ -749,18 +755,18 @@ async function fazerDraft(ui) {
   G.vida = vidaMax();
   ui.sync();
 
-  const armas = baralhar(Object.keys(ITENS).filter(k => ITENS[k].slot === 'arma' && ITENS[k].preco <= 18)).slice(0, 3);
+  const armas = baralhar(Object.keys(doMundo(ITENS)).filter(k => ITENS[k].slot === 'arma' && ITENS[k].preco <= 18)).slice(0, 3);
   const a = armas[await ui.draft('Escolha a sua arma', 'O dado da arma decide a força de cada golpe.', armas.map(k => especItem(k)))];
   G.equip.arma = a;
   ui.sync();
 
-  const outros = baralhar(Object.keys(ITENS).filter(k => ITENS[k].slot !== 'arma' && ITENS[k].preco <= 12)).slice(0, 3);
+  const outros = baralhar(Object.keys(doMundo(ITENS)).filter(k => ITENS[k].slot !== 'arma' && ITENS[k].preco <= 12)).slice(0, 3);
   const b = outros[await ui.draft('Escolha o que levar', 'Só leva o que couber no corpo e na mochila.', outros.map(k => especItem(k)))];
   await receberItem(ui, b);
   G.vida = vidaMax();
   ui.sync();
 
-  const cidades = baralhar(Object.keys(LUGARES).filter(k => LUGARES[k].cidade)).slice(0, 3);
+  const cidades = baralhar(Object.keys(LUGARES).filter(k => LUGARES[k].cidade && !LUGARES[k].semInicio)).slice(0, 3);
   G.cidade = cidades[await ui.draft('Escolha a cidade de partida', 'É daqui que a história vai começar.', cidades.map(k => ({
     tema: 'cidade', titulo: LUGARES[k].nome, glyph: 'tower', desc: LUGARES[k].desc,
   })))];
@@ -828,33 +834,39 @@ async function partida(ui) {
       await aplicar(ui, { vida: rumo.cura });
       G.log.noites++;
       if (G.vida > 0 && await rolarSurpresa(ui, { tipo: 'contra', chance: VIDA.emboscadaAcampar, nome: 'Emboscada' })) {
-        if (!await jogarCena(ui, cenaSurpresa('contra'))) return fimDaPartida(ui, 'morte');
+        // Uma emboscada não é altura de procurar pistas.
+        G.naEstrada = true;
+        const vivo = await jogarCena(ui, { ...cenaSurpresa('contra'), terreno: LUGARES[G.lugar].terreno });
+        G.naEstrada = false;
+        if (!vivo) return fimDaPartida(ui, 'morte');
         await ui.seguir();
       }
       if (G.vida <= 0) return fimDaPartida(ui, 'morte');
       continue;
     }
-    let postura = null;
-    let trajeto = [G.lugar, rumo.para];
     if (rumo.final) {
-      trajeto = caminho(G.lugar, rumo.para);
-    } else {
-      postura = await escolherPostura(ui);
-    }
-    await ui.andar(trajeto);
-    await passarDias(ui, postura ? postura.dias : trajeto.length - 1);
-    if (postura && postura.vida) await aplicar(ui, { vida: postura.vida });
-    G.lugar = rumo.para;
-    trajeto.slice(1).forEach(k => G.visitados.push(k));
-    ui.mapa([]);
-    ui.sync();
-    if (G.vida <= 0) return fimDaPartida(ui, 'morte');
-    if (G.dia >= G.prazo + 4) return fimDaPartida(ui, 'tarde');
-
-    if (rumo.final) {
+      const trajeto = caminho(G.lugar, rumo.para);
+      await ui.andar(trajeto);
+      await passarDias(ui, trajeto.length - 1);
+      G.lugar = rumo.para;
+      trajeto.slice(1).forEach(k => G.visitados.push(k));
+      ui.mapa([]);
+      ui.sync();
+      if (G.vida <= 0) return fimDaPartida(ui, 'morte');
+      if (G.dia >= G.prazo + 4) return fimDaPartida(ui, 'tarde');
       const { venceu } = await jogarFinal(ui);
       return fimDaPartida(ui, venceu ? 'vitoria' : 'morte');
     }
+
+    // Faz-se a meio caminho: o pino fica na estrada até resolver o que lá houver, e só depois chega.
+    ui.mapa([rumo.para]);
+    await ui.meioCaminho(G.lugar, rumo.para);
+    const postura = await escolherPostura(ui);
+    G.naEstrada = true;
+    await passarDias(ui, postura.dias);
+    if (postura.vida) await aplicar(ui, { vida: postura.vida });
+    if (G.vida <= 0) return fimDaPartida(ui, 'morte');
+    if (G.dia >= G.prazo + 4) return fimDaPartida(ui, 'tarde');
 
     const atraso = cenaDeAtraso('estrada');
     if (atraso) {
@@ -862,11 +874,22 @@ async function partida(ui) {
       await ui.seguir();
       if (G.dia >= G.prazo + 4) return fimDaPartida(ui, 'tarde');
     }
+    if (!G.reviravoltaPendente && await rolarSurpresa(ui, postura)) {
+      const encontro = await encontroDaEstrada(ui, postura);
+      if (encontro) {
+        if (!await jogarCena(ui, encontro)) return fimDaPartida(ui, 'morte');
+        await ui.seguir();
+        if (G.dia >= G.prazo + 4) return fimDaPartida(ui, 'tarde');
+      }
+    }
 
-    let cena = null;
-    if (!G.reviravoltaPendente && await rolarSurpresa(ui, postura)) cena = await encontroDaEstrada(ui, postura);
-    if (!cena) cena = proximaCena(postura);
-    if (!await jogarCena(ui, cena)) return fimDaPartida(ui, 'morte');
+    G.naEstrada = false;
+    await ui.chegar(G.lugar, rumo.para);
+    G.lugar = rumo.para;
+    G.visitados.push(rumo.para);
+    ui.mapa([]);
+    ui.sync();
+    if (!await jogarCena(ui, proximaCena(postura))) return fimDaPartida(ui, 'morte');
     await ui.seguir();
   }
 }

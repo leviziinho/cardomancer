@@ -34,7 +34,7 @@ Combate: joga-se à vez, e quem tem mais Agilidade começa. O seu d20 tem de che
 
 Chefe final: tem muitos PV e duas ações por ronda, um efeito e um ataque. Os inimigos e os testes ficam mais duros à medida que sobe de nível.
 
-Encontros na estrada: os dois d10 dão um número de 1 a 100. Com a percentagem da carta ou menos, há encontro. Nos testes é ao contrário, porque se quer um número alto: o 11+ da carta é 11 ou mais.
+Encontros na estrada: o pino para a meio do caminho, e só chega depois de resolver o que lá houver. Os dois d10 dão um número de 1 a 100. Com a percentagem da carta ou menos, há encontro. Nos testes é ao contrário, porque se quer um número alto: o 11+ da carta é 11 ou mais.
 
 Tempo e Vida: a pressa gasta Vida, e recuperá-la gasta tempo. Durma numa estalagem, acampe na estrada ou guarde uma poção. A trilha em baixo mostra os dias, e o fim do prazo.
 
@@ -150,7 +150,7 @@ function refazerMapa() {
   if (!G) return;
   const rasto = G.rastro ? { key: G.rastro, dias: diasDoRasto(), total: G.rastroTotal } : null;
   const suspeitos = G.trama && G.destinoRevelado ? [VILOES[G.trama.vilao].destino] : [];
-  const chave = JSON.stringify([G.visitados, mapaDestaque, suspeitos, rasto]);
+  const chave = JSON.stringify([G.mundo, G.visitados, mapaDestaque, suspeitos, rasto]);
   if (chave === mapaChave) return;
   mapaChave = chave;
   world.updateMap(G.visitados, mapaDestaque, suspeitos, rasto);
@@ -267,9 +267,19 @@ const ui = {
     refazerMapa();
   },
 
+  mundo() {
+    sfx.card();
+    refazerMapa();
+  },
+
+  // O d20 muda para sempre, e cai na mesa para se ver bem.
   async evoluir() {
     sfx.critico();
-    await wait(.6);
+    const tema = D20_TEMAS[D20_DA_EVOLUCAO[G.evolucao]];
+    world.tornarD20(tema);
+    await ui.fecharLivro();
+    await world.rollDice([{ tipo: 'd20', face: 19 }], { onde: 'mapa' });
+    await ui.resultado(`O seu d20 nunca mais será o mesmo. ${tema.frase}`, true);
   },
 
   async andar(trajeto) {
@@ -278,10 +288,22 @@ const ui = {
     await wait(.35);
   },
 
+  // A viagem em duas metades: o pino espera na estrada, e só depois chega.
+  async meioCaminho(de, para) {
+    await ui.fecharLivro();
+    await world.movePinTroco(de, para, 0, .5);
+  },
+
+  async chegar(de, para) {
+    await ui.fecharLivro();
+    await world.movePinTroco(de, para, .5, 1);
+    await wait(.35);
+  },
+
   // A carta escolhida vai para o seu lugar no tabuleiro. As que não têm lugar voltam ao monte.
   async draft(titulo, sub, specs, { lugar = null } = {}) {
     ui.prompt(titulo, sub);
-    const xs = [-5.3, 0, 5.3];
+    const xs = specs.map((_, i) => (i - (specs.length - 1) / 2) * 5.3);
     const cards = specs.map(s => world.createCard(s));
     cards.forEach((c, i) => { c.hoverScale = .1; c.hoverLift = 1.1; window.setTimeout(sfx.card, i * 170); });
     await Promise.all(cards.map((c, i) => world.fly(c, { pos: [CX + xs[i], 1.5, 1], rot: [TILT, 0, 0], scale: 1.4 }, .8, { delay: i * .17, arc: 3 })));
