@@ -24,7 +24,8 @@ function novoEstado() {
     dia: 1, prazo: PRAZO_DIAS, avisos: 0,
     visitados: [], vistos: new Set(), tokens: {},
     trama: null, rastro: null, destinoRevelado: false, reviravoltaPendente: false,
-    log: { testes: 0, sucessos: 0, cartasRaras: 0, comprados: 0 },
+    diario: [], melhorias: {}, gastos: [], evolucao: null, mentorVisto: false, rastroLimite: 0, rastroTotal: 0, emCombate: false,
+    log: { testes: 0, sucessos: 0, cartasRaras: 0, comprados: 0, dano: 0, noites: 0, pocoes: 0, combates: 0, criticos: 0 },
   };
   return G;
 }
@@ -36,10 +37,43 @@ function talentosAtivos() {
 const aliadosAtivos = () => G.aliados.map(id => ALIADOS[id]);
 const itensCorpo = () => Object.values(G.equip).filter(Boolean).map(id => ITENS[id]);
 
+const evolucao = () => (G.evolucao ? EVOLUCOES[G.cls].find(e => e.id === G.evolucao) : null);
+const nomeClasse = () => (evolucao() || CLASSES[G.cls]).nome;
+
+// As melhorias de um objeto, e o seu nome com elas.
+function melhoriasDe(id) {
+  const lista = MELHORIAS[ITENS[id].slot] || [];
+  return (G.melhorias[id] || []).map(m => lista.find(x => x.id === m));
+}
+const melhoriasCorpo = () => Object.values(G.equip).filter(Boolean).flatMap(melhoriasDe);
+const somaMelhorias = campo => melhoriasCorpo().reduce((s, m) => s + (m[campo] || 0), 0);
+function nomeItem(id) {
+  const m = melhoriasDe(id);
+  return m.length ? `${ITENS[id].nome} ${m.map(x => x.nome).join(' e ')}` : ITENS[id].nome;
+}
+function descItem(id) {
+  return [ITENS[id].desc, ...melhoriasDe(id).map(m => m.desc)].join(' ');
+}
+
+// O que o ferreiro pode fazer ao equipamento que traz no corpo.
+function melhoriasDisponiveis() {
+  const out = [];
+  Object.values(G.equip).filter(Boolean).forEach(id => {
+    const tem = G.melhorias[id] || [];
+    if (tem.length >= MELHORIAS_MAX) return;
+    (MELHORIAS[ITENS[id].slot] || []).filter(m => !tem.includes(m.id)).forEach(m => out.push({ item: id, m }));
+  });
+  return out;
+}
+
+// Classe de Armadura: o número que o inimigo tem de alcançar para lhe acertar.
+const caJogador = () => COMBATE.caBase + Math.floor(Math.max(0, attr('agilidade')) / 2)
+  + itensCorpo().reduce((s, it) => s + (it.ca || 0), 0) + somaMelhorias('ca');
+
 function attr(a) {
   let v = 0;
   const soma = o => { if (o && o.attrs && o.attrs[a]) v += o.attrs[a]; };
-  soma(CLASSES[G.cls]); soma(ANTECEDENTES[G.bg]); soma(RACAS[G.raca]);
+  soma(CLASSES[G.cls]); soma(ANTECEDENTES[G.bg]); soma(RACAS[G.raca]); soma(evolucao());
   itensCorpo().forEach(soma);
   talentosAtivos().forEach(soma);
   return v;
@@ -49,6 +83,7 @@ function vidaMax() {
   let v = 0;
   [CLASSES[G.cls], ANTECEDENTES[G.bg], RACAS[G.raca]].forEach(o => { if (o) v += o.vida || 0; });
   [...itensCorpo(), ...talentosAtivos(), ...aliadosAtivos()].forEach(o => { v += o.vidaMax || 0; });
+  if (G.cls) v += somaMelhorias('vidaMax') + ((evolucao() || {}).vida || 0);
   return v;
 }
 
@@ -58,11 +93,12 @@ function bonusTipo(tipo) {
     if (o.tipo && o.tipo[tipo]) v += o.tipo[tipo];
     if (o.tudo) v += o.tudo;
   });
-  return v;
+  return v + somaMelhorias('tudo');
 }
 
 const arma = () => (G.equip.arma ? ITENS[G.equip.arma] : ARMA_NUA);
-const danoExtra = () => talentosAtivos().reduce((s, t) => s + (t.dano || 0), 0);
+const danoExtra = () => talentosAtivos().reduce((s, t) => s + (t.dano || 0), 0) + somaMelhorias('dano') + ((evolucao() || {}).dano || 0);
+const atributoArma = () => arma().a || 'forca';
 const temTalento = chave => talentosAtivos().some(t => t[chave]);
 
 // A pressão do tempo: quanto mais perto do fim do prazo, mais difícil fica tudo.
@@ -74,11 +110,15 @@ function pressao() {
 }
 
 function atributoDe(o) {
-  if (o.tipo === 'combate' && temTalento('combateMente') && attr('mente') > attr(o.roll.a)) return 'mente';
-  return o.roll.a;
+  // Um ataque com arma usa o atributo da arma. As magias e técnicas usam o seu.
+  const base = o.roll.pv || o.usaArma ? atributoArma() : o.roll.a;
+  if (o.dobra || o.m) return o.roll.a;
+  if (o.tipo === 'combate' && temTalento('combateMente') && attr('mente') > attr(base)) return 'mente';
+  return base;
 }
-const bonusDe = o => attr(atributoDe(o)) + (o.tipo ? bonusTipo(o.tipo) : 0);
-const dcDe = o => o.roll.dc + pressao() + (o.dcExtra || 0);
+const bonusDe = o => attr(atributoDe(o)) + (o.tipo ? bonusTipo(o.tipo) : 0) + (o.usaArma ? somaMelhorias('acerto') : 0);
+// Contra o chefe, o atraso já não pesa: esse preço paga-se pelo caminho, em Vida.
+const dcDe = o => o.roll.dc + (G.emCombateFinal ? 0 : pressao()) + (o.dcExtra || 0);
 
 function repeteTeste(o) {
   return talentosAtivos().some(t => t.repete && t.repete === o.tipo);
@@ -91,12 +131,18 @@ function chanceDe(o) {
   return repeteTeste(o) ? 1 - (1 - p) * (1 - p) : p;
 }
 
+// "de o Homem" passa a "do Homem", quando um nome entra numa frase.
+const contrai = texto => texto.replace(/\bde (O|A|Os|As|o|a|os|as) (?=[A-ZÀ-Ú])/g, (_, art) => `d${art.toLowerCase()} `);
+
 function fmt(texto) {
-  if (!texto || !G.trama) return texto;
+  return texto ? contrai(preencher(texto)) : texto;
+}
+
+function preencher(texto) {
+  if (!G.trama) return texto;
   const t = G.trama;
   const v = VILOES[t.vilao];
   return texto
-    .replace(/\{gancho\}/g, OBJETIVOS[t.objetivo].gancho)
     .replace(/\{cidade\}/g, LUGARES[G.cidade].nome)
     .replace(/\{vilao\}/g, v.nome)
     .replace(/\{reliquia\}/g, t.reliquia)
@@ -129,19 +175,63 @@ function caminho(de, para) {
   return c;
 }
 
-// O próximo sítio com rasto fica a uma ou duas estradas de onde o jogador está.
+// Caminho até um sítio sem passar por onde já esteve, nem pelo destino final ainda secreto.
+function caminhoNovo(de, para) {
+  const destino = VILOES[G.trama.vilao].destino;
+  const prev = { [de]: null }, fila = [de];
+  while (fila.length) {
+    const atual = fila.shift();
+    if (atual === para) break;
+    vizinhos(atual).forEach(n => {
+      if (n in prev) return;
+      if (n !== para && (G.visitados.includes(n) || (n === destino && !G.destinoRevelado))) return;
+      prev[n] = atual; fila.push(n);
+    });
+  }
+  if (!(para in prev)) return null;
+  const c = [];
+  for (let k = para; k; k = prev[k]) c.unshift(k);
+  return c;
+}
+
+// O próximo sítio com rasto fica para a frente: nunca obriga a voltar atrás, se houver alternativa.
 function escolherRasto() {
   const destino = VILOES[G.trama.vilao].destino;
   const livres = Object.keys(LUGARES).filter(k => k !== destino && k !== G.lugar && !G.visitados.includes(k));
-  const perto = livres.filter(k => caminho(G.lugar, k).length <= 3);
-  G.rastro = umDe(perto.length ? perto : livres.length ? livres : Object.keys(LUGARES).filter(k => k !== destino && k !== G.lugar));
+  const comCaminho = livres.map(k => ({ k, c: caminhoNovo(G.lugar, k) })).filter(x => x.c);
+  // Nunca no sítio onde está: a seguir à pista há sempre uma viagem, de uma a três estradas.
+  const perto = comCaminho.filter(x => x.c.length <= 4).map(x => x.k);
+  const longe = comCaminho.map(x => x.k);
+  G.rastro = umDe(perto.length ? perto : longe.length ? longe : livres.length ? livres : Object.keys(LUGARES).filter(k => k !== destino && k !== G.lugar));
+  const c = caminhoNovo(G.lugar, G.rastro) || caminho(G.lugar, G.rastro);
+  G.rastroTotal = c.length - 1 + RASTO_FOLGA;
+  G.rastroLimite = G.dia + G.rastroTotal;
+}
+
+const diasDoRasto = () => (G.rastro ? Math.max(0, G.rastroLimite - G.dia) : 0);
+
+// O rasto mudou de sítio se o jogador o deixou para trás, ou se já só se chega lá a voltar atrás.
+function rastoFicouParaTras() {
+  if (!G.rastro) return null;
+  if (G.dia > G.rastroLimite) return 'esfriou';
+  if (G.rastro === G.lugar) return G.dia >= G.rastroLimite ? 'esfriou' : null;
+  if (G.visitados.includes(G.rastro)) return 'esfriou';
+  if (caminhoNovo(G.lugar, G.rastro)) return null;
+  return Object.keys(LUGARES).some(k => k !== VILOES[G.trama.vilao].destino && !G.visitados.includes(k) && caminhoNovo(G.lugar, k)) ? 'mudou' : null;
+}
+
+function passoParaRasto() {
+  if (!G.rastro) return null;
+  const c = caminhoNovo(G.lugar, G.rastro) || caminho(G.lugar, G.rastro);
+  return c[1] || null;
 }
 
 function montarTrama() {
+  const vilao = umDe(Object.keys(VILOES));
   G.trama = {
     objetivo: umDe(Object.keys(OBJETIVOS)),
-    vilao: umDe(Object.keys(VILOES)),
-    motivo: umDe(MOTIVOS),
+    vilao,
+    motivo: umDe(VILOES[vilao].motivos),
     reviravolta: umDe(Object.keys(REVIRAVOLTAS)),
     reliquia: umDe(RELIQUIAS),
     refem: umDe(REFENS),
@@ -190,7 +280,17 @@ function cartaRara(req) {
 }
 
 // Monta a mão de cartas de uma cena.
+// Quanto o mundo apertou com o nível do herói.
+const subidaNivel = () => Math.floor((G.nivel - 1) / SUBIDA.niveisPorPonto);
+const pvDoInimigo = o => Math.ceil(o.roll.pv * COMBATE.escalaPv * (1 + SUBIDA.pvPorNivel * (G.nivel - 1)));
+
 function opcoesDaCena(cena) {
+  const sobe = o => (o.roll ? { ...o, dcExtra: (o.dcExtra || 0) + subidaNivel() } : o);
+  return maoDaCena(cena).map(sobe);
+}
+
+function maoDaCena(cena) {
+  if (cena.fechada) return cena.opcoes.filter(podeUsar);
   const base = cena.opcoes.filter(o => !o.req);
   const especiais = cena.opcoes.filter(o => o.req);
 
@@ -202,9 +302,12 @@ function opcoesDaCena(cena) {
 
   const porItem = especiais.filter(o => o.req.item && temItem(o.req.item)).map(o => ({ ...o, rara: true }));
 
-  const rasto = G.rastro === G.lugar && G.pistas < PISTAS_PRECISAS ? [cartaDeRasto()] : [];
+  const rasto = G.rastro === G.lugar && G.pistas < PISTAS_PRECISAS && G.dia <= G.rastroLimite ? [cartaDeRasto()] : [];
 
-  const fixas = [...raras, ...porItem, ...rasto];
+  // Por vezes, a classe tem uma magia ou técnica própria para a situação.
+  const taticas = Math.random() < .5 && TATICAS[G.cls] ? [umDe(TATICAS[G.cls])] : [];
+
+  const fixas = [...rasto, ...raras, ...porItem, ...taticas];
   const lugares = Math.max(1, 4 - fixas.length);
   const usaveis = baralhar(base.filter(podeUsar));
   const escolhidas = usaveis.slice(0, lugares);
@@ -230,20 +333,21 @@ function cartaDeRasto() {
   const f = formas.reduce((m, x) => (attr(x.a) > attr(m.a) ? x : m));
   return {
     t: f.t,
-    d: 'Deixar o resto por resolver e ir atrás do que o trouxe aqui.',
-    tipo: f.tipo,
+    d: 'Esta é a carta que encontra a pista. Qualquer outra deixa-a para depois.',
+    tipo: f.tipo, tema: 'pista', etiqueta: 'A Pista', glyph: 'eye',
     roll: { a: f.a, dc: 11 },
     rasto: true,
     ok: { txt: '', fx: { xp: 1 } },
-    ko: { txt: 'Era uma pista falsa, e custa-lhe tempo perceber isso.', fx: { dia: 1 }, falsaPista: true },
+    ko: { txt: 'Não encontra aqui nada que sirva, e sai de lá mais magoado do que entrou.', fx: { vida: -2 } },
   };
 }
 
-// Devolve o texto da pista que acabou de ser encontrada.
+// Devolve o texto da pista que acabou de ser encontrada e guarda-a no diário.
 function encontrarPista() {
   const v = VILOES[G.trama.vilao];
   const texto = v.pistas[Math.min(G.pistas, v.pistas.length - 1)];
   G.pistas++;
+  G.diario.push({ lugar: LUGARES[G.lugar].nome, texto });
   if (G.pistas === 2) G.reviravoltaPendente = true;
   if (G.pistas >= PISTAS_PRECISAS) {
     G.destinoRevelado = true;
@@ -261,22 +365,140 @@ function resolverTeste(o) {
   let repetiu = false;
   if (!passou(d20) && repeteTeste(o)) { d20 = dado(20); repetiu = true; }
   const ok = passou(d20);
-  const out = { ok, d20, bonus, dc, total: d20 + bonus, repetiu };
-  if (o.tipo === 'combate') {
-    const a = arma();
-    out.tipoDado = a.dado;
-    out.dadoArma = dado(parseInt(a.dado.slice(1), 10));
-    out.dano = out.dadoArma + danoExtra();
+  const out = { ok, d20, bonus, dc, total: d20 + bonus, repetiu, critico: d20 === 20, falhaCritica: d20 === 1 };
+  if (out.critico || out.falhaCritica) G.log.criticos++;
+  if (o.dadoDano) {
+    out.tipoDado = o.dadoDano;
+    out.dadoArma = dado(parseInt(o.dadoDano.slice(1), 10));
+    out.dano = (out.dadoArma + danoExtra() + ((o.m && o.m.mais) || 0)) * (out.critico ? 2 : 1);
     out.pv = o.roll.pv || 0;
-    out.parcial = ok && out.dano < out.pv;
   }
   return out;
+}
+
+// ---------- Combate ----------
+
+// O inimigo que uma opção de combate põe à frente do jogador.
+function inimigoDe(o, cena) {
+  const golpeBase = o.ko && o.ko.fx && o.ko.fx.vida ? -o.ko.fx.vida : 3;
+  const pv = pvDoInimigo(o), dc = o.roll.dc + (o.dcExtra || 0);
+  return {
+    nome: fmt(o.roll.ini || cena.titulo),
+    pv, pvMax: pv,
+    defesa: dc,
+    ataque: dc - COMBATE.ataqueMenos,
+    dado: golpeBase >= 6 ? 'd10' : golpeBase >= 5 ? 'd8' : 'd6',
+    mais: subidaNivel(),
+    agi: dc - 11,
+    primeiro: o.roll.primeiro || null,
+  };
+}
+
+// O chefe final: tem PV a sério e, em cada ronda, um efeito e um ataque.
+function chefeFinal() {
+  const v = VILOES[G.trama.vilao];
+  const trunfos = ['enganou', 'traidorvirado', 'ajudado', 'sangue'].filter(m => G.marcas.has(m)).length;
+  const pv = COMBATE.vilao.pvBase + COMBATE.vilao.pvNivel * G.nivel;
+  const ca = Math.max(9, COMBATE.vilao.ca + subidaNivel() - trunfos);
+  return {
+    nome: fmt('{vilao}').replace(/^./, m => m.toUpperCase()),
+    pv, pvMax: pv, defesa: ca, caBase: ca,
+    ataque: COMBATE.vilao.ataque + subidaNivel(),
+    dado: COMBATE.vilao.dado, agi: 3,
+    chefe: true, efeitos: v.efeitos, frases: v.ronda, fraqueza: v.fraqueza.includes(G.cls),
+    capitulo: 'Capítulo Final', abertura: `${v.finalTexto} ${G.trama.motivo}`,
+  };
+}
+
+const dadoDoInimigo = ini => `${ini.dado}${ini.mais ? `+${ini.mais}` : ''}`;
+
+// O d20 do inimigo contra a sua CA. Depois de uma falha crítica sua, acerta sempre.
+function ataqueDoInimigo(ini, exposto = false) {
+  const d20 = dado(20), ca = caJogador(), total = d20 + ini.ataque;
+  const critico = d20 === 20;
+  const acerta = exposto || critico || (d20 !== 1 && total >= ca);
+  const rolado = acerta ? dado(parseInt(ini.dado.slice(1), 10)) : 0;
+  const dano = acerta ? Math.max(1, rolado + (ini.mais || 0) - COMBATE.danoMenos) * (critico ? 2 : 1) : 0;
+  return { d20, ca, total, critico, acerta, rolado, dano };
+}
+
+const media = d => (parseInt(d.slice(1), 10) + 1) / 2;
+
+function cartaAtaque(ini) {
+  const a = arma();
+  const o = {
+    t: `Atacar: ${G.equip.arma ? nomeItem(G.equip.arma) : a.nome}`, d: `Se chegar à CA ${ini.defesa}, tira-lhe PV. Depois, é a vez dele.`,
+    tipo: 'combate', usaArma: true, dadoDano: a.dado, roll: { a: atributoArma(), dc: ini.defesa }, danoMedio: media(a.dado) + danoExtra(),
+    glyph: a.glyph || 'sword',
+  };
+  o.ganhoTexto = `Dano ${a.dado}${danoExtra() ? `+${danoExtra()}` : ''}`;
+  return o;
+}
+
+function cartaManobra(m, ini) {
+  const base = { t: m.t, d: m.d, tipo: 'combate', tema: m.magia ? 'magia' : 'tecnica', etiqueta: m.magia ? 'Magia' : 'Técnica', glyph: m.glyph, m };
+  const partes = [];
+  if (m.dado) partes.push(`Dano ${m.dado}`);
+  if (m.cura) partes.push(`+${m.cura} Vida`);
+  if (m.custo) partes.push(`custo: ${m.custo} Vida`);
+  if (m.enfraquece) partes.push(`Defesa -${m.enfraquece}`);
+  base.ganhoTexto = partes.join('  ·  ');
+  if (m.a) {
+    base.roll = { a: m.a, dc: ini.defesa + (m.dificil || 0) - (m.facil || 0) };
+    if (m.dado) { base.dadoDano = m.dado; base.danoMedio = media(m.dado) + danoExtra(); }
+  }
+  if (m.custo && G.vida <= m.custo) { base.bloqueada = 'Vida a menos'; }
+  if (m.cura && G.vida >= vidaMax()) { base.bloqueada = 'Vida cheia'; }
+  return base;
+}
+
+// O que só se pode fazer contra o chefe, uma vez cada.
+function cartasDoChefe(ini, usadas) {
+  const carta = (id, t, d, tipo, a, extra = {}) => {
+    const c = { t, d, tipo, roll: { a, dc: ini.defesa + (extra.facil ? -3 : 0) }, m: { id, a, calar: !!extra.calar } };
+    if (extra.dado) { c.dadoDano = extra.dado; c.danoMedio = media(extra.dado) + danoExtra(); c.ganhoTexto = `Dano ${extra.dado}`; }
+    else c.ganhoTexto = 'Ele perde a próxima ronda';
+    return c;
+  };
+  const melhor = Object.keys(CLASSES[G.cls].attrs).reduce((m, a) => (attr(a) > attr(m) ? a : m));
+  const lista = [
+    carta('f_passar', 'Passar à frente', 'Chegar onde ninguém o espera.', 'habilidade', 'agilidade', { dado: 'd10' }),
+    carta('f_falar', 'Falar-lhe ao que resta', 'Toda a gente tem uma fenda.', 'social', 'carisma', { calar: true }),
+  ];
+  if (G.pistas) lista.push(carta('f_pistas', 'Usar o que descobriu', 'As pistas tinham um propósito.', 'investigacao', 'mente', { dado: 'd10' }));
+  const base = baralhar(lista);
+  if (ini.fraqueza) {
+    base.unshift({ ...carta('f_classe', `Golpe de ${nomeClasse()}`, 'Foi para isto que treinou. Mais fácil de acertar.', 'combate', melhor, { dado: 'd12', facil: true }), rara: true, req: { cls: G.cls } });
+  }
+  return base.filter(c => !usadas.has(c.m.id));
+}
+
+function maoDeCombate(ini, usadas) {
+  const mao = [cartaAtaque(ini)];
+  // A manobra da classe aprimorada aparece sempre.
+  const evo = evolucao();
+  const baralho = [...(evo ? [evo.manobra] : []), ...baralhar(MANOBRAS[G.cls] || [])].filter(m => !usadas.has(m.id) && !(ini.chefe && (m.vence || m.fuga)));
+  baralho.slice(0, 2).forEach(m => mao.push(cartaManobra(m, ini)));
+  if (G.mochila.includes('pocao')) {
+    mao.push({
+      t: 'Beber a Poção', d: `Recupera ${ITENS.pocao.uso.vida} de Vida, e a seguir é a vez dele.`, tema: 'equipamento', etiqueta: 'Mochila', glyph: 'drop',
+      pocao: true, bloqueada: G.vida >= vidaMax() ? 'Vida cheia' : null, ganhoTexto: `+${ITENS.pocao.uso.vida} Vida`,
+    });
+  }
+  if (ini.chefe) return [...mao, ...cartasDoChefe(ini, usadas)].slice(0, 5);
+  mao.push({
+    t: 'Fugir', d: 'Sai sem recompensa. Se falhar, ele ataca na mesma.', tipo: 'habilidade', etiqueta: 'Fuga', glyph: 'feather',
+    fugir: true, roll: { a: 'agilidade', dc: Math.max(6, ini.defesa - 2) },
+  });
+  return mao;
 }
 
 const precoVenda = id => Math.floor(ITENS[id].preco / 4);
 
 function aplicarVida(delta) {
+  const antes = G.vida;
   G.vida = Math.max(0, Math.min(vidaMax(), G.vida + delta));
+  if (G.vida < antes) G.log.dano += antes - G.vida;
 }
 
 // A poção da mochila salva sozinha quem cair a 0 de Vida.
@@ -285,6 +507,8 @@ function salvarComPocao() {
   const i = G.mochila.indexOf('pocao');
   if (i < 0) return false;
   G.mochila.splice(i, 1);
+  G.gastos.push('pocao');
+  G.log.pocoes++;
   G.vida = Math.min(vidaMax(), ITENS.pocao.uso.vida);
   return true;
 }
@@ -294,6 +518,8 @@ function usarItem(id) {
   const it = ITENS[id];
   if (i < 0 || !it.uso || G.vida >= vidaMax()) return false;
   G.mochila.splice(i, 1);
+  G.gastos.push(id);
+  G.log.pocoes++;
   aplicarVida(it.uso.vida || 0);
   return true;
 }

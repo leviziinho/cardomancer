@@ -9,16 +9,12 @@
 
 const OBJETIVOS = {
   reliquia: { titulo: 'Encontre {reliquia}', glyph: 'star', desc: 'Alguém está a matar para a ter primeiro. Junte as pistas antes de se esgotar o tempo.',
-    gancho: 'O selo traz gravado o nome de {reliquia}, e a seguir uma data: faltam poucos dias.',
     vitoria: 'Sai dali com {reliquia} nas mãos, ainda quente do que quase aconteceu.' },
   resgate: { titulo: 'Resgate {refem}', glyph: 'person', desc: 'Foi levada e tem pouco tempo. Quem a levou não deixou um único rasto às claras.',
-    gancho: 'O selo traz um pedido escrito à pressa: {refem} foi levada, e depois da lua nova não haverá quem resgatar.',
     vitoria: '{refem} sai consigo pelo próprio pé, a tremer, viva e furiosa.' },
   impedir: { titulo: 'Impeça o ritual da lua nova', glyph: 'moon', desc: 'Algo vai acontecer na próxima lua nova. Descubra onde, antes que seja tarde.',
-    gancho: 'O selo traz um desenho de lua negra, e por baixo a contagem dos dias que faltam.',
     vitoria: 'A lua nova nasce sobre um céu vulgar, e ninguém chega a saber o que não aconteceu.' },
   cacar: { titulo: 'Encontre quem matou o mensageiro', glyph: 'dagger', desc: 'Foi só o primeiro nome da lista. Siga o sangue até à origem, antes do próximo.',
-    gancho: 'O selo traz uma lista de nomes riscados. O do mensageiro é o último, e o seguinte é o de toda uma cidade.',
     vitoria: 'A lista acaba aqui. Queima-a à chama da última vela, e o nome de ninguém volta a ser riscado.' },
 };
 
@@ -27,6 +23,8 @@ const REFENS = ['a Irmã Maior de Lumiar', 'a Herdeira de Pedra-Alta', 'a Cartó
 
 const VILOES = {
   afogado: { nome: 'o Rei Afogado', destino: 'torre', glyph: 'crown', fraqueza: ['barbaro', 'clerigo'],
+    efeitos: [{ t: 'A maré fecha-lhe as feridas.', tipo: 'cura', v: 4 }, { t: 'A água enche-lhe os pulmões.', tipo: 'dreno', v: 2 }],
+    motivos: ['Quer de volta o reino que o mar lhe levou, nem que seja debaixo de água.', 'Jurou que a maré voltaria a obedecer-lhe, e um rei não quebra juramentos.', 'Ainda dá ordens a uma frota que só ele consegue ver.'],
     pistas: [
       'Em cada vila se repete a história: as pessoas acordam com a boca a saber a sal, e os poços sobem sem chover.',
       'Soldados de armadura coberta de cracas marcham de noite para leste, e deixam pegadas de água.',
@@ -35,6 +33,8 @@ const VILOES = {
     finalTexto: 'A maré vira ao contrário e a torre emerge a pingar. No topo, sobre um trono de coral, {vilao} volta para si a face inchada. "Vieste beijar a mão ao teu soberano", diz, com uma voz cheia de água.',
     ronda: { combate: 'A armadura range e a água jorra das juntas.', social: 'Por um instante ele lembra-se de que já foi homem.', habilidade: 'A água recua e abre-lhe um caminho até ao trono.', investigacao: 'Tudo o que descobriu sobre ele encaixa, peça a peça.' } },
   sacerdotisa: { nome: 'a Sacerdotisa Velada', destino: 'ossario', glyph: 'moon', fraqueza: ['mago', 'bardo'],
+    efeitos: [{ t: 'O cântico faz-lhe tremer a mão.', tipo: 'fraco', v: 3 }, { t: 'O círculo de pó fecha-se à volta dela.', tipo: 'ca', v: 1 }],
+    motivos: ['Prega que só o fim do mundo põe fim à dor, e já convenceu muitos.', 'Paga uma dívida antiga a algo que não aceita moedas.', 'Viu o futuro uma vez, e decidiu que ninguém o há de viver.'],
     pistas: [
       'Pregada a uma árvore há uma lista de nomes, e metade está riscada a cera negra.',
       'Um altar de pedra, ainda quente, tem marcas de calendário em vez de orações. Há um eclipse marcado.',
@@ -43,6 +43,8 @@ const VILOES = {
     finalTexto: 'O céu escurece ao meio-dia. Em Ossário, sete figuras formam um círculo em torno de {vilao}, de mãos abertas, enquanto o pó dos mortos sobe à sua volta.',
     ronda: { combate: 'A guarda quebra, e o círculo perde um elo.', social: 'Metade dos cultistas está ali por medo, e a dúvida espalha-se.', habilidade: 'Atravessa o círculo sem que o pó o toque.', investigacao: 'Encontra o erro nas contas do ritual, e o céu hesita.' } },
   luvas: { nome: 'o Homem das Luvas Brancas', destino: 'cardeo', glyph: 'flame', fraqueza: ['bardo', 'ladino'],
+    efeitos: [{ t: 'Um capanga aponta-lhe uma besta, e custa-lhe a atenção.', tipo: 'fraco', v: 3 }, { t: 'Alguém pago por ele leva-lhe a bolsa.', tipo: 'ouro', v: 4 }],
+    motivos: ['Foi pago para acordar o que dorme na montanha, e nunca falhou um contrato.', 'Quer vender o mundo a quem pagar mais, e já tem comprador.', 'Vai fazer arder as cortes que um dia lhe recusaram a mão.'],
     pistas: [
       'Famílias de mineiros descem a serra sem os homens: alguém pagou o triplo para cavar no Monte Cárdeo.',
       'Uma caravana sobe a estrada com correntes da grossura da sua cintura. Ninguém sabe para que servem.',
@@ -51,6 +53,8 @@ const VILOES = {
     finalTexto: 'Os túneis terminam numa câmara do tamanho de uma catedral. As correntes já prendem uma asa imensa. {vilao} ergue o braço para o último golpe de martelo, e um olho dourado abre-se no escuro.',
     ronda: { combate: 'O martelo fica mais longe da mão dele.', social: 'Os mineiros olham para o olho, e depois para ele.', habilidade: 'Salta de corrente em corrente, cada vez mais perto.', investigacao: 'Conhece agora o elo que segura todos os outros.' } },
   bruxa: { nome: 'a Bruxa do Junco', destino: 'velas', glyph: 'drop', fraqueza: ['clerigo', 'mago'],
+    efeitos: [{ t: 'Uma moeda na boca de um sapo, e a ferida dela fecha.', tipo: 'cura', v: 4 }, { t: 'Cobra-lhe um favor que não sabia dever.', tipo: 'dreno', v: 2 }],
+    motivos: ['Está a cobrar todos os favores que emprestou em cem anos.', 'Enche a panela para um inverno que só ela sabe que vem.', 'Riram-se dela uma vez, e agora ri-se por último, e devagar.'],
     pistas: [
       'As crianças das aldeias vizinhas cantam uma lengalenga nova, que ninguém lhes ensinou.',
       'Luzes azuis saem do pântano cada noite mais longe, e cada noite alguém as segue.',
@@ -59,6 +63,8 @@ const VILOES = {
     finalTexto: 'No coração do pântano, a cabana sobre estacas é agora do tamanho de uma aldeia. As luzes azuis giram à volta de {vilao}, que mexe a tigela sem pressa. "Sopa ou resposta?", pergunta, sem olhar.',
     ronda: { combate: 'As estacas estalam, e a cabana inclina-se.', social: 'Ela ri, mas responde, e cada resposta custa-lhe um pouco.', habilidade: 'Pisa só onde as luzes não apontam.', investigacao: 'Reconhece um rosto nas moedas, e chama-o pelo nome.' } },
   capitao: { nome: 'o Capitão do Casco Negro', destino: 'carpa', glyph: 'seal', fraqueza: ['patrulheiro', 'barbaro'],
+    efeitos: [{ t: 'A tripulação fecha o cerco à volta dele.', tipo: 'ca', v: 1 }, { t: 'Uma cláusula em letra pequena leva-lhe o ouro.', tipo: 'ouro', v: 4 }],
+    motivos: ['Os contratos dizem que o mar é dele, e vai cobrar cada cláusula.', 'Afundou a própria família por engano, e procura a maré que a devolva.', 'Quer tudo o que flutua, e depois tudo o que não flutua.'],
     pistas: [
       'Nos portos falam de um navio que aparece onde a maré recua mais do que devia.',
       'Um cofre dá à costa com selos de três reinos. Dentro há contratos, todos com a mesma assinatura.',
@@ -67,13 +73,6 @@ const VILOES = {
     finalTexto: 'A enseada está seca até ao horizonte. Encalhado na areia, o navio negro aguarda, e {vilao} desce a prancha sem pressa. Atrás dele, ao longe, a água já vem de volta.',
     ronda: { combate: 'A tripulação recua um passo, e depois mais outro.', social: 'Encontra na tripulação quem também foi enganado.', habilidade: 'Sobe pelo cordame enquanto olham para o outro lado.', investigacao: 'Conhece os contratos, e sabe qual o pode destruir.' } },
 };
-
-const MOTIVOS = [
-  'Quer o que lhe foi tirado há cem anos, e nada mais lhe importa.',
-  'Paga uma dívida antiga a algo que não aceita moedas.',
-  'Acredita sinceramente que está a salvar toda a gente.',
-  'Só quer ver arder quem um dia se riu dele.',
-];
 
 // Reviravoltas: acontecem de surpresa depois da segunda pista.
 const REVIRAVOLTAS = {
@@ -84,7 +83,7 @@ const REVIRAVOLTAS = {
       { t: 'Confrontar o traidor', d: 'Olhos nos olhos, agora mesmo.', tipo: 'social', roll: { a: 'carisma', dc: 13 },
         ok: { txt: 'A verdade sai aos soluços. Era chantagem, e não maldade. A partir de hoje, quem o vendeu vende {vilao} a si.', fx: { xp: 3, marca: 'traidorvirado' } },
         ko: { txt: 'A faca sai primeiro do que as desculpas. Foge a sangrar, e {vilao} fica a saber para onde.', fx: { vida: -4, perdeAliado: true, dia: 1 } } },
-      { t: 'Abrir caminho a golpes', d: 'Depois logo se fala.', tipo: 'combate', roll: { a: 'forca', dc: 13, pv: 7 },
+      { t: 'Abrir caminho a golpes', d: 'Depois logo se fala.', tipo: 'combate', roll: { a: 'forca', dc: 13, pv: 7, ini: 'Os Capangas' },
         ok: { txt: 'Sai por cima deles, com o coração aos saltos e menos um amigo no mundo.', fx: { xp: 2, perdeAliado: true } },
         ko: { txt: 'São muitos. Só escapa porque a noite é escura e o rio é fundo.', fx: { vida: -4, perdeAliado: true } } },
       { t: 'Fingir que não percebeu', d: 'E alimentar o traidor com mentiras.', tipo: 'habilidade', roll: { a: 'mente', dc: 14 },
@@ -138,22 +137,96 @@ const REVIRAVOLTAS = {
 
 // ---------- O início ----------
 
-const GANCHO = {
-  titulo: 'O Selo Partido',
-  terreno: 'cidade',
-  texto: 'Em {cidade}, um mensageiro cai à sua frente com uma seta nas costas. Na mão traz metade de um selo de cera. {gancho} Atrás de si, alguém na multidão já se afastou depressa demais.',
-  fundo: 'Há anos que ninguém em {cidade} leva a sério os mensageiros do Selo. Eram a guarda postal de um reino que já não existe, e os últimos andam de terra em terra a entregar cartas que ninguém escreveu. Quando um deles chega a morrer para entregar alguma coisa, os mais velhos fecham as portas e benzem-se.',
+// Cada missão tem mais do que uma forma de começar.
+const GANCHOS = {
+  reliquia: [
+    { titulo: 'O Leilão Interrompido', terreno: 'cidade',
+      texto: 'Na sala de leilões de {cidade}, o lote seguinte é um mapa antigo que diz levar a {reliquia}. O leiloeiro abre a boca para anunciar o preço e cai para a frente, com os lábios azuis. Quando as pessoas olham, o mapa já não está na mesa.',
+      fundo: 'As casas de leilões vendem o que os herdeiros não querem explicar. Toda a gente sabe disso, e por isso ninguém pergunta de onde vêm os lotes. Pagar caro por um objeto é a forma mais respeitável de nunca falar dele.',
+      opcoes: [
+        { t: 'Cheirar o copo dele', d: 'O veneno diz muito sobre quem o usou.', tipo: 'investigacao', roll: { a: 'mente', dc: 10 }, rasto: true, ok: { txt: 'Raiz de junco, e só um boticário na região a vende. O livro dele tem um nome e uma morada.', fx: { xp: 1 } }, ko: { txt: 'Fica com uma dor de cabeça, e com um bom motivo para não cheirar copos.', fx: { vida: -1 } } },
+        { t: 'Correr atrás do comprador velado', d: 'Foi o único a sair antes de o leiloeiro cair.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 11 }, rasto: true, ok: { txt: 'Apanha-lhe a capa à saída. Fica com a capa, e no forro está cosido um destino.', fx: {} }, ko: { txt: 'Tropeça numa cadeira do século passado, e o dono quer que a pague.', fx: { ouro: -2 } } },
+        { t: 'Interrogar o ajudante', d: 'Ele treme mais do que devia.', tipo: 'social', roll: { a: 'carisma', dc: 10 }, rasto: true, ok: { txt: 'Bastam duas perguntas. Foi pago para trocar os copos, e diz por quem.', fx: {} }, ko: { txt: 'Ele grita por socorro, e sai de lá empurrado pelos guardas.', fx: { vida: -1 } } },
+        { t: 'Aproveitar a confusão', d: 'Os lotes seguintes ficaram sem vigia. O que precisar, compre-o barato.', ok: { txt: 'Enquanto toda a gente grita, um funcionário vende-lhe o que quiser, sem fazer perguntas.', fx: { mercado: true } } },
+      ] },
+    { titulo: 'O Penhorista de Mãos Trémulas', terreno: 'cidade',
+      texto: 'Um penhorista de {cidade} agarra-o pela manga e empurra-lhe para as mãos um desenho a carvão: {reliquia}, em tamanho real. "Ontem vieram matar-me por causa disto. Hoje vêm outra vez. Leve-o." Lá fora, três homens já atravessam a rua.',
+      fundo: 'O penhorista herdou a loja e todas as coisas que ninguém voltou a buscar. Nas prateleiras de trás há objetos que os seus avós prometeram nunca vender. Foi o seu erro achar que essa promessa não passava de uma velha mania de família.',
+      opcoes: [
+        { t: 'Estudar o desenho', d: 'As margens têm notas, em letra muito pequena.', tipo: 'investigacao', roll: { a: 'mente', dc: 10 }, rasto: true, ok: { txt: 'As notas são um itinerário, e a última paragem ainda está por riscar.', fx: { xp: 1 } }, ko: { txt: 'A letra é impossível. O carvão, esse, fica-lhe nos dedos.', fx: {} } },
+        { t: 'Sair pelo telhado', d: 'E seguir os três quando passarem.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 11 }, rasto: true, ok: { txt: 'De cima, ouve-os a discutir. Dizem o sítio para onde têm de voltar, em voz alta.', fx: {} }, ko: { txt: 'A telha cede, e a queda é mais curta do que a vergonha.', fx: { vida: -2 } } },
+        { t: 'Enfrentar os três à porta', d: 'E perguntar quem os paga.', tipo: 'social', roll: { a: 'forca', dc: 11 }, rasto: true, ok: { txt: 'Um deles repensa a sua carreira e diz-lhe tudo o que sabe.', fx: { xp: 1 } }, ko: { txt: 'Dois murros depois, percebe que eles também sabem fazer perguntas.', fx: { vida: -2 } } },
+        { t: 'Ver o que há nas prateleiras', d: 'O dono não vai precisar de tudo.', ok: { txt: 'O penhorista abre a vitrine e faz-lhe um preço de quem tem pressa de sair.', fx: { mercado: true } } },
+      ] },
+  ],
+  resgate: [
+    { titulo: 'O Bilhete Trocado', terreno: 'cidade',
+      texto: 'Na estalagem de {cidade}, entregam-lhe por engano um bilhete sem assinatura: {refem} está viva, o preço já foi combinado, e depois da lua nova deixa de haver negócio. O rapaz que o trouxe olha para si, percebe o erro e deita a correr.',
+      fundo: 'Em {cidade}, os recados vão sempre pelos mesmos três rapazes, e pagam-lhes para não saberem ler. Este é mais novo do que os outros. Trocar de mesa foi o primeiro erro que cometeu, e talvez o último.',
+      opcoes: [
+        { t: 'Ler o papel à contraluz', d: 'As marcas de água têm dono.', tipo: 'investigacao', roll: { a: 'mente', dc: 10 }, rasto: true, ok: { txt: 'A marca de água é de uma só oficina, e a oficina só vende a um cliente.', fx: { xp: 1 } }, ko: { txt: 'É só papel, e a vela quase o queima.', fx: {} } },
+        { t: 'Correr atrás do rapaz', d: 'Ele conhece as ruas. Você tem pernas mais longas.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 11 }, rasto: true, ok: { txt: 'Agarra-o junto ao poço. Sem fôlego, ele diz-lhe de onde vinha o bilhete.', fx: {} }, ko: { txt: 'Ele desaparece por uma fenda onde só cabe uma criança.', fx: {} } },
+        { t: 'Perguntar quem conhecia a refém', d: 'Alguém nesta sala já a viu.', tipo: 'social', roll: { a: 'carisma', dc: 10 }, rasto: true, ok: { txt: 'Uma cozinheira chora ao ouvir o nome, e conta-lhe quem a veio buscar.', fx: {} }, ko: { txt: 'A sala cala-se, e o estalajadeiro aumenta-lhe a conta.', fx: { ouro: -2 } } },
+        { t: 'Preparar-se primeiro', d: 'Não se resgata ninguém de mãos vazias.', ok: { txt: 'Sai para o mercado com o bilhete dobrado na bota.', fx: { mercado: true } } },
+      ] },
+    { titulo: 'O Cavalo Sem Cavaleiro', terreno: 'cidade',
+      texto: 'Um cavalo entra em {cidade} a passo, de sela vazia e rédeas cortadas. Na sela há sangue seco, e o brasão de {refem}. As pessoas afastam-se, e a mulher do ferrador faz o sinal contra o azar. Ninguém pega nas rédeas, por isso pega você.',
+      fundo: 'Um cavalo volta sempre para onde lhe deram de comer. Os criadores de {cidade} dizem que um bom animal é capaz de refazer o caminho de olhos fechados. Este, mesmo cansado, continua a virar a cabeça na mesma direção.',
+      opcoes: [
+        { t: 'Examinar a sela', d: 'A lama e o sangue têm uma ordem.', tipo: 'investigacao', roll: { a: 'mente', dc: 10 }, rasto: true, ok: { txt: 'A lama é vermelha, e só há uma estrada com lama desta cor.', fx: { xp: 1 } }, ko: { txt: 'Lama é lama, e o cavalo pisa-lhe o pé.', fx: { vida: -1 } } },
+        { t: 'Deixar o cavalo escolher', d: 'Montar e soltar as rédeas.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 11 }, rasto: true, ok: { txt: 'Ele sai a galope até à última casa, e fica a olhar para uma estrada.', fx: {} }, ko: { txt: 'O cavalo decide que não gosta de si, e fá-lo saber.', fx: { vida: -2 } } },
+        { t: 'Falar com a mulher do ferrador', d: 'Quem faz sinais sabe mais do que diz.', tipo: 'social', roll: { a: 'carisma', dc: 10 }, rasto: true, ok: { txt: 'Ferrou este cavalo há três dias, e viu quem o levava.', fx: {} }, ko: { txt: 'Fecha-lhe a porta na cara, com o sinal ainda feito.', fx: {} } },
+        { t: 'Vender a sela e equipar-se', d: 'A sela vale dinheiro, e a dona há de perdoar.', ok: { txt: 'Com a sela vendida, sobra algum para gastar no mercado.', fx: { ouro: 3, mercado: true } } },
+      ] },
+  ],
+  impedir: [
+    { titulo: 'A Lua no Poço', terreno: 'cidade',
+      texto: 'Ao meio-dia, em {cidade}, as crianças juntam-se à volta do poço da praça. O céu está limpo e cheio de sol, mas lá em baixo, na água, brilha uma lua negra. A cada hora que passa, a lua fica mais redonda. Os velhos já estão a fechar as portas.',
+      fundo: 'O poço da praça é mais antigo do que {cidade}, e foi à volta dele que a primeira rua nasceu. Nas crónicas fala-se de uma única outra vez em que a água mostrou um céu diferente. Não se sabe como acabou: as crónicas acabam nessa página.',
+      opcoes: [
+        { t: 'Medir a sombra da lua', d: 'Quanto falta, e de onde vem?', tipo: 'investigacao', roll: { a: 'mente', dc: 10 }, rasto: true, ok: { txt: 'As contas apontam para um lugar. O reflexo, afinal, tem uma direção.', fx: { xp: 1 } }, ko: { txt: 'Quanto mais olha, mais lhe custa olhar para outro lado.', fx: { vida: -1 } } },
+        { t: 'Descer ao poço', d: 'Pela corda, antes que alguém o impeça.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 11 }, rasto: true, ok: { txt: 'Lá em baixo, gravada na pedra molhada e ainda fresca, há uma marca que não devia estar ali.', fx: {} }, ko: { txt: 'A corda solta-se a meio. A água está mais fria do que devia.', fx: { vida: -2 } } },
+        { t: 'Falar com os velhos', d: 'Fecham as portas porque já viram isto.', tipo: 'social', roll: { a: 'carisma', dc: 10 }, rasto: true, ok: { txt: 'Uma avó abre a porta um palmo e diz-lhe onde foi que a coisa começou da outra vez.', fx: {} }, ko: { txt: 'Ninguém responde. Só as trancas fazem barulho.', fx: {} } },
+        { t: 'Comprar antes que feche tudo', d: 'Daqui a uma hora não há lojas abertas.', ok: { txt: 'Os mercadores já estão a arrumar, e vendem depressa e barato.', fx: { mercado: true } } },
+      ] },
+    { titulo: 'O Astrónomo no Telhado', terreno: 'cidade',
+      texto: 'Um velho astrónomo está sentado na cumeeira mais alta de {cidade}, a gritar números para a rua. Os guardas tentam tirá-lo de lá há duas horas. Ao vê-lo a si, ele para, aponta e diz muito baixo, mas todos ouvem: "Tu. Tu ainda tens tempo de fazer as contas."',
+      fundo: 'Passou quarenta anos a corrigir o calendário real, e ninguém leu as correções. A cidade habituou-se a rir dele. Foi só esta manhã que alguém reparou que, na última semana, acertou em tudo o que disse.',
+      opcoes: [
+        { t: 'Subir e rever as contas com ele', d: 'Os números estão certos? E onde?', tipo: 'investigacao', roll: { a: 'mente', dc: 10 }, rasto: true, ok: { txt: 'Estão certos, e horríveis. No fim do caderno há um lugar marcado.', fx: { xp: 1 } }, ko: { txt: 'Perde-se ao quarto cálculo, e ele chora de desilusão.', fx: {} } },
+        { t: 'Roubar-lhe o caderno', d: 'Enquanto os guardas o seguram.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 11 }, rasto: true, ok: { txt: 'O caderno vem consigo pelo telhado fora. A última página traz um nome de lugar, sublinhado três vezes.', fx: {} }, ko: { txt: 'Um guarda vê-o, e leva uma bastonada pelo incómodo.', fx: { vida: -2 } } },
+        { t: 'Convencer os guardas a ouvi-lo', d: 'Só precisam de se calar um minuto.', tipo: 'social', roll: { a: 'carisma', dc: 10 }, rasto: true, ok: { txt: 'Fazem silêncio, e ele diz o que tinha a dizer. A rua inteira ouve um nome de terra.', fx: {} }, ko: { txt: 'Quem acaba por ser levado por perturbar a ordem é você, e custa-lhe uma multa.', fx: { ouro: -2 } } },
+        { t: 'Deixá-lo e preparar-se', d: 'Louco ou não, a lua nova vem aí.', ok: { txt: 'Compra o que pode, com os gritos dele atrás de si, rua abaixo.', fx: { mercado: true } } },
+      ] },
+  ],
+  cacar: [
+    { titulo: 'O Selo Partido', terreno: 'cidade',
+      texto: 'Em {cidade}, um mensageiro cai à sua frente com uma seta nas costas. Na mão traz metade de um selo de cera, e um papel com uma lista de nomes riscados. O dele é o último, e o seguinte é o de toda uma cidade. Atrás de si, alguém na multidão já se afastou depressa demais.',
+      fundo: 'Há anos que ninguém em {cidade} leva a sério os mensageiros do Selo. Eram a guarda postal de um reino que já não existe, e os últimos andam de terra em terra a entregar cartas que ninguém escreveu. Quando um deles chega a morrer para entregar alguma coisa, os mais velhos fecham as portas e benzem-se.',
+      opcoes: [
+        { t: 'Revistar o corpo', d: 'Os bolsos de um morto ainda têm muito a dizer.', tipo: 'investigacao', roll: { a: 'mente', dc: 10 }, rasto: true, ok: { txt: 'No forro do casaco há um bilhete cifrado.', fx: { xp: 1 } }, ko: { txt: 'Só encontra moedas ensanguentadas. Pelo menos pagam a próxima refeição.', fx: { ouro: 3 } } },
+        { t: 'Perseguir o suspeito', d: 'Ele vira para o beco. Ainda dá tempo.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 11 }, rasto: true, ok: { txt: 'Encurrala-o entre dois barris. Antes de fugir pela janela, ele deixa cair uma nota com um símbolo.', fx: {} }, ko: { txt: 'Um cotovelo na curva e estrelas à frente dos olhos. Ele desaparece.', fx: { vida: -2 } } },
+        { t: 'Levantar a multidão', d: 'Alguém viu alguma coisa, e vai falar.', tipo: 'social', roll: { a: 'carisma', dc: 10 }, rasto: true, ok: { txt: 'Três perguntas certas, e uma peixeira conta-lhe de onde veio o homem e quem lhe pagava.', fx: {} }, ko: { txt: 'Ninguém viu nada, como sempre. Alguém lhe tira a bolsa na confusão.', fx: { ouro: -2 } } },
+        { t: 'Ir às armas', d: 'Primeiro o equipamento. O resto logo se vê.', ok: { txt: 'Sai para o mercado, enquanto o guarda leva o corpo. Ninguém lhe pergunta nada.', fx: { mercado: true } } },
+      ] },
+    { titulo: 'O Nome na Porta', terreno: 'cidade',
+      texto: 'Amanhece em {cidade} com uma folha pregada em cada porta da Rua Baixa. Em cada uma há um nome, e todos os nomes estão riscados menos o do dono da casa. Na taberna, o dono de uma dessas casas já não vai acordar. Na porta do seu quarto, há também uma folha.',
+      fundo: 'A Rua Baixa foi construída para os trabalhadores da antiga casa da moeda. Todos os que lá vivem têm um avô que jurou segredo sobre alguma coisa, e nenhum sabe exatamente qual. Alguém, ao que parece, sabe.',
+      opcoes: [
+        { t: 'Comparar as folhas', d: 'A mesma letra, o mesmo papel, a mesma pressa.', tipo: 'investigacao', roll: { a: 'mente', dc: 10 }, rasto: true, ok: { txt: 'Em todas as folhas, o mesmo prego: de um estaleiro que só serve um sítio.', fx: { xp: 1 } }, ko: { txt: 'Só conclui que a letra é feia, e que está na lista.', fx: {} } },
+        { t: 'Esperar quem vem à noite', d: 'Quem prega as folhas volta para ver.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 11 }, rasto: true, ok: { txt: 'Segue uma sombra pelos telhados até uma carroça, e lê o destino na lona.', fx: {} }, ko: { txt: 'A sombra também o vê a si, e tem uma faca.', fx: { vida: -2 } } },
+        { t: 'Reunir a rua na taberna', d: 'Juntos, talvez se lembrem do segredo.', tipo: 'social', roll: { a: 'carisma', dc: 10 }, rasto: true, ok: { txt: 'Entre gritos e copos partidos, sai um nome de sítio que todos os avós repetiam.', fx: {} }, ko: { txt: 'Acabam todos a acusar-se uns aos outros, e a si também.', fx: { vida: -1 } } },
+        { t: 'Armar-se antes da noite', d: 'A folha da sua porta não vai esperar.', ok: { txt: 'Pela primeira vez, o armeiro não lhe pede para voltar amanhã.', fx: { mercado: true } } },
+      ] },
+  ],
+};
+
+// Procurar outra vez, antes de partir.
+const CENA_PISTA = {
+  titulo: 'Ao Encalço',
+  texto: 'Mais um dia neste lugar, a voltar aos mesmos sítios e às mesmas perguntas. O rasto ainda aqui está, mas cada hora o deixa mais frio.',
   opcoes: [
-    { t: 'Revistar o corpo', d: 'Os bolsos de um morto ainda têm muito a dizer.', tipo: 'investigacao', roll: { a: 'mente', dc: 10 }, rasto: true,
-      ok: { txt: 'No forro do casaco há um bilhete cifrado.', fx: { xp: 1 } },
-      ko: { txt: 'Só encontra moedas ensanguentadas. Pelo menos pagam a próxima refeição.', fx: { ouro: 3 } } },
-    { t: 'Perseguir o suspeito', d: 'Ele vira para o beco. Ainda dá tempo.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 11 }, rasto: true,
-      ok: { txt: 'Encurrala-o entre dois barris. Antes de fugir pela janela, ele deixa cair uma nota com um símbolo.', fx: {} },
-      ko: { txt: 'Um cotovelo na curva e estrelas à frente dos olhos. Ele desaparece.', fx: { vida: -2 } } },
-    { t: 'Levantar a multidão', d: 'Alguém viu alguma coisa, e vai falar.', tipo: 'social', roll: { a: 'carisma', dc: 10 }, rasto: true,
-      ok: { txt: 'Três perguntas certas, e uma peixeira conta-lhe de onde veio o homem e quem lhe pagava.', fx: {} },
-      ko: { txt: 'Ninguém viu nada, como sempre. Alguém lhe tira a bolsa na confusão.', fx: { ouro: -2 } } },
-    { t: 'Ir às armas', d: 'Primeiro o equipamento. O resto logo se vê.', ok: { txt: 'Sai para o mercado, enquanto o guarda leva o corpo. Ninguém lhe pergunta nada.', fx: { mercado: true } } },
+    { t: 'Desistir por agora', d: 'Há outras estradas, e o tempo não volta.', ok: { txt: 'Arruma as coisas. O dia não foi de todo perdido.', fx: {} } },
   ],
 };
 
@@ -177,7 +250,7 @@ const ENCONTROS = [
       { t: 'Expulsar os mortos', d: 'Só o Clérigo. A luz não negocia.', tipo: 'social', req: { cls: 'clerigo' }, ok: { txt: 'A prece enche a cripta de luz e os mortos voltam aos nichos, quase agradecidos. Fica com as oferendas.', fx: { ouro: 6, vida: 2 } } },
       { t: 'Erguer o amuleto', d: 'Requer o Amuleto de Prata.', tipo: 'social', req: { item: 'amuleto' }, ok: { txt: 'A prata arde sem queimar e os mortos abrem-lhe caminho. Num nicho, encontra uma poção ainda selada.', fx: { item: 'pocao', xp: 2 } } },
       { t: 'Correr pela cripta', d: 'Eles são lentos. Espera-se.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 12 }, ok: { txt: 'Dedos frios raspam-lhe a capa, mas chega ao outro lado de um fôlego só.', fx: { xp: 1 } }, ko: { txt: 'Uma mão prende-lhe o tornozelo e custa-lhe sangue para se soltar.', fx: { vida: -3 } } },
-      { t: 'Abrir caminho à força', d: 'Ossos partem-se.', tipo: 'combate', roll: { a: 'forca', dc: 13, pv: 7 }, ok: { txt: 'Sobra-lhe pó nas mãos e um caminho livre. Entre os ossos, algumas moedas antigas.', fx: { ouro: 6 } }, ko: { txt: 'São mais do que parecia. Sai de lá a arrastar-se.', fx: { vida: -4 } } },
+      { t: 'Abrir caminho à força', d: 'Ossos partem-se.', tipo: 'combate', roll: { a: 'forca', dc: 13, pv: 7, ini: 'Os Mortos da Cripta' }, ok: { txt: 'Sobra-lhe pó nas mãos e um caminho livre. Entre os ossos, algumas moedas antigas.', fx: { ouro: 6 } }, ko: { txt: 'São mais do que parecia. Sai de lá a arrastar-se.', fx: { vida: -4 } } },
     ] },
   { id: 'ponte', terreno: 'estrada', titulo: 'Emboscada na Ponte',
     texto: 'Três bandidos saem de trás de um carro virado. O maior aponta-lhe uma besta sem pressa. "A portagem é tudo o que levas contigo", diz. Os outros dois não parecem tão convencidos.',
@@ -186,7 +259,7 @@ const ENCONTROS = [
       { t: 'Convencê-los de que não é ameaça', d: 'Só o Bardo. Uma boa história vale mais do que uma bolsa.', tipo: 'social', req: { cls: 'bardo' }, ok: { txt: 'Ao fim de dois versos já riem. Ao fim de quatro pagam-lhe uma bebida, e um deles promete não se esquecer de si.', fx: { ouro: 3, marca: 'bandidos' } } },
       { t: 'Intimidar o chefe', d: 'Só o Bárbaro. Basta avançar sem abrandar.', tipo: 'social', req: { cls: 'barbaro' }, ok: { txt: 'Avança sem parar até ele baixar a besta. Os três correm, e deixam para trás o saque do dia.', fx: { ouro: 7 } } },
       { t: 'Passar à frente deles', d: 'Requer Corda e Gancho. Por baixo da ponte ninguém cobra.', tipo: 'habilidade', req: { item: 'corda' }, ok: { txt: 'Desce pelas vigas e reaparece do outro lado, enquanto eles ainda discutem para onde foi.', fx: { xp: 2 } } },
-      { t: 'Lutar', d: 'Antes que ele ganhe coragem.', tipo: 'combate', roll: { a: 'forca', dc: 12, pv: 6 }, ok: { txt: 'Derruba o chefe com o primeiro golpe. Os outros decidem que o emprego não compensa.', fx: { ouro: 5 } }, ko: { txt: 'A seta raspa-lhe as costelas antes de conseguir afugentá-los.', fx: { vida: -4 } } },
+      { t: 'Lutar', d: 'Antes que ele ganhe coragem.', tipo: 'combate', roll: { a: 'forca', dc: 12, pv: 6, ini: 'Os Bandidos da Ponte' }, ok: { txt: 'Derruba o chefe com o primeiro golpe. Os outros decidem que o emprego não compensa.', fx: { ouro: 5 } }, ko: { txt: 'A seta raspa-lhe as costelas antes de conseguir afugentá-los.', fx: { vida: -4 } } },
       { t: 'Pagar e poupá-los', d: 'Perde 3 de Ouro. Às vezes, a bondade volta.', tipo: 'social', ok: { txt: 'Conta as moedas devagar. "Isto dá para o pão", diz um deles, sem conseguir olhá-lo nos olhos.', fx: { ouro: -3, marca: 'bandidos' } } },
     ] },
   { id: 'carroca', terreno: 'estrada', titulo: 'A Carroça Partida',
@@ -214,7 +287,7 @@ const ENCONTROS = [
     opcoes: [
       { t: 'Virar o caçador', d: 'Só o Patrulheiro. A besta nem vai saber o que aconteceu.', tipo: 'combate', req: { cls: 'patrulheiro' }, ok: { txt: 'Segue os rastros em círculo e surpreende-a pelas costas. Na toca há restos de viajantes e os seus pertences.', fx: { ouro: 8, xp: 2 } } },
       { t: 'Encarar a besta', d: 'Só Meio-Orcs a fazem recuar com um rugido.', tipo: 'social', req: { raca: 'meioorc' }, ok: { txt: 'Solta um urro que faz tremer as folhas. A besta mede-o, reconsidera e desaparece.', fx: { vida: 2, xp: 2 } } },
-      { t: 'Caçá-la', d: 'Uma pele destas vale muito.', tipo: 'combate', roll: { a: 'forca', dc: 14, pv: 8 }, ok: { txt: 'É a caçada da sua vida. A pele e os dentes vão pagar muitas noites de taberna.', fx: { ouro: 12, xp: 2 } }, ko: { txt: 'As garras chegam primeiro. Foge com as costas em carne viva.', fx: { vida: -5 } } },
+      { t: 'Caçá-la', d: 'Uma pele destas vale muito.', tipo: 'combate', roll: { a: 'forca', dc: 14, pv: 8, ini: 'A Velha de Vésper' }, ok: { txt: 'É a caçada da sua vida. A pele e os dentes vão pagar muitas noites de taberna.', fx: { ouro: 12, xp: 2 } }, ko: { txt: 'As garras chegam primeiro. Foge com as costas em carne viva.', fx: { vida: -5 } } },
       { t: 'Afastar-se em silêncio', d: 'Um passo de cada vez.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 10 }, ok: { txt: 'Prende a respiração durante uma eternidade, até os pássaros voltarem a cantar.', fx: {} }, ko: { txt: 'Parte um ramo. Sai dali a correr, mas não antes de sentir as garras nas costas.', fx: { vida: -3 } } },
     ] },
   { id: 'abismo', terreno: 'montanha', titulo: 'A Ponte de Corda',
@@ -234,7 +307,7 @@ const ENCONTROS = [
       { t: 'Falar com ele na sua língua', d: 'Só Meio-Orcs conhecem estes grunhidos.', tipo: 'social', req: { raca: 'meioorc' }, ok: { txt: 'Dois grunhidos depois é um primo distante. Ele junta as suas coisas num saco e decide vir consigo.', fx: { aliado: 'grumm' } } },
       { t: 'Ensinar-lhe a ortografia', d: 'Com paciência. Pode custar um dia.', tipo: 'social', roll: { a: 'carisma', dc: 13 }, ok: { txt: 'Passam a tarde a riscar a terra com um pau. Ao fim, ele chora, abraça-o e pergunta se pode ir consigo.', fx: { aliado: 'grumm', dia: 1 } }, ko: { txt: 'Ele não gosta de ser corrigido. Sai dali com um olho negro e menos cinco de ouro.', fx: { vida: -2, ouro: -5 } } },
       { t: 'Pagar 5 de Ouro', d: 'Honesto e rápido.', ok: { txt: 'Ele morde cada moeda antes de lhe abrir caminho, com solenidade.', fx: { ouro: -5 } } },
-      { t: 'Desafiá-lo', d: 'Ele é grande. Você é teimoso.', tipo: 'combate', roll: { a: 'forca', dc: 14, pv: 9 }, ok: { txt: 'Prende-lhe o braço e ele ri-se, admirado, antes de lhe ceder o caminho e o cofre.', fx: { ouro: 8 } }, ko: { txt: 'Acorda do outro lado da montanha, sem saber bem como, e com uma costela a menos no sítio.', fx: { vida: -5 } } },
+      { t: 'Desafiá-lo', d: 'Ele é grande. Você é teimoso.', tipo: 'combate', roll: { a: 'forca', dc: 14, pv: 9, ini: 'Grumm, o Ogro' }, ok: { txt: 'Prende-lhe o braço e ele ri-se, admirado, antes de lhe ceder o caminho e o cofre.', fx: { ouro: 8 } }, ko: { txt: 'Acorda do outro lado da montanha, sem saber bem como, e com uma costela a menos no sítio.', fx: { vida: -5 } } },
     ] },
   { id: 'luzes', terreno: 'pantano', titulo: 'Velas no Pântano',
     texto: 'Ao cair da noite, luzinhas azuis acendem-se sobre a água e parecem desenhar um caminho. O guia que contratou não diz nada: limita-se a recuar, devagar, com os olhos muito abertos.',
@@ -276,7 +349,7 @@ const ENCONTROS = [
     texto: 'Atrás do mercado, um rapaz franzino defende uma trouxa de livros contra dois homens grandes. Tem o nariz a sangrar e o queixo levantado. Ninguém na rua parece estar a ver.',
     fundo: 'O rapaz é noviço num mosteiro que fechou as portas há um mês, sem explicação. Dorme onde pode e carrega os únicos livros que conseguiu salvar. Os homens querem-nos por um preço que ele não imagina.',
     opcoes: [
-      { t: 'Afastar os brutamontes', d: 'Dois contra um não é justo. Para eles.', tipo: 'combate', roll: { a: 'forca', dc: 11, pv: 5 }, ok: { txt: 'Saem a coxear. O rapaz chama-se Tomé, limpa o nariz, e declara que agora é seu aprendiz, quer queira quer não.', fx: { aliado: 'tome' } }, ko: { txt: 'Levam os livros e parte da sua dignidade.', fx: { vida: -3 } } },
+      { t: 'Afastar os brutamontes', d: 'Dois contra um não é justo. Para eles.', tipo: 'combate', roll: { a: 'forca', dc: 11, pv: 5, ini: 'Os Brutamontes' }, ok: { txt: 'Saem a coxear. O rapaz chama-se Tomé, limpa o nariz, e declara que agora é seu aprendiz, quer queira quer não.', fx: { aliado: 'tome' } }, ko: { txt: 'Levam os livros e parte da sua dignidade.', fx: { vida: -3 } } },
       { t: 'Falar com eles', d: 'Quanto pagaram para isto?', tipo: 'social', roll: { a: 'carisma', dc: 12 }, ok: { txt: 'Paga-lhes o dobro em promessas e sai dali com o rapaz, os livros e uma nova dívida.', fx: { aliado: 'tome', ouro: -2 } }, ko: { txt: 'Não querem conversa e dizem-no com os punhos.', fx: { vida: -2 } } },
       { t: 'Passar à frente', d: 'Hoje não. Há outros assuntos.', ok: { txt: 'Segue pela rua. Ouve-se um grito curto, e depois nada. Daqui a uns dias, já não vai lembrar-se.', fx: { xp: 0 } } },
     ] },
@@ -330,6 +403,97 @@ const SURPRESAS = [
     favor: 'Do alto de um penedo, vê quatro figuras com o símbolo do selo a montar guarda. Estão à sua espera, mas a olhar para o lado errado.',
     saque: 8 },
 ];
+
+// Nem tudo o que se encontra na estrada é mau.
+const BONS_ENCONTROS = [
+  { id: 'curandeiro', titulo: 'O Curandeiro Errante',
+    texto: 'Um homem de sacola ao ombro está sentado numa pedra, a ver quem passa. Olha para as suas feridas antes de olhar para si. "Isso trata-se", diz. "E eu estava mesmo a precisar de companhia."',
+    opcoes: [
+      { t: 'Deixar-se tratar', d: 'Sem pressa, e sem pagar nada.', ok: { txt: 'As mãos dele sabem o que fazem. Parte com menos dores, e com um conselho que não pediu.', fx: { vida: 6 } } },
+      { t: 'Pedir-lhe um remédio', d: 'Para mais tarde.', ok: { txt: 'Dá-lhe um frasco selado, e não aceita uma única moeda.', fx: { item: 'pocao' } } },
+    ] },
+  { id: 'boleia', titulo: 'A Boleia do Carroceiro',
+    texto: 'Uma carroça de feno abranda ao seu lado, e o carroceiro indica o lugar vazio com o queixo. Não diz nada. Os dois bois também não têm pressa, mas nunca param.',
+    opcoes: [
+      { t: 'Subir para a carroça', d: 'E dormir em cima do feno.', ok: { txt: 'Acorda muito mais longe do que julgava, e muito mais descansado.', fx: { dia: -1, vida: 2 } } },
+      { t: 'Só lhe pedir notícias', d: 'Ele vê tudo, ali de cima.', ok: { txt: 'Fala pouco, mas o que diz vale ouro, e a seguir dá-lhe mesmo algumas moedas para levar a um primo.', fx: { xp: 3, ouro: 3 } } },
+    ] },
+  { id: 'tesouro', titulo: 'O Esconderijo do Salteador',
+    texto: 'Debaixo de uma raiz arrancada pelo temporal, vê um baú pequeno e a ponta de um esqueleto. Quem aqui escondeu as suas coisas nunca mais voltou para as buscar.',
+    opcoes: [
+      { t: 'Abrir o baú', d: 'Ninguém o vai reclamar.', ok: { txt: 'Moedas de três reinos, um bom punhado de cada.', fx: { ouro: 12 } } },
+      { t: 'Revirar os ossos', d: 'Os mortos guardam melhor do que os baús.', tipo: 'investigacao', roll: { a: 'mente', dc: 9 }, ok: { txt: 'No cinto, um diário com tudo o que ele sabia. Aprende muito com os erros dele.', fx: { xp: 6, ouro: 4 } }, ko: { txt: 'Algo mexe-se nas costelas, e morde-lhe a mão.', fx: { vida: -1 } } },
+    ] },
+];
+
+const MERCADOR_SECRETO = {
+  titulo: 'O Mercador Secreto',
+  texto: 'Fora da estrada, uma tenda sem insígnia tem uma lanterna acesa em pleno dia. O homem lá dentro nem levanta os olhos. "Sei o que traz, e sei o que lhe falta. Por aqui, os preços são outros, e ninguém pergunta nada."',
+  fundo: 'Dizem que a tenda nunca está duas vezes no mesmo sítio, e que o ferreiro que lá trabalha foi expulso da Guilda por fazer aço bom de mais. Ninguém sabe quem são os seus clientes. Ninguém quer ser o primeiro a contar que o é.',
+  opcoes: [
+    { t: 'Mostrar-lhe o equipamento', d: 'Melhorias com 30% de desconto.', ok: { txt: 'Passa os dedos pelo gume, e estende a mão para o resto.', fx: { forja: 'secreto' } } },
+    { t: 'Ver o que traz para vender', d: 'Coisas que não se vendem no mercado.', ok: { txt: 'Abre um estojo de veludo sem dizer nada.', fx: { mercado: true } } },
+    { t: 'Seguir caminho', d: 'Quem não faz perguntas também não dá garantias.', ok: { txt: 'Quando olha para trás, já não há lanterna nenhuma.', fx: {} } },
+  ],
+};
+
+// O mestre aparece uma única vez, se tiver sorte.
+const MENTORES = {
+  mago: { titulo: 'A Torre que Anda', texto: 'Uma torre estreita caminha pelo descampado em pernas de pedra, e para ao seu lado com um suspiro. Na janela, uma mulher sem idade olha para o seu cajado e ri-se. "Quem te ensinou foi um idiota. Tens uma tarde. Escolhe o que queres aprender."' },
+  barbaro: { titulo: 'O Último da Tribo', texto: 'Um velho enorme bloqueia o caminho, com mais cicatrizes do que pele. Não diz nada: dá-lhe um soco, vê-o ficar de pé, e acena. "Há dois caminhos para quem é como nós", rosna. "Na lua, ou no sangue."' },
+  ladino: { titulo: 'A Mão Sem Dono', texto: 'Dá pela falta da bolsa, e depois volta a encontrá-la, com mais moedas do que tinha. Atrás de si, uma voz diz: "Bom. Só levei três segundos a perceber o teu estilo. Queres mesmo continuar a ser medíocre?"' },
+  patrulheiro: { titulo: 'A Guardiã da Clareira', texto: 'Há um arco pendurado num ramo, e há um lobo sentado por baixo, à espera. A dona sai de trás de uma árvore que não estava ali. "Os bichos dizem que sabes ouvir. Agora escolhe: a seta certa, ou o amigo certo."' },
+  clerigo: { titulo: 'O Eremita da Encruzilhada', texto: 'Um homem de hábito rasgado reza a dois altares ao mesmo tempo. Ao vê-lo, para e sorri, com pena. "Os deuses cansam-se. Alguns de nós foram servir os vivos, em ricas catedrais. Outros foram falar com os mortos. Tu, para que lado vais?"' },
+  bardo: { titulo: 'A Canção Sem Autor', texto: 'Um velho de alaúde toca, à beira da estrada, uma música que sabe de cor sem nunca a ter ouvido. Não para de tocar para lhe falar. "Toda a gente ouve as notas. Poucos ouvem o que está entre elas. Queres aprender a enganá-los, ou a adormecê-los?"' },
+};
+
+// Atrasos: o que se passa quando o tempo é contado ao dia.
+const ATRASOS = {
+  cidade: [
+    { id: 'preso', titulo: 'A Noite na Cela',
+      texto: 'Uma discussão de taberna acaba como acabam todas, e por azar é você quem está de pé quando chegam os guardas. O sargento tem pouca paciência, um livro de multas e uma cela vazia.',
+      opcoes: [
+        { t: 'Cumprir a noite', d: 'Perde um dia inteiro.', ok: { txt: 'A palha pica, e o vizinho de cela canta. Sai de manhã, um dia mais tarde.', fx: { dia: 1 } } },
+        { t: 'Pagar a fiança', d: 'Custa 6 de Ouro.', ok: { txt: 'O sargento conta as moedas duas vezes e abre a porta sem olhar para si.', fx: { ouro: -6 } } },
+        { t: 'Convencer o sargento', d: 'A culpa foi claramente de outro.', tipo: 'social', roll: { a: 'carisma', dc: 12 }, ok: { txt: 'Sai pela porta da frente, com um pedido de desculpas e sem pagar nada.', fx: {} }, ko: { txt: 'O sargento acha graça, e ri-se até à manhã seguinte, com a chave no bolso.', fx: { dia: 1 } } },
+      ] },
+    { id: 'portas', titulo: 'As Portas Fechadas',
+      texto: 'Toca o sino do recolher antes da hora, e as portas da cidade fecham-se à sua frente. Dizem que há um fugitivo, e que ninguém sai até o apanharem. Ninguém sabe dizer quando será.',
+      opcoes: [
+        { t: 'Esperar que abram', d: 'Perde um dia.', ok: { txt: 'Abrem de manhã, sem explicações. O fugitivo, afinal, era um cão.', fx: { dia: 1 } } },
+        { t: 'Saltar a muralha', d: 'Há um sítio onde a guarda não olha.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 11 }, ok: { txt: 'Do outro lado, nem olha para trás.', fx: {} }, ko: { txt: 'O fosso é mais fundo do que parecia, e sai só no dia seguinte, a coxear.', fx: { dia: 1, vida: -1 } } },
+        { t: 'Subornar o porteiro', d: 'Custa 4 de Ouro.', ok: { txt: 'Há sempre uma portinha pequena para quem paga.', fx: { ouro: -4 } } },
+      ] },
+    { id: 'pedinte', titulo: 'O Credor',
+      texto: 'Um homem de boas maneiras e maus amigos jura que lhe deve dinheiro. Não é verdade, mas tem um papel, um advogado e dois sobrinhos à porta da estalagem.',
+      opcoes: [
+        { t: 'Ir ao tribunal', d: 'Ganha, mas perde o dia.', ok: { txt: 'O juiz dá-lhe razão ao fim da tarde, depois de bocejar muito.', fx: { dia: 1, xp: 1 } } },
+        { t: 'Pagar para o calar', d: 'Custa 5 de Ouro.', ok: { txt: 'Ele guarda o papel com um sorriso. Noutro dia, será outro a pagar.', fx: { ouro: -5 } } },
+        { t: 'Assustar os sobrinhos', d: 'Dois não são assim tantos.', tipo: 'social', roll: { a: 'forca', dc: 12 }, ok: { txt: 'O papel, de repente, já não é tão legal.', fx: {} }, ko: { txt: 'Eram mais fortes do que pareciam, e acorda um dia depois.', fx: { dia: 1, vida: -2 } } },
+      ] },
+  ],
+  estrada: [
+    { id: 'pontecaida', titulo: 'A Ponte Caída',
+      texto: 'A ponte que vinha no mapa é agora um par de pilares e muita água. Um barqueiro cobra caro, e a volta pelo vau leva um dia inteiro.',
+      opcoes: [
+        { t: 'Dar a volta pelo vau', d: 'Perde um dia.', ok: { txt: 'A volta é longa e molhada, mas é de graça.', fx: { dia: 1 } } },
+        { t: 'Pagar ao barqueiro', d: 'Custa 4 de Ouro.', ok: { txt: 'Ele nem olha para a corrente. O preço, afinal, era justo.', fx: { ouro: -4 } } },
+        { t: 'Atravessar a nado', d: 'A corrente não parece assim tão forte.', tipo: 'habilidade', roll: { a: 'forca', dc: 12 }, ok: { txt: 'Sai do outro lado a tremer, mas a tempo.', fx: {} }, ko: { txt: 'A água leva-o rio abaixo até muito depois da curva.', fx: { dia: 1, vida: -2 } } },
+      ] },
+    { id: 'tempestade', titulo: 'O Temporal',
+      texto: 'O céu escurece em poucos minutos, e o caminho vira ribeiro. Há uma gruta à vista, e já ouve o trovão mesmo por cima da cabeça.',
+      opcoes: [
+        { t: 'Abrigar-se na gruta', d: 'Perde um dia, mas descansa.', ok: { txt: 'Passa o temporal e a noite ao abrigo, e até consegue dormir.', fx: { dia: 1, vida: 2 } } },
+        { t: 'Seguir à chuva', d: 'Não há tempo a perder.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 10 }, ok: { txt: 'Encharcado e de botas cheias, mas continua a andar.', fx: {} }, ko: { txt: 'A lama leva-lhe o pé e o resto. Fica um dia a recuperar.', fx: { dia: 1, vida: -2 } } },
+      ] },
+    { id: 'rebanho', titulo: 'O Rebanho',
+      texto: 'Mil ovelhas, dois pastores e um cão que não concorda com nenhum deles enchem toda a largura da estrada, até onde os olhos alcançam. Vão no mesmo sentido, muito devagar.',
+      opcoes: [
+        { t: 'Esperar que passem', d: 'Perde um dia.', ok: { txt: 'Ao fim do dia, ainda consegue ouvi-las.', fx: { dia: 1 } } },
+        { t: 'Cortar pelo monte', d: 'Pelo meio dos espinhos.', tipo: 'habilidade', roll: { a: 'mente', dc: 11 }, ok: { txt: 'Encontra o atalho dos pastores, e sai à frente de todas.', fx: { xp: 1 } }, ko: { txt: 'Perde-se, rasga-se todo e acaba, um dia depois, atrás das mesmas ovelhas.', fx: { dia: 1, vida: -1 } } },
+      ] },
+  ],
+};
 
 // ---------- Cartas únicas: sorteadas pelo mapa em cada partida ----------
 

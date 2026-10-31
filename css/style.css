@@ -28,10 +28,11 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 #prompt { position: fixed; top: 14px; left: calc(50% - 46px); transform: translateX(-50%); text-align: center; pointer-events: none; opacity: 0; transition: opacity .35s; text-shadow: 0 1px 3px #000; width: min(760px, 80vw); padding: 8px 22px 10px; background: rgba(20, 11, 7, .82); border: 1px solid var(--line); border-radius: 3px; }
 #prompt.on { opacity: 1; }
+#prompt.lado { top: auto; bottom: 54px; left: auto; right: 106px; transform: none; width: min(24vw, 420px); }
 #prompt h2 { margin: 0; font: 600 clamp(22px, 2.4vw, 36px) "Cinzel", Georgia, serif; color: var(--gold); }
 #prompt p { margin: 4px 0 0; font-size: clamp(16px, 1.4vw, 21px); font-style: italic; }
 
-#toast { position: fixed; left: 50%; bottom: 12%; transform: translateX(-50%); padding: 12px 26px; font: 600 clamp(18px, 1.7vw, 26px) "Cinzel", Georgia, serif; background: var(--ink); border: 1px solid var(--line); border-radius: 3px; opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap; }
+#toast { position: fixed; left: calc(50% - 46px); bottom: calc(3% + 40px); transform: translateX(-50%); padding: 12px 26px; font: 600 clamp(18px, 1.7vw, 26px) "Cinzel", Georgia, serif; background: var(--ink); border: 1px solid var(--line); border-radius: 3px; opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap; }
 #toast.on { opacity: 1; }
 #toast.good { border-color: #6ea56e; color: #cfe8c4; }
 #toast.bad { border-color: #b4534c; color: #f0bcb4; }
@@ -41,17 +42,50 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
 #rail { position: fixed; top: 0; right: 0; bottom: 0; width: 92px; display: none; flex-direction: column; gap: 5px; padding: 12px 8px; background: #120a06; border-left: 1px solid var(--line); text-align: center; }
 #rail.on { display: flex; }
-#rail.pressa .dia b { color: #ff6a5c; animation: pulso 1.2s infinite; }
-.r-stat b { display: block; font: 700 19px/1.2 "Cinzel", Georgia, serif; }
-.r-stat span { font-size: 13px; opacity: .78; }
-.r-stat.vida b { color: #e8675f; }
-.r-stat.ouro b { color: #e4bf63; }
-.r-stat.dia b { color: var(--cream); }
-.r-stat.pistas b { color: #c9a6e8; }
-.r-stat.nivel b { color: #7fd0c8; }
+#rail img { display: block; }
+.r-barras { display: flex; justify-content: space-between; flex: 1 1 auto; min-height: 150px; max-height: 340px; }
+.r-barra { width: 36px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.r-barra img { width: 24px; height: 24px; }
+.r-barra b { font: 700 15px/1 "Cinzel", Georgia, serif; }
+.tubo { flex: 1; width: 16px; position: relative; background: rgba(255, 255, 255, .07); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.tubo i { position: absolute; left: 0; right: 0; bottom: 0; transition: height .35s; }
+.vida .tubo i { background: linear-gradient(#e8675f, #8f1a14); }
+.xp .tubo i { background: linear-gradient(#8fc7f0, #27508f); }
+.vida b { color: #e8675f; }
+.xp b { color: #8fc7f0; }
+.r-ico { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.r-ico img { width: 26px; height: 26px; }
+.r-ico b { font: 700 18px/1 "Cinzel", Georgia, serif; }
+.ouro b { color: #e4bf63; }
+.ca b { color: var(--cream); }
+.r-olhos { display: flex; justify-content: center; gap: 2px; }
+.r-olhos img { width: 24px; height: 24px; }
+#trilha { position: fixed; left: 0; right: 92px; bottom: 0; height: 40px; display: none; align-items: center; gap: 10px; padding: 0 14px; background: #120a06; border-top: 1px solid var(--line); }
+#trilha.on { display: flex; }
+#trilha > img { width: 24px; height: 24px; flex: none; }
+#pips { flex: 1; display: flex; align-items: center; gap: 4px; }
+.pip { flex: 1; height: 12px; position: relative; background: rgba(255, 255, 255, .09); border: 1px solid rgba(216, 180, 94, .3); border-radius: 2px; }
+.pip.passado { background: #8a6a2c; border-color: #8a6a2c; }
+.pip.atual { height: 24px; background: var(--gold); border-color: #fff0b8; box-shadow: 0 0 10px rgba(255, 215, 120, .75); }
+.pip.tarde { background: rgba(164, 22, 26, .35); border-color: rgba(232, 103, 95, .55); }
+.pip.tarde.passado { background: #a4161a; }
+.pip.tarde.atual { background: #ff6a5c; animation: pulso 1.2s infinite; }
+.pip img { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; transform: translate(-50%, -50%); filter: drop-shadow(0 0 2px #000) drop-shadow(0 0 2px #000); }
 .r-tools { margin-top: auto; display: flex; flex-direction: column; gap: 5px; }
 .r-tools button { font-size: 12px; padding: 7px 2px; }
 @keyframes pulso { 50% { opacity: .45; } }
+
+#critico { position: fixed; left: calc(50% - 46px); top: 50%; transform: translate(-50%, -50%); padding: 0 40px; font: 700 clamp(44px, 7vw, 104px) "Cinzel", Georgia, serif; white-space: nowrap; pointer-events: none; opacity: 0; z-index: 4; }
+#critico.bom { color: #ffe08a; text-shadow: 0 0 30px #ffb52e, 0 0 70px #ff8a00, 0 4px 6px #000; }
+#critico.mau { color: #ff8a78; text-shadow: 0 0 30px #d3160a, 0 0 70px #8a0a02, 0 4px 6px #000; }
+#critico.on { animation: critico 1.3s ease-out both; }
+@keyframes critico {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(3.2); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(.92); }
+  28% { transform: translate(-50%, -50%) scale(1.06); }
+  36%, 78% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.12); }
+}
 
 #painel { position: fixed; top: 0; right: 92px; bottom: 0; width: min(390px, calc(100vw - 92px)); padding: 16px 18px 24px; overflow-y: auto; background: #1c120b; border-left: 1px solid var(--line); box-shadow: -14px 0 34px rgba(0, 0, 0, .55); transform: translateX(110%); visibility: hidden; transition: transform .25s ease, visibility .25s; }
 #painel.on { transform: none; visibility: visible; }
@@ -84,8 +118,8 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #lore.on { display: flex; }
 #lore article { width: min(560px, 100%); max-height: 85vh; overflow-y: auto; padding: 26px 30px; color: #2a1a0d; background: #e9dbb8; border: 3px double #6e4a1e; border-radius: 3px; box-shadow: 0 18px 50px rgba(0, 0, 0, .7); }
 #lore h2 { margin: 0 0 10px; font: 700 26px/1.2 "Cinzel", Georgia, serif; color: #6d1f1a; }
-#lore p { margin: 0 0 14px; font-size: 20px; line-height: 1.4; }
+#lore p { margin: 0 0 14px; font-size: 20px; line-height: 1.4; white-space: pre-line; }
 #lore small { font-size: 15px; font-style: italic; opacity: .75; }
 
 @keyframes rise { from { opacity: 0; transform: translateY(calc(-50% + 18px)); } }
-@media (prefers-reduced-motion: reduce) { #title.on { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #title.on { animation: none; } #critico.on { animation-duration: .01s; opacity: 1; } }

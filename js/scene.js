@@ -33,34 +33,68 @@ const sfx = (() => {
       src.connect(f); f.connect(g); g.connect(ac.destination); src.start();
     } catch (e) { /* som é opcional */ }
   }
+  function tone(freq, dur, gain, delay = 0, type = 'triangle') {
+    if (muted) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + delay;
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(gain, t + .02);
+      g.gain.exponentialRampToValueAtTime(.001, t + dur);
+      o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + dur);
+    } catch (e) { /* som é opcional */ }
+  }
+  // Papel a deslizar: entra e sai devagar, sem os estalidos de um ruído seco.
+  function swish(dur, de, ate, gain) {
+    if (muted) return;
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      const len = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+      let suave = 0;
+      for (let i = 0; i < len; i++) { suave += ((Math.random() * 2 - 1) - suave) * .35; d[i] = suave * Math.sin(Math.PI * i / len); }
+      const src = ac.createBufferSource(); src.buffer = buf;
+      const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = .4;
+      f.frequency.setValueAtTime(de, ac.currentTime);
+      f.frequency.exponentialRampToValueAtTime(ate, ac.currentTime + dur);
+      const g = ac.createGain(); g.gain.value = gain;
+      src.connect(f); f.connect(g); g.connect(ac.destination); src.start();
+    } catch (e) { /* som é opcional */ }
+  }
   return {
-    card: () => noise(.13, 2600, .22),
+    card: () => swish(.2, 1500, 500, .3),
+    hover: () => swish(.09, 700, 350, .1),
     page: () => noise(.32, 1500, .2, .6),
     dice: () => noise(.07, 4200, .4, 3),
     coin: () => noise(.1, 6500, .13, 6),
     hit: () => noise(.25, 240, .6),
+    critico: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, .5, .13, i * .09)); noise(.5, 5200, .18, 2); },
+    falha: () => { [196, 147, 98].forEach((f, i) => tone(f, .6, .2, i * .13, 'sawtooth')); noise(.6, 140, .8); },
     toggle: () => (muted = !muted),
   };
 })();
 
 const CARD = { w: 3.3, h: 4.62 };
+const NITIDEZ = { folga: 1.5, maxPixeis: 9e6, fpsMinimo: 28 };
 const TILT = -1.15;
 const FACE_DOWN = Math.PI / 2;
 const FACE_UP = -Math.PI / 2;
 
+// Tudo acontece à volta do mapa, com a câmara sempre no mesmo sítio.
+const CX = -20;
 const AREA = {
-  book: { x: 0, z: -3.6, pageW: 6.2, pageH: 8 },
-  map: { x: -20, z: -1, w: 15, h: 10.7 },
-  draft: { x: 18 },
+  book: { pageW: 6.2, pageH: 8 },
+  map: { x: CX, z: -1, w: 15, h: 10.7 },
 };
+const VISTA = { pos: [CX, 25, 11.5], look: [CX, 0, 2.2] };
+// O livro flutua à frente da câmara, e as cartas aproximam-se ainda mais para se lerem.
+const LIVRO = { d: 14, y: .86, s: .5 };
+const ZOOM = { d: 9.5, s: .68 };
+const BARALHO = [CX + 11.4, 0, 4.7];
 
-const SHOTS = {
-  title: { pos: [-1, 7, 20], look: [-5.5, 0.6, -2] },
-  reading: { pos: [0, 24, 10], look: [0, 0, -0.7] },
-  draft: { pos: [AREA.draft.x, 24, 10.5], look: [AREA.draft.x, 0, 0.2] },
-  map: { pos: [AREA.map.x, 17.5, 7.2], look: [AREA.map.x, 0, -0.9] },
-  mapChoice: { pos: [AREA.map.x, 25, 11.5], look: [AREA.map.x, 0, 2.2] },
-};
+// O tabuleiro da personagem, à esquerda do mapa.
+const TABULEIRO = { x: CX - 11, z: -.7, w: 6.3, h: 11.2 };
+const lugarTabuleiro = (col, lin) => ({ x: CX - 13.05 + col * 2.05, z: -4.75 + lin * 2.7 });
 
 function roundedRect(w, h, r) {
   const s = new THREE.Shape(), x = -w / 2, y = -h / 2;
@@ -73,7 +107,6 @@ function roundedRect(w, h, r) {
 
 function createWorld(canvasEl) {
   const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -84,6 +117,7 @@ function createWorld(canvasEl) {
   scene.fog = new THREE.Fog(0x070403, 42, 90);
 
   const camera = new THREE.PerspectiveCamera(32, 1, 2, 150);
+  scene.add(camera);
   const tex = textures(renderer);
 
   // Ambiente para os metais e o vidro terem o que refletir.
@@ -105,8 +139,8 @@ function createWorld(canvasEl) {
   // Luz
   scene.add(new THREE.HemisphereLight(0xffe2bd, 0x1c0e05, 0.32));
   const key = new THREE.SpotLight(0xffdcae, 3.1, 0, 0.95, 0.4, 0);
-  key.position.set(-1, 38, 12);
-  key.target.position.set(-1, 0, 0);
+  key.position.set(CX, 38, 12);
+  key.target.position.set(CX, 0, 0);
   key.castShadow = true;
   key.shadow.mapSize.set(4096, 4096);
   key.shadow.camera.near = 10; key.shadow.camera.far = 60;
@@ -130,22 +164,28 @@ function createWorld(canvasEl) {
   const leatherBlue = tex.leather('#1d2642');
   const brass = new THREE.MeshStandardMaterial({ color: 0xb98a3e, metalness: 1, roughness: 0.34 });
 
-  // ---- Livro aberto ----
+  // ---- Livro flutuante ----
   const book = (() => {
     const g = new THREE.Group();
     const { pageW: W, pageH: H } = AREA.book;
     const base = 0.42, bulge = 0.3;
     const curve = u => base + bulge * Math.sin(Math.PI * Math.pow(Math.min(1, u), 0.62));
 
-    const cover = shadowed(new THREE.Mesh(new THREE.BoxGeometry(W * 2 + 0.55, 0.16, H + 0.42),
-      new THREE.MeshStandardMaterial({ map: leatherRed, roughness: 0.68 })));
-    cover.position.y = 0.08;
-    g.add(cover);
+    // A metade esquerda roda sobre a lombada para o livro fechar.
+    const hinge = new THREE.Group();
+    g.add(hinge);
+    const coverMat = new THREE.MeshStandardMaterial({ map: leatherRed, roughness: 0.68 });
+    const coverHalf = sign => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(W + 0.28, 0.16, H + 0.42), coverMat);
+      m.position.set(sign * (W + 0.28) / 2, 0.08, 0);
+      return m;
+    };
+    g.add(coverHalf(1));
+    hinge.add(coverHalf(-1));
     [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => {
       const corner = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.18, 0.62), brass);
       corner.position.set(a * (W + 0.03), 0.08, b * (H / 2 - 0.1));
-      corner.castShadow = true;
-      g.add(corner);
+      (a < 0 ? hinge : g).add(corner);
     });
 
     const edge = tex.pageEdge();
@@ -158,11 +198,14 @@ function createWorld(canvasEl) {
       s.lineTo(0, 0);
       const geo = new THREE.ExtrudeGeometry(s, { depth: H, bevelEnabled: false, curveSegments: 1 });
       geo.translate(0, 0.16, -H / 2);
-      return shadowed(new THREE.Mesh(geo, edgeMat));
+      return new THREE.Mesh(geo, edgeMat);
     };
-    g.add(profile(1), profile(-1));
+    g.add(profile(1));
+    hinge.add(profile(-1));
 
-    const surface = sign => {
+    // As páginas têm luz própria: o livro está longe das velas.
+    const pageMat = () => new THREE.MeshBasicMaterial({ color: 0xf4ecd8, toneMapped: false });
+    const surface = (sign, parent) => {
       const geo = new THREE.PlaneGeometry(W, H, 36, 1);
       geo.rotateX(-Math.PI / 2);
       geo.translate(sign * W / 2, 0, 0);
@@ -171,20 +214,11 @@ function createWorld(canvasEl) {
         const u = Math.abs(pos.getX(i)) / W;
         pos.setY(i, 0.165 + curve(u));
       }
-      geo.computeVertexNormals();
-      const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ roughness: 0.9, envMapIntensity: 0.15 }));
-      m.receiveShadow = true;
-      g.add(m);
+      const m = new THREE.Mesh(geo, pageMat());
+      parent.add(m);
       return m;
     };
-    const left = surface(-1), right = surface(1);
-
-    // Fita marcadora
-    const ribbon = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 1.4), new THREE.MeshStandardMaterial({ color: 0x8f1616, roughness: 0.6 }));
-    ribbon.position.set(0.28, 0.06, H / 2 + 0.75);
-    ribbon.rotation.y = -0.16;
-    ribbon.castShadow = true;
-    g.add(ribbon);
+    const left = surface(-1, hinge), right = surface(1, g);
 
     // Folha que vira
     const flip = new THREE.Group();
@@ -196,46 +230,78 @@ function createWorld(canvasEl) {
     const uv = fGeoB.attributes.uv;
     for (let i = 0; i < uv.count; i++) uv.setXY(i, 1 - uv.getX(i), 1 - uv.getY(i));
     fGeoB.rotateX(Math.PI / 2); fGeoB.translate(W / 2, -0.004, 0);
-    const fFront = new THREE.Mesh(fGeoF, new THREE.MeshStandardMaterial({ roughness: 0.9 }));
-    const fBack = new THREE.Mesh(fGeoB, new THREE.MeshStandardMaterial({ roughness: 0.9 }));
-    fFront.castShadow = true;
+    const fFront = new THREE.Mesh(fGeoF, pageMat());
+    const fBack = new THREE.Mesh(fGeoB, pageMat());
     flip.add(fFront, fBack);
     g.add(flip);
 
-    g.position.set(AREA.book.x, 0, AREA.book.z);
-    scene.add(g);
+    g.rotation.x = Math.PI / 2;
+    g.position.set(0, LIVRO.y, -LIVRO.d);
+    g.scale.setScalar(.001);
+    g.visible = false;
+    camera.add(g);
+    const luz = new THREE.PointLight(0xffe2bd, 30, 10, 2);
+    luz.position.set(0, LIVRO.y + 1, -LIVRO.d + 5);
+    camera.add(luz);
 
-    function showFirst(pages) {
-      left.material.map = tex.leftPage(pages); left.material.needsUpdate = true;
-      right.material.map = tex.rightPage(pages); right.material.needsUpdate = true;
+    let aberto = false, fila = Promise.resolve();
+    const emFila = fn => (fila = fila.then(fn));
+    const dobra = e => { hinge.rotation.z = -Math.PI * e; hinge.position.y = 1.2 * e; };
+    dobra(1);
+
+    const mostra = t => g.scale.setScalar(.001 + (LIVRO.s - .001) * t);
+    async function fechar() {
+      if (!aberto) return;
+      aberto = false;
+      await tween(.22, dobra);
+      await tween(.14, e => { mostra(1 - e); g.position.y = LIVRO.y - 1.2 * e; });
+      g.visible = false;
+    }
+    async function abrir() {
+      if (aberto || !right.material.map) return;
+      g.visible = true;
+      await tween(.14, e => { mostra(e); g.position.y = LIVRO.y - 1.2 * (1 - e); });
+      await tween(.22, e => dobra(1 - e));
+      aberto = true;
     }
 
     // Procura uma palavra clicável na página direita a partir do ponto tocado.
     function linkAt(uv) {
       const map = right.material.map;
       const links = map && map.userData.links;
-      if (!links || flip.visible) return null;
+      if (!aberto || !links || flip.visible) return null;
       const x = uv.x * map.image.width, y = (1 - uv.y) * map.image.height;
       return links.find(l => x >= l.x && x <= l.x + l.w && y >= l.y && y <= l.y + l.h) || null;
     }
 
-    async function turn(pages) {
+    const poe = (m, t) => { m.material.map = t; m.material.needsUpdate = true; };
+    async function vira(pages) {
       const oldL = left.material.map, oldR = right.material.map;
       const newL = tex.leftPage(pages), newR = tex.rightPage(pages);
-      fFront.material.map = oldR; fFront.material.needsUpdate = true;
-      fBack.material.map = newL; fBack.material.needsUpdate = true;
-      right.material.map = newR; right.material.needsUpdate = true;
+      if (!aberto) {
+        poe(left, newL); poe(right, newR);
+        oldL && oldL.dispose(); oldR && oldR.dispose();
+        await abrir();
+        return;
+      }
+      poe(fFront, oldR); poe(fBack, newL); poe(right, newR);
       flip.rotation.z = 0; flip.visible = true;
       sfx.page();
-      await tween(0.7, e => {
+      await tween(0.45, e => {
         flip.rotation.z = e * Math.PI;
         flip.position.y = 0.62 + Math.sin(e * Math.PI) * 0.15;
       });
-      left.material.map = newL; left.material.needsUpdate = true;
+      poe(left, newL);
       flip.visible = false;
       oldL && oldL.dispose(); oldR && oldR.dispose();
     }
-    return { group: g, showFirst, turn, linkAt, rightSurface: right };
+    return {
+      group: g, linkAt, rightSurface: right,
+      turn: pages => emFila(() => vira(pages)),
+      fechar: () => emFila(fechar),
+      abrir: () => emFila(abrir),
+      get aberto() { return aberto; },
+    };
   })();
 
   // ---- Mapa ----
@@ -262,22 +328,48 @@ function createWorld(canvasEl) {
     const p = LUGARES[key];
     return new THREE.Vector3(AREA.map.x + (p.x - .5) * AREA.map.w, 0.05, AREA.map.z + (p.y - .5) * AREA.map.h);
   };
-  const updateMap = (visitados, destaque, suspeitos) => tex.mapTexture(mapPlane.material.map, visitados, destaque, suspeitos);
+  const updateMap = (visitados, destaque, suspeitos, rasto) => tex.mapTexture(mapPlane.material.map, visitados, destaque, suspeitos, rasto);
 
-  // Pino de viagem
+  // ---- Tabuleiro da personagem ----
+  (function tabuleiro() {
+    const { x, z, w, h } = TABULEIRO;
+    const nomes = [
+      ['Classe', 'star'], ['Raça', 'person'], ['Origem', 'scroll'],
+      ['Arma', 'sword'], ['Armadura', 'shield'], ['Acessório', 'seal'],
+      ['Mochila', 'bag'], ['Mochila', 'bag'], ['Mochila', 'bag'],
+    ];
+    const lugares = nomes.map(([nome, glyph], i) => ({ nome, glyph, ...lugarTabuleiro(i % 3, Math.floor(i / 3)) }));
+    const map = tex.characterBoard(lugares, 200, x - w / 2, z - h / 2, w, h);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map, roughness: .78, envMapIntensity: .2 }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, .02, z);
+    m.receiveShadow = true;
+    scene.add(m);
+  })();
+
+  // Pino de viagem: a cor e o símbolo são os da classe.
+  const pinLac = new THREE.MeshStandardMaterial({ color: 0x9c1414, roughness: 0.26, metalness: 0.15 });
+  const pinFace = new THREE.SpriteMaterial({ transparent: true, depthWrite: false });
   const pin = (() => {
     const g = new THREE.Group();
     const pts = [[0, 0], [.34, 0], [.36, .07], [.24, .14], [.13, .3], [.1, .74], [.2, .84], [.09, .9]].map(p => new THREE.Vector2(p[0], p[1]));
-    const lac = new THREE.MeshStandardMaterial({ color: 0x9c1414, roughness: 0.26, metalness: 0.15 });
-    g.add(shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 32), lac)));
-    const head = shadowed(new THREE.Mesh(new THREE.SphereGeometry(.22, 32, 24), brass));
-    head.position.y = 1.05;
-    g.add(head);
-    g.scale.setScalar(.9);
+    g.add(shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 32), pinLac)));
+    const face = new THREE.Sprite(pinFace);
+    face.position.y = 1.35;
+    face.scale.set(.95, .95, 1);
+    g.add(face);
+    g.scale.setScalar(1.25);
     g.visible = false;
     scene.add(g);
     return g;
   })();
+  function setPin(cor, glyph, lugar) {
+    pinLac.color.set(cor);
+    pinFace.map = tex.pinFace(glyph, '#' + cor.toString(16).padStart(6, '0'));
+    pinFace.needsUpdate = true;
+    pin.position.copy(mapToWorld(lugar));
+    pin.visible = true;
+  }
   async function movePin(path) {
     for (let i = 1; i < path.length; i++) {
       const a = mapToWorld(path[i - 1]), b = mapToWorld(path[i]);
@@ -314,10 +406,9 @@ function createWorld(canvasEl) {
     scene.add(g);
     candles.push({ sprite, light, flame, seed: Math.random() * 40 });
   }
-  candle(11.4, -7.4, 3.1);
-  candle(-10.4, -7.4, 2.2);
-  candle(9.4, 10, 1.5);
-  candle(-29.6, -6.8, 2.6);
+  candle(CX + 14.4, -6.9, 2.6);
+  candle(CX - 15.8, -7.4, 2.6);
+  candle(CX + 13, 8.6, 1.5);
 
   function bookStack(x, z, rot) {
     const g = new THREE.Group();
@@ -337,14 +428,13 @@ function createWorld(canvasEl) {
     g.position.set(x, 0, z); g.rotation.y = rot;
     scene.add(g);
   }
-  bookStack(9.8, -11.2, .32);
-  bookStack(-31.5, 3, -.5);
+  bookStack(CX + 13.5, -11.5, .32);
 
   // Cálice
   (function goblet() {
     const pts = [[0, 0], [.55, 0], [.6, .05], [.2, .16], [.12, .6], [.14, .9], [.44, 1.15], [.56, 1.72], [.52, 1.74], [.4, 1.2], [0, 1.0]].map(p => new THREE.Vector2(p[0], p[1]));
     const m = shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 40), brass));
-    m.position.set(-11, 0, 4.8);
+    m.position.set(CX - 13, 0, 8.8);
     m.scale.setScalar(1.25);
     scene.add(m);
   })();
@@ -353,11 +443,11 @@ function createWorld(canvasEl) {
   (function scroll() {
     const m = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(.34, .34, 5.2, 28), new THREE.MeshStandardMaterial({ color: 0xcdb98a, roughness: .9 })));
     m.rotation.set(0, 0.5, Math.PI / 2);
-    m.position.set(-3, .34, 9.6);
+    m.position.set(CX + 19, .34, 9.6);
     scene.add(m);
     const tie = new THREE.Mesh(new THREE.TorusGeometry(.36, .05, 10, 24), new THREE.MeshStandardMaterial({ color: 0x7c1f1f, roughness: .6 }));
     tie.rotation.set(0, Math.PI / 2 + .5, 0);
-    tie.position.set(-3, .34, 9.6);
+    tie.position.set(CX + 19, .34, 9.6);
     scene.add(tie);
   })();
 
@@ -388,7 +478,7 @@ function createWorld(canvasEl) {
   const hitMat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
   const cards = new Set();
 
-  function createCard(spec, { at = [AREA.draft.x + 9.2, .9, -.8], back = null } = {}) {
+  function createCard(spec, { at = [BARALHO[0], .7, BARALHO[2]], back = null } = {}) {
     const g = new THREE.Group();
     const map = tex.cardFace(spec);
     const frontMat = new THREE.MeshStandardMaterial({ map, roughness: .66, envMapIntensity: .25 });
@@ -400,7 +490,6 @@ function createWorld(canvasEl) {
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     [front, backMesh, body].forEach(m => { m.castShadow = true; m.receiveShadow = true; });
     g.add(body, front, backMesh);
-    g.rotation.x = FACE_DOWN;
     scene.add(g);
     // Área de clique que não se mexe com o hover, para a carta não fugir do rato.
     const hit = new THREE.Mesh(faceGeo, hitMat);
@@ -408,8 +497,8 @@ function createWorld(canvasEl) {
     scene.add(hit);
     g.userData.hit = hit;
     const card = {
-      group: g, spec, front, backMesh, hit,
-      pos: new THREE.Vector3(...at), scale: 1,
+      group: g, spec, front, backMesh, body, hit,
+      pos: new THREE.Vector3(...at), rot: new THREE.Euler(FACE_DOWN, 0, 0), scale: 1, zoom: false,
       hover: 0, hoverTarget: 0, hoverScale: .32, hoverLift: 1.6, enabled: false, shake: 0,
     };
     g.userData.card = card;
@@ -429,13 +518,13 @@ function createWorld(canvasEl) {
   // Move uma carta em arco até um destino: {pos:[x,y,z], rot:[x,y,z], scale}.
   function fly(card, { pos, rot = [TILT, 0, 0], scale = 1 }, dur = .65, { delay = 0, arc = 1.6 } = {}) {
     const p0 = card.pos.clone(), p1 = new THREE.Vector3(...pos);
-    const r0 = card.group.rotation.clone(), s0 = card.scale;
+    const r0 = card.rot.clone(), s0 = card.scale;
     return tween(dur, (e, raw) => {
       card.pos.lerpVectors(p0, p1, e);
       card.pos.y += Math.sin(raw * Math.PI) * arc;
-      card.group.rotation.x = r0.x + (rot[0] - r0.x) * e;
-      card.group.rotation.y = r0.y + (rot[1] - r0.y) * e;
-      card.group.rotation.z = r0.z + (rot[2] - r0.z) * e;
+      card.rot.x = r0.x + (rot[0] - r0.x) * e;
+      card.rot.y = r0.y + (rot[1] - r0.y) * e;
+      card.rot.z = r0.z + (rot[2] - r0.z) * e;
       card.scale = s0 + (scale - s0) * e;
     }, { delay });
   }
@@ -452,8 +541,9 @@ function createWorld(canvasEl) {
     top.rotation.x = -Math.PI / 2;
     top.position.y = .856;
     g.add(top);
-    g.position.set(AREA.draft.x + 9.2, 0, -.8);
+    g.position.set(...BARALHO);
     g.rotation.y = .06;
+    g.scale.setScalar(.6);
     scene.add(g);
     return g;
   })();
@@ -536,6 +626,8 @@ function createWorld(canvasEl) {
   const seq = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => String(a + i));
   const DICE = {
     d20: dieFromPolygons(polysOf(new THREE.IcosahedronGeometry(1, 0)), seq(1, 20), '#7c1f1f', '#f2d48a'),
+    // O dado do inimigo é negro, para nunca se confundir com o seu.
+    d20i: dieFromPolygons(polysOf(new THREE.IcosahedronGeometry(1, 0)), seq(1, 20), '#15100e', '#ff6a5c'),
     d12: dieFromPolygons(polysOf(new THREE.DodecahedronGeometry(.92, 0)), seq(1, 12), '#23304f', '#f0e2bd'),
     d10: dieFromPolygons(d10Polys().map(p => p.map(v => v.multiplyScalar(.86))), seq(1, 10), '#2c4a35', '#f0e2bd'),
     d8: dieFromPolygons(polysOf(new THREE.OctahedronGeometry(.92, 0)), seq(1, 8), '#4f2f73', '#f0e2bd'),
@@ -546,8 +638,10 @@ function createWorld(canvasEl) {
   const worldFrame = new THREE.Matrix4().makeBasis(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 1, 0));
 
   // lista: [{ tipo: 'd20', face: 0–n }]. A face é o índice do número, a contar de 0.
-  function rollDice(lista) {
-    const n = lista.length;
+  // Os dados caem à frente das cartas ou, em viagem, em cima do mapa.
+  const ultimoDado = new THREE.Vector3();
+  function rollDice(lista, { onde = 'mesa' } = {}) {
+    const n = lista.length, escala = 1.1;
     return Promise.all(lista.map(({ tipo, face }, i) => {
       const die = DICE[tipo], f = die.faces[face], m = die.mesh;
       const frame = new THREE.Matrix4().makeBasis(f.right, f.up, f.n);
@@ -557,14 +651,16 @@ function createWorld(canvasEl) {
       const axis = new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize();
       const spin = (5 + i) * Math.PI * 2;
       const q = new THREE.Quaternion();
-      const tx = (i - (n - 1) / 2) * 2.5, tz = 2.8 + (i % 2) * .35;
+      const tx = CX + (i - (n - 1) / 2) * 3, tz = (onde === 'mapa' ? 1.4 : 6.8) + (i % 2) * .35;
+      if (i === 0) ultimoDado.set(tx, 1.2, tz);
       m.visible = true;
+      m.scale.setScalar(escala);
       let last = 0;
-      return tween(1.25, (e, raw) => {
+      return tween(1.15, (e, raw) => {
         m.position.x = tx + (1 - e) * (7 + i);
-        m.position.z = tz + (1 - e) * 5;
+        m.position.z = tz + (1 - e) * 3;
         // saltos decrescentes
-        m.position.y = f.height + Math.abs(Math.cos(raw * Math.PI * 3.5)) * Math.pow(1 - raw, 1.7) * 3.2;
+        m.position.y = f.height * escala + Math.abs(Math.cos(raw * Math.PI * 3.5)) * Math.pow(1 - raw, 1.7) * 3.2;
         q.setFromAxisAngle(axis, spin * (1 - e));
         m.quaternion.copy(q).multiply(final);
         const hit = Math.floor(raw * 3.5 + .5);
@@ -574,15 +670,45 @@ function createWorld(canvasEl) {
   }
   const hideDice = () => Object.values(DICE).forEach(d => (d.mesh.visible = false));
 
+  // Crítico: a mesa treme, o dado acende e saltam faíscas.
+  function efeitoCritico(bom) {
+    const cor = bom ? 0xffd778 : 0xff3a2a;
+    const luz = new THREE.PointLight(cor, 0, 34, 1.6);
+    luz.position.copy(ultimoDado).setY(3);
+    scene.add(luz);
+    const n = 90, pos = new Float32Array(n * 3), vel = [];
+    for (let i = 0; i < n; i++) {
+      pos.set([ultimoDado.x, ultimoDado.y, ultimoDado.z], i * 3);
+      const a = Math.random() * 6.28, r = 2 + Math.random() * 7;
+      vel.push([Math.cos(a) * r, 5 + Math.random() * 9, Math.sin(a) * r]);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({ map: tex.glowSprite(bom ? '255,220,130' : '255,70,40'), size: .55, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const faiscas = new THREE.Points(geo, mat);
+    scene.add(faiscas);
+    cam.shake = bom ? .35 : .7;
+    return tween(1.3, (e, raw) => {
+      luz.intensity = 260 * (1 - raw);
+      mat.opacity = 1 - raw;
+      for (let i = 0; i < n; i++) {
+        pos[i * 3] = ultimoDado.x + vel[i][0] * raw;
+        pos[i * 3 + 1] = ultimoDado.y + vel[i][1] * raw - 11 * raw * raw;
+        pos[i * 3 + 2] = ultimoDado.z + vel[i][2] * raw;
+      }
+      geo.attributes.position.needsUpdate = true;
+    }, { ease: t => t }).then(() => {
+      scene.remove(luz); scene.remove(faiscas); geo.dispose(); mat.map.dispose(); mat.dispose();
+    });
+  }
+
   // ---- Fichas de Vida, Ouro e Pistas sobre a mesa ----
   const tokens = (() => {
     const gemGeo = new THREE.IcosahedronGeometry(.27, 0);
     const gemMat = new THREE.MeshStandardMaterial({ color: 0xc01622, roughness: .13, metalness: .1, flatShading: true, emissive: 0x4a0408, emissiveIntensity: .5, envMapIntensity: 1.6 });
     const coinGeo = new THREE.CylinderGeometry(.3, .3, .07, 28);
-    const coinMat = new THREE.MeshStandardMaterial({ color: 0xd9a93e, metalness: 1, roughness: .32 });
-    const noteGeo = new THREE.BoxGeometry(1.05, .012, .72);
-    const noteMat = new THREE.MeshStandardMaterial({ color: 0xe0cfa2, roughness: .9 });
-    const gems = [], coins = [], notes = [];
+    const coinMat = new THREE.MeshStandardMaterial({ color: 0xe8b84a, metalness: .55, roughness: .38, emissive: 0x6a4608, emissiveIntensity: .7 });
+    const gems = [], coins = [];
 
     function pop(mesh, target = 1) {
       mesh.scale.setScalar(.01);
@@ -593,56 +719,44 @@ function createWorld(canvasEl) {
       tween(.3, e => { mesh.scale.setScalar(Math.max(.001, s * (1 - e))); mesh.position.y += .02; }, { ease: easeOut })
         .then(() => scene.remove(mesh));
     }
-    function sync(vida, ouro, pistas) {
+    function sync(vida, ouro) {
       while (gems.length > vida) drop(gems, gems.pop());
       while (gems.length < vida) {
         const i = gems.length;
         const m = shadowed(new THREE.Mesh(gemGeo, gemMat));
-        m.position.set(-9.1 + (i % 2) * .7 + (Math.floor(i / 2) % 2) * .1, .26, -6.4 + Math.floor(i / 2) * .66);
+        m.position.set(CX - 13.55 + (i % 6) * .46, .24, 2.85 + Math.floor(i / 6) * .46);
         m.rotation.set(Math.random() * 3, Math.random() * 3, 0);
-        scene.add(m); pop(m); gems.push(m);
+        scene.add(m); pop(m, .78); gems.push(m);
       }
       while (coins.length > ouro) drop(coins, coins.pop());
       while (coins.length < ouro) {
         const i = coins.length, per = 5, pile = Math.floor(i / per), h = i % per;
         const m = shadowed(new THREE.Mesh(coinGeo, coinMat));
-        const cx = -8.9 + (pile % 2) * .68, cz = -.95 + Math.floor(pile / 2) * .68;
+        const cx = CX - 10.45 + (pile % 4) * .62, cz = 3 + Math.floor(pile / 4) * .7;
         m.position.set(cx + (Math.random() - .5) * .06, .04 + h * .075, cz + (Math.random() - .5) * .06);
         m.rotation.y = Math.random() * 3;
-        scene.add(m); pop(m); coins.push(m);
-      }
-      while (notes.length > pistas) drop(notes, notes.pop());
-      while (notes.length < pistas) {
-        const i = notes.length;
-        const m = shadowed(new THREE.Mesh(noteGeo, noteMat));
-        m.position.set(8.7 + (Math.random() - .5) * .2, .015 + i * .014, 1.9 + i * .28);
-        m.rotation.y = (Math.random() - .5) * .55;
-        scene.add(m); pop(m); notes.push(m);
+        scene.add(m); pop(m, .9); coins.push(m);
       }
     }
     return { sync };
   })();
 
-  // ---- Câmara ----
-  const cam = { pos: new THREE.Vector3(...SHOTS.title.pos), look: new THREE.Vector3(...SHOTS.title.look), name: 'title' };
+  // ---- Câmara: fixa, para a mesa não se mexer enquanto se escolhe ----
+  const cam = { pos: new THREE.Vector3(...VISTA.pos), look: new THREE.Vector3(...VISTA.look), shake: 0 };
   const mouse = { x: 0, y: 0, ndc: new THREE.Vector2(-5, -5) };
 
-  function shot(name, dur = 1.15) {
-    const s = SHOTS[name];
-    cam.name = name;
-    const p0 = cam.pos.clone(), l0 = cam.look.clone(), p1 = new THREE.Vector3(...s.pos), l1 = new THREE.Vector3(...s.look);
-    return tween(dur, e => { cam.pos.lerpVectors(p0, p1, e); cam.look.lerpVectors(l0, l1, e); });
-  }
-
-  function applyCamera(t) {
-    // Em janelas mais estreitas do que 16:9 a câmara recua para caber tudo.
-    const aspect = camera.aspect, widen = Math.max(1, (16 / 9) / aspect);
+  function applyCamera(dt) {
+    // Em janelas estreitas a câmara recua, para caberem as cartas dos lados da mesa.
+    const aspect = camera.aspect, widen = Math.max(1, 1.95 / aspect);
     const dir = cam.pos.clone().sub(cam.look).multiplyScalar(widen);
     camera.position.copy(cam.look).add(dir);
-    const drift = cam.name === 'title' ? .5 : .16;
-    camera.position.x += mouse.x * drift * 2 + Math.sin(t * .23) * drift * .5;
-    camera.position.y += -mouse.y * drift + Math.sin(t * .31) * drift * .25;
+    if (cam.shake > 0) {
+      camera.position.x += (Math.random() - .5) * cam.shake;
+      camera.position.y += (Math.random() - .5) * cam.shake;
+      cam.shake = Math.max(0, cam.shake - dt * .9);
+    }
     camera.lookAt(cam.look);
+    camera.updateMatrixWorld();
   }
 
   // ---- Interação ----
@@ -655,7 +769,7 @@ function createWorld(canvasEl) {
     ray.setFromCamera(mouse.ndc, camera);
     const live = [...cards].filter(c => c.enabled || c.inspectable);
     const targets = live.map(c => c.hit);
-    if (hovered && live.includes(hovered)) targets.push(hovered.group);
+    if (hovered && live.includes(hovered) && !hovered.zoom) targets.push(hovered.group);
     const hits = ray.intersectObjects(targets, true);
     if (!hits.length) return null;
     const owner = o => {
@@ -697,10 +811,11 @@ function createWorld(canvasEl) {
   };
   window.addEventListener('pointermove', trackMouse);
   canvasEl.addEventListener('pointerleave', () => mouse.ndc.set(-5, -5));
-  const handlers = { link: null };
+  const handlers = { link: null, carta: null };
   canvasEl.addEventListener('click', e => {
     trackMouse(e);
     const c = pickCardAtMouse();
+    if (c && !(choice && choice.list.includes(c)) && handlers.carta) handlers.carta(c);
     if (c) { select(c); return; }
     const link = bookLinkAtMouse();
     if (link && handlers.link) handlers.link(link);
@@ -711,11 +826,20 @@ function createWorld(canvasEl) {
     if (i >= 0 && i < choice.list.length) select(choice.list[i]);
   });
 
+  let nitidez = NITIDEZ.folga, ultimoTamanho = '';
   function resize() {
     const rail = document.getElementById('rail');
+    const trilha = document.getElementById('trilha');
     const w = innerWidth - (rail ? rail.offsetWidth : 0);
-    renderer.setSize(w, innerHeight);
-    camera.aspect = w / innerHeight;
+    const h = innerHeight - (trilha ? trilha.offsetHeight : 0);
+    // Desenha com folga e encolhe: as letras pequenas das cartas ficam nítidas. A densidade do ecrã lê-se sempre de novo, porque muda com o zoom.
+    const densidade = Math.min((window.devicePixelRatio || 1) * nitidez, Math.sqrt(NITIDEZ.maxPixeis / (w * h)));
+    const chave = `${w}x${h}@${densidade}`;
+    if (chave === ultimoTamanho) return;
+    ultimoTamanho = chave;
+    renderer.setPixelRatio(densidade);
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
   window.addEventListener('resize', resize);
@@ -724,9 +848,20 @@ function createWorld(canvasEl) {
   // ---- Ciclo ----
   const clock = new THREE.Clock();
   let lastHoverSound = 0;
+  const medida = { tempo: 0, frames: 0 };
+  const zoomAlvo = new THREE.Vector3();
   function loop() {
     requestAnimationFrame(loop);
-    const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
+    const bruto = clock.getDelta();
+    const dt = Math.min(bruto, .05), t = clock.elapsedTime;
+    // Se a máquina não aguentar, abdica da folga. Os saltos grandes são o separador escondido, e não contam.
+    if (nitidez > 1 && bruto < .5) {
+      medida.tempo += bruto; medida.frames++;
+      if (medida.tempo > 3) {
+        if (medida.frames / medida.tempo < NITIDEZ.fpsMinimo) { nitidez = 1; resize(); }
+        medida.tempo = 0; medida.frames = 0;
+      }
+    }
     runTweens(dt);
 
     for (const c of candles) {
@@ -739,32 +874,50 @@ function createWorld(canvasEl) {
     dust.rotation.y = t * .004;
     dust.position.y = Math.sin(t * .13) * .5;
 
-    applyCamera(t);
+    applyCamera(dt);
 
     for (const c of cards) {
       c.hover += (c.hoverTarget - c.hover) * Math.min(1, dt * 11);
       c.shake = Math.max(0, c.shake - dt * 2.6);
       const g = c.group;
       g.position.copy(c.pos);
-      g.position.y += c.hover * c.hoverLift;
-      g.position.z -= c.hover * .5;
+      g.rotation.copy(c.rot);
       g.position.x += Math.sin(c.shake * 26) * c.shake * .18;
-      g.scale.setScalar(c.scale * (1 + c.hover * c.hoverScale));
-      g.updateMatrixWorld(true);
       c.hit.position.copy(c.pos);
-      c.hit.rotation.copy(g.rotation);
+      c.hit.rotation.copy(c.rot);
       c.hit.scale.setScalar(c.scale);
       c.hit.updateMatrixWorld(true);
+      if (c.zoom) {
+        g.scale.setScalar(c.scale);
+        if (c.hover > .002) {
+          // A carta sai do seu lugar e vem até perto dos olhos, à frente do livro.
+          const vh = 2 * ZOOM.d * Math.tan(camera.fov * Math.PI / 360), vw = vh * camera.aspect;
+          const w = CARD.w * ZOOM.s, h = CARD.h * ZOOM.s;
+          zoomAlvo.copy(c.pos).project(camera);
+          const lx = Math.max(-vw / 2 + w / 2 + .05, Math.min(vw / 2 - w / 2 - .05, zoomAlvo.x * vw / 2));
+          const ly = Math.max(-vh / 2 + h / 2 + .05, Math.min(vh / 2 - h / 2 - .05, zoomAlvo.y * vh / 2));
+          zoomAlvo.set(lx, ly, -ZOOM.d).applyMatrix4(camera.matrixWorld);
+          g.position.lerp(zoomAlvo, c.hover);
+          g.quaternion.slerp(camera.quaternion, c.hover);
+          g.scale.setScalar(c.scale + (ZOOM.s - c.scale) * c.hover);
+        }
+        const sombra = c.hover < .05;
+        c.front.castShadow = sombra; c.backMesh.castShadow = sombra; c.body.castShadow = sombra;
+      } else {
+        g.position.y += c.hover * c.hoverLift;
+        g.position.z -= c.hover * .5;
+        g.scale.setScalar(c.scale * (1 + c.hover * c.hoverScale));
+      }
+      g.updateMatrixWorld(true);
     }
 
-    camera.updateMatrixWorld();
     const over = pickCardAtMouse();
     if (over !== hovered) {
       hovered && (hovered.hoverTarget = 0);
       hovered = over;
       if (hovered) {
         hovered.hoverTarget = 1;
-        if (!hovered.spec.locked && t - lastHoverSound > .12) { lastHoverSound = t; sfx.card(); }
+        if (!hovered.spec.locked && t - lastHoverSound > .12) { lastHoverSound = t; sfx.hover(); }
       }
     }
     const link = !over && bookLinkAtMouse();
@@ -774,5 +927,5 @@ function createWorld(canvasEl) {
   }
   loop();
 
-  return { scene, camera, renderer, tex, book, updateMap, pin, movePin, mapToWorld, tokens, shot, cam, createCard, removeCard, fly, choose, rollDice, hideDice, cards, resize, handlers };
+  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, mapToWorld, tokens, cam, createCard, removeCard, fly, choose, rollDice, hideDice, efeitoCritico, cards, resize, handlers };
 }

@@ -24,20 +24,26 @@
 <div id="prompt"><h2 id="prompt-title"></h2><p id="prompt-sub"></p></div>
 <div id="toast"></div>
 <div id="aviso"></div>
+<div id="critico" role="status"></div>
 
 <nav id="rail" aria-label="Estado da personagem">
-  <div class="r-stat vida"><b id="r-vida">-</b><span>Vida</span></div>
-  <div class="r-stat ouro"><b id="r-ouro">0</b><span>Ouro</span></div>
-  <div class="r-stat dia"><b id="r-dia">-</b><span>Dia</span></div>
-  <div class="r-stat pistas"><b id="r-pistas">-</b><span>Pistas</span></div>
-  <div class="r-stat nivel"><b id="r-nivel">1</b><span>Nível</span></div>
+  <div class="r-barras">
+    <div class="r-barra vida" id="t-vida"><div class="tubo"><i id="b-vida"></i></div><img id="i-vida" alt=""><b id="r-vida">-</b></div>
+    <div class="r-barra xp" id="t-xp"><div class="tubo"><i id="b-xp"></i></div><img id="i-xp" alt=""><b id="r-nivel">1</b></div>
+  </div>
+  <div class="r-ico ouro" title="Ouro"><img id="i-ouro" alt=""><b id="r-ouro">0</b></div>
+  <div class="r-ico ca" title="Classe de Armadura: o que o inimigo tem de alcançar para lhe acertar"><img id="i-ca" alt=""><b id="r-ca">-</b></div>
+  <div class="r-olhos" id="r-pistas" title="Pistas encontradas"></div>
   <div class="r-tools">
     <button id="abrir-painel">Ficha</button>
     <button id="peek-map">Mapa</button>
-    <button id="peek-mesa">Mesa</button>
+    <button id="ajuda">Ajuda</button>
+    <button id="musica-btn">Música: sim</button>
     <button id="mute">Som: sim</button>
   </div>
 </nav>
+
+<div id="trilha" aria-label="Dias da missão"><img id="i-trilha" alt=""><div id="pips"></div></div>
 
 <aside id="painel" aria-label="Ficha da personagem">
   <button id="fechar-painel" aria-label="Fechar a ficha">Fechar</button>
@@ -58,6 +64,7 @@
 <script src="js/regras.js"></script>
 <script src="js/partida.js"></script>
 <script src="js/textures.js"></script>
+<script src="js/musica.js"></script>
 <script src="js/scene.js"></script>
 <script src="js/ui.js"></script>
 </body>

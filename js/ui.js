@@ -3,15 +3,181 @@
 const $ = id => document.getElementById(id);
 let world;
 
-const SLOT_SCALE = .64;
-let slotsUsed = 0;
+const SLOT_SCALE = .56;
 let cartaSelada = null;
 let cartaMissao = null;
 let paginaAtual = {};
+let mapaDestaque = [];
+let mapaChave = '';
+// O que está em cada lugar do tabuleiro, e as cartas de talentos e aliados.
+const cartasHeroi = {};
+const cartasExtra = {};
 
-function slotPos() {
-  const i = slotsUsed++;
-  return { pos: [AREA.draft.x - 6.2 + i * 2.48, .04 + i * .002, 5.5], rot: [FACE_UP, 0, (i % 2 ? -1 : 1) * .012], scale: SLOT_SCALE };
+const LUGAR_HEROI = { classe: [0, 0], raca: [1, 0], antecedente: [2, 0], arma: [0, 1], armadura: [1, 1], acessorio: [2, 1], m0: [0, 2], m1: [1, 2], m2: [2, 2] };
+
+// À esquerda fica o herói; à direita, a missão, o destino, as pistas e os talentos.
+function lugarNoTabuleiro(nome, virada = false) {
+  const [col, lin] = LUGAR_HEROI[nome], l = lugarTabuleiro(col, lin);
+  return { pos: [l.x, .06, l.z], rot: [virada ? FACE_DOWN : FACE_UP, 0, 0], scale: SLOT_SCALE };
+}
+const LUGAR_MISSAO = { pos: [CX + 10.4, .05, -4.9], rot: [FACE_UP, 0, -.02], scale: SLOT_SCALE };
+const LUGAR_SELADA = { pos: [CX + 12.55, .05, -4.9], rot: [FACE_DOWN, 0, .02], scale: SLOT_SCALE };
+const lugarPista = i => ({ pos: [CX + 9.5 + i * 2.15, .05 + i * .002, -2.05], rot: [FACE_UP, 0, (i % 2 ? -1 : 1) * .02], scale: SLOT_SCALE });
+const lugarExtra = (i, n) => ({ pos: [CX + 9.5 + i * Math.min(2.15, 4.3 / Math.max(1, n - 1)), .05 + i * .004, .8], rot: [FACE_UP, 0, (i % 2 ? -1 : 1) * .02], scale: SLOT_SCALE });
+const AO_BARALHO = () => [BARALHO[0], .7, BARALHO[2]];
+
+const COMO_JOGAR = `Passe o rato por cima de uma carta para a ler de perto, e clique para a jogar. As cartas da mesa, à esquerda e à direita, também se podem ler assim. Clique numa poção da mochila para a beber: depois de usada, fica virada.
+
+Testes: o d20 mais o atributo tem de chegar ao número indicado na carta. Um 20 é sempre acerto crítico, e um 1 é sempre falha crítica.
+
+Combate: joga-se à vez, e quem tem mais Agilidade começa. O seu d20 tem de chegar à CA dele, e o d20 negro dele tem de chegar à sua CA. Quem acerta rola o dado da arma.
+
+Chefe final: tem muitos PV e duas ações por ronda, um efeito e um ataque. Os inimigos e os testes ficam mais duros à medida que sobe de nível.
+
+Encontros na estrada: os dois d10 dão um número de 1 a 100. Com a percentagem da carta ou menos, há encontro. Nos testes é ao contrário, porque se quer um número alto: o 11+ da carta é 11 ou mais.
+
+Tempo e Vida: a pressa gasta Vida, e recuperá-la gasta tempo. Durma numa estalagem, acampe na estrada ou guarde uma poção. A trilha em baixo mostra os dias, e o fim do prazo.
+
+Pistas: siga o olho vermelho no mapa. Cada ponto à volta dele é um dia antes de a pista esfriar. Ao chegar lá, é a carta vermelha e dourada A PISTA que a encontra. As outras cartas não a perdem: pode voltar a procurá-la enquanto houver pontos, a troco de um dia. Se esfriar, ela segue para outro sítio, sempre a uma ou mais estradas.
+
+Mercado: com ouro a mais, peça ao ferreiro que aprimore a arma e a armadura.
+
+Estrada: nem todos os encontros são maus. Um mercador secreto vende mais barato e, com muita sorte, um mestre pode mudar a sua classe.`;
+
+const iconeCache = {};
+function icone(glyph, cor) {
+  const k = glyph + cor;
+  if (!iconeCache[k]) {
+    const [c, x] = canvas(64, 64);
+    drawGlyph(x, glyph, 32, 32, 60, cor);
+    iconeCache[k] = c.toDataURL();
+  }
+  return iconeCache[k];
+}
+
+function especClasse() {
+  const e = evolucao(), c = CLASSES[G.cls];
+  return { chave: G.evolucao || G.cls, spec: e
+    ? { tema: 'rara', etiqueta: 'Classe Aprimorada', titulo: e.nome, glyph: e.glyph, desc: `${e.desc} ${e.resumo}.` }
+    : { tema: 'classe', titulo: c.nome, glyph: c.glyph, desc: c.desc } };
+}
+
+function trocarCarta(guardadas, lugar, novo) {
+  const velha = guardadas[lugar];
+  if (velha && velha.card) {
+    world.fly(velha.card, { pos: AO_BARALHO(), rot: [FACE_DOWN, 0, 0], scale: .6 }, .5, { arc: 2 }).then(() => world.removeCard(velha.card));
+  }
+  delete guardadas[lugar];
+  if (!novo) return;
+  const card = world.createCard(novo.spec, { at: AO_BARALHO() });
+  sfx.card();
+  world.fly(card, novo.alvo, .7, { arc: 2 });
+  card.inspectable = true; card.zoom = true;
+  guardadas[lugar] = { card, chave: novo.chave };
+}
+
+// Mantém o tabuleiro igual ao estado do herói.
+function sincronizarTabuleiro() {
+  const corpo = l => {
+    const id = G.equip[l];
+    return id ? { chave: `${id}|${(G.melhorias[id] || []).join()}`, spec: especItem(id) } : null;
+  };
+  const quer = {
+    classe: G.cls ? especClasse() : null,
+    raca: G.raca ? { chave: G.raca, spec: { tema: 'raca', titulo: RACAS[G.raca].nome, glyph: RACAS[G.raca].glyph, desc: RACAS[G.raca].desc } } : null,
+    antecedente: G.bg ? { chave: G.bg, spec: { tema: 'antecedente', titulo: ANTECEDENTES[G.bg].nome, glyph: ANTECEDENTES[G.bg].glyph, desc: ANTECEDENTES[G.bg].desc } } : null,
+    arma: corpo('arma'), armadura: corpo('armadura'), acessorio: corpo('acessorio'),
+  };
+  Object.keys(quer).forEach(l => {
+    const tem = cartasHeroi[l], q = quer[l];
+    if (tem && tem.adotar) {
+      if (q) { tem.chave = q.chave; tem.adotar = false; tem.card.spec = q.spec; }
+      return;
+    }
+    if ((tem && tem.chave) === (q && q.chave)) return;
+    trocarCarta(cartasHeroi, l, q && { ...q, alvo: lugarNoTabuleiro(l) });
+  });
+  sincronizarMochila();
+  sincronizarExtras();
+}
+
+// Cada objeto fica onde estava. Um objeto usado vira-se no seu lugar, e sai quando faz falta o espaço.
+function sincronizarMochila() {
+  const lugares = ['m0', 'm1', 'm2'];
+  const falta = [...G.mochila], gastos = [...G.gastos];
+  const tira = (lista, id) => { const i = lista.indexOf(id); if (i < 0) return false; lista.splice(i, 1); return true; };
+  lugares.forEach(l => {
+    const tem = cartasHeroi[l];
+    if (!tem) return;
+    if (tem.gasta) { if (!tira(gastos, tem.id)) trocarCarta(cartasHeroi, l, null); return; }
+    if (tira(falta, tem.id)) return;
+    if (tira(gastos, tem.id)) {
+      tem.gasta = true; tem.card.inspectable = false; tem.card.hoverTarget = 0;
+      sfx.card();
+      world.fly(tem.card, lugarNoTabuleiro(l, true), .6, { arc: 1.4 });
+      return;
+    }
+    trocarCarta(cartasHeroi, l, null);
+  });
+  falta.forEach(id => {
+    let l = lugares.find(k => !cartasHeroi[k]);
+    if (!l) {
+      l = lugares.find(k => cartasHeroi[k].gasta);
+      if (!l) return;
+      tira(G.gastos, cartasHeroi[l].id);
+      trocarCarta(cartasHeroi, l, null);
+    }
+    trocarCarta(cartasHeroi, l, { chave: id, spec: especItem(id), alvo: lugarNoTabuleiro(l) });
+    cartasHeroi[l].id = id;
+  });
+  G.gastos = G.gastos.filter(id => lugares.some(k => cartasHeroi[k] && cartasHeroi[k].gasta && cartasHeroi[k].id === id));
+}
+
+function sincronizarExtras() {
+  const quer = [
+    ...talentosAtivos().map(t => ({ chave: t.id, spec: { tema: 'talento', titulo: t.nome, glyph: t.glyph || 'star', desc: t.desc } })),
+    ...aliadosAtivos().map(a => ({ chave: a.nome, spec: { tema: 'social', etiqueta: 'Aliado', titulo: a.nome, glyph: 'person', desc: a.desc } })),
+  ];
+  Object.keys(cartasExtra).forEach(k => { if (!quer.some(q => q.chave === k)) trocarCarta(cartasExtra, k, null); });
+  quer.forEach((q, i) => {
+    const alvo = lugarExtra(i, quer.length);
+    if (cartasExtra[q.chave]) world.fly(cartasExtra[q.chave].card, alvo, .3, { arc: 0 });
+    else trocarCarta(cartasExtra, q.chave, { ...q, alvo });
+  });
+}
+
+function refazerMapa() {
+  if (!G) return;
+  const rasto = G.rastro ? { key: G.rastro, dias: diasDoRasto(), total: G.rastroTotal } : null;
+  const suspeitos = G.trama && G.destinoRevelado ? [VILOES[G.trama.vilao].destino] : [];
+  const chave = JSON.stringify([G.visitados, mapaDestaque, suspeitos, rasto]);
+  if (chave === mapaChave) return;
+  mapaChave = chave;
+  world.updateMap(G.visitados, mapaDestaque, suspeitos, rasto);
+}
+
+function desenharTrilha() {
+  const total = G.prazo + 4;
+  let html = '';
+  for (let d = 1; d <= total; d++) {
+    const cls = [d < G.dia ? 'passado' : d === G.dia ? 'atual' : '', d > G.prazo ? 'tarde' : ''].join(' ');
+    let marca = '', dica = `Dia ${d}`;
+    if (d === total) { marca = icone('seal', '#ff6a5c'); dica += ': tarde demais'; }
+    else if (d === G.prazo) { marca = icone('hourglass', '#ffd76a'); dica += ': fim do prazo. Depois disto, cada dia custa Vida'; }
+    else if (G.rastro && d === G.rastroLimite) { marca = icone('eye', '#ff6a5c'); dica += ': a pista esfria'; }
+    html += `<div class="pip ${cls}" title="${dica}">${marca ? `<img src="${marca}" alt="">` : ''}</div>`;
+  }
+  $('pips').innerHTML = html;
+}
+
+// Com o livro fechado o aviso vai para o canto, para não tapar o mapa nem as cartas.
+function posicaoAviso() {
+  $('prompt').classList.toggle('lado', !!G.trama && !world.book.aberto);
+}
+
+function atualizaBotaoMapa() {
+  $('peek-map').textContent = world.book.aberto ? 'Mapa' : 'Livro';
+  posicaoAviso();
 }
 
 function termosDe(texto) {
@@ -34,6 +200,7 @@ const ui = {
     $('prompt-title').textContent = titulo;
     $('prompt-sub').textContent = sub;
     $('prompt').classList.toggle('on', !!titulo);
+    posicaoAviso();
   },
 
   async aviso(texto) {
@@ -54,54 +221,99 @@ const ui = {
     world.hideDice();
   },
 
-  dados: lista => world.rollDice(lista),
-  camara: (nome, dur) => world.shot(nome, dur),
+  // Dados em cima do mapa: o livro nunca os pode tapar.
+  async dados(lista, opcoes = {}) {
+    if (opcoes.onde === 'mapa') await ui.fecharLivro();
+    return world.rollDice(lista, opcoes);
+  },
+
+  musica: modo => musica.modo(modo),
+
+  async critico(bom) {
+    const c = $('critico');
+    c.textContent = bom ? 'Acerto Crítico!' : 'Falha Crítica!';
+    c.className = 'on ' + (bom ? 'bom' : 'mau');
+    (bom ? sfx.critico : sfx.falha)();
+    await world.efeitoCritico(bom);
+    c.className = '';
+  },
 
   async livro(p) {
     paginaAtual = p;
     await world.book.turn({ ...p, termos: termosDe(p.texto || '') });
+    atualizaBotaoMapa();
   },
 
-  mapa(destaque, suspeitos) {
-    world.updateMap(G.visitados, destaque, suspeitos);
+  async fecharLivro() {
+    await world.book.fechar();
+    atualizaBotaoMapa();
+  },
+
+  pino() {
+    world.setPin(CLASSES[G.cls].cor, CLASSES[G.cls].glyph, G.cidade);
+  },
+
+  // Uma pista encontrada vira carta na mesa, e pode ler-se a qualquer momento.
+  async pista(i) {
+    const d = G.diario[i];
+    const c = world.createCard({ tema: 'investigacao', etiqueta: `Pista ${i + 1}`, titulo: d.lugar, glyph: 'eye', desc: d.texto });
+    sfx.card();
+    await world.fly(c, lugarPista(i), .8, { arc: 2 });
+    c.inspectable = true; c.zoom = true;
+  },
+
+  mapa(destaque) {
+    mapaDestaque = destaque;
+    refazerMapa();
+  },
+
+  async evoluir() {
+    sfx.critico();
+    await wait(.6);
   },
 
   async andar(trajeto) {
-    await world.shot('map', .9);
+    await ui.fecharLivro();
     await world.movePin(trajeto);
     await wait(.35);
   },
 
-  async draft(titulo, sub, specs) {
+  // A carta escolhida vai para o seu lugar no tabuleiro. As que não têm lugar voltam ao monte.
+  async draft(titulo, sub, specs, { lugar = null } = {}) {
     ui.prompt(titulo, sub);
     const xs = [-5.3, 0, 5.3];
     const cards = specs.map(s => world.createCard(s));
     cards.forEach((c, i) => { c.hoverScale = .1; c.hoverLift = 1.1; window.setTimeout(sfx.card, i * 170); });
-    await Promise.all(cards.map((c, i) => world.fly(c, { pos: [AREA.draft.x + xs[i], 1.5, -1.4], rot: [TILT, 0, 0], scale: 1.38 }, .8, { delay: i * .17, arc: 3 })));
+    await Promise.all(cards.map((c, i) => world.fly(c, { pos: [CX + xs[i], 1.5, 1], rot: [TILT, 0, 0], scale: 1.4 }, .8, { delay: i * .17, arc: 3 })));
     const idx = await world.choose(cards);
+    const itemId = specs[idx].itemId;
+    const slot = itemId ? ITENS[itemId].slot : null;
+    const destino = lugar || (slot === 'mochila' ? 'm0' : slot);
     await Promise.all(cards.map((c, i) => {
-      if (i === idx) return world.fly(c, slotPos(), .7, { arc: 2 });
-      return world.fly(c, { pos: [AREA.draft.x + 9.2, .9, -.8], rot: [FACE_DOWN, 0, 0], scale: 1 }, .55, { arc: 2 }).then(() => world.removeCard(c));
+      if (i === idx && destino) return world.fly(c, lugarNoTabuleiro(destino), .7, { arc: 2 });
+      return world.fly(c, { pos: AO_BARALHO(), rot: [FACE_DOWN, 0, 0], scale: .6 }, .55, { arc: 2 }).then(() => world.removeCard(c));
     }));
-    cards[idx].inspectable = true;
-    cards[idx].hoverScale = 1.1; cards[idx].hoverLift = 3;
+    if (destino) {
+      cards[idx].inspectable = true;
+      cards[idx].zoom = true;
+      cartasHeroi[destino] = slot === 'mochila' ? { card: cards[idx], chave: itemId, id: itemId } : { card: cards[idx], adotar: true };
+    }
     ui.prompt('');
     return idx;
   },
 
   // Dá as cartas para a mão e devolve o índice da escolhida.
-  async escolha(specs, { onde } = {}) {
-    const noMapa = onde === 'mapa';
-    const n = specs.length, gap = 3.82;
-    const origem = noMapa ? [AREA.map.x + 11, 1, 10] : [14, 1, 8];
+  async escolha(specs) {
+    const n = specs.length, gap = n > 4 ? 3.3 : 3.75;
+    const origem = AO_BARALHO();
     const cards = specs.map(s => world.createCard(s, { at: origem }));
-    cards.forEach((c, i) => { c.hoverScale = noMapa ? .22 : .3; c.hoverLift = 2.2; window.setTimeout(sfx.card, i * 140); });
+    cards.forEach((c, i) => { c.zoom = true; window.setTimeout(sfx.card, i * 140); });
     await Promise.all(cards.map((c, i) => world.fly(c, {
-      pos: noMapa ? [AREA.map.x + (i - (n - 1) / 2) * gap, 1.2, 7.6] : [(i - (n - 1) / 2) * gap, 1.15, 3.4],
-      rot: [noMapa ? -1.08 : TILT, 0, 0], scale: noMapa ? .86 : 1.03,
+      pos: [CX + (i - (n - 1) / 2) * gap, 1.2, 7.5],
+      rot: [-1.08, 0, 0], scale: n > 4 ? .86 : .92,
     }, .7, { delay: i * .14, arc: 2 })));
     const idx = await world.choose(cards);
-    await Promise.all(cards.map(c => world.fly(c, { pos: origem, rot: [FACE_DOWN, 0, 0], scale: .8 }, .45, { arc: 1 }).then(() => world.removeCard(c))));
+    await Promise.all(cards.map(c => world.fly(c, { pos: origem, rot: [FACE_DOWN, 0, 0], scale: .6 }, .45, { arc: 1 }).then(() => world.removeCard(c))));
     return idx;
   },
 
@@ -114,7 +326,7 @@ const ui = {
     ui.prompt('A sua missão', 'Isto é o que sabe. Há uma parte que continua selada.');
     cartaMissao = world.createCard({ tema: 'classe', etiqueta: 'Missão', titulo: fmt(obj.titulo), glyph: obj.glyph, desc: obj.desc });
     sfx.card();
-    await world.fly(cartaMissao, { pos: [AREA.draft.x - 3, 1.6, -1.2], rot: [TILT, 0, 0], scale: 1.38 }, .9, { arc: 3 });
+    await world.fly(cartaMissao, { pos: [CX - 3, 1.6, 1], rot: [TILT, 0, 0], scale: 1.4 }, .9, { arc: 3 });
 
     const backC = (() => {
       const [c, x] = canvas(world.tex.CARD_W, world.tex.CARD_H);
@@ -136,36 +348,34 @@ const ui = {
       desc: fmt(`${t.motivo} ${rev.nome}: ${rev.resumo}`),
     }, { back: backC });
     sfx.card();
-    await world.fly(cartaSelada, { pos: [AREA.draft.x + 3, 1.6, -1.2], rot: [FACE_DOWN, 0, 0], scale: 1.38 }, .9, { arc: 3 });
+    await world.fly(cartaSelada, { pos: [CX + 3, 1.6, 1], rot: [FACE_DOWN, 0, 0], scale: 1.4 }, .9, { arc: 3 });
     await wait(.5);
 
     ui.prompt('A sua missão', 'Há uma parte que continua selada. Clique na missão para a aceitar.');
     cartaMissao.hoverScale = .1; cartaMissao.hoverLift = 1.1;
     await world.choose([cartaMissao]);
     ui.prompt('');
-    const vai = world.shot('reading', 1.6);
     await Promise.all([
-      world.fly(cartaMissao, { pos: [8.7, .05, -4.2], rot: [FACE_UP, 0, -.05], scale: .56 }, 1.2, { arc: 3 }),
-      world.fly(cartaSelada, { pos: [8.7, .05, -.9], rot: [FACE_DOWN, 0, .07], scale: .56 }, 1.2, { arc: 3 }),
+      world.fly(cartaMissao, LUGAR_MISSAO, 1.1, { arc: 3 }),
+      world.fly(cartaSelada, LUGAR_SELADA, 1.1, { arc: 3 }),
     ]);
-    cartaMissao.inspectable = true; cartaMissao.hoverScale = 1.4; cartaMissao.hoverLift = 4;
-    await vai;
+    cartaMissao.inspectable = true; cartaMissao.zoom = true;
   },
 
   async revelar() {
+    await ui.fecharLivro();
     ui.prompt('O selo quebra-se', 'Agora sabe o que esteve sempre em jogo. Clique na carta para continuar.');
     sfx.card();
-    await world.fly(cartaSelada, { pos: [0, 3, 1], rot: [TILT, 0, 0], scale: 1.75 }, 1.2, { arc: 2 });
+    await world.fly(cartaSelada, { pos: [CX, 3, 1], rot: [TILT, 0, 0], scale: 1.6 }, 1.2, { arc: 2 });
     await wait(.6);
     await world.choose([cartaSelada]);
     ui.prompt('');
-    await world.fly(cartaSelada, { pos: [8.7, .05, -.9], rot: [FACE_UP, 0, .07], scale: .56 }, .8, { arc: 2 });
+    await world.fly(cartaSelada, { ...LUGAR_SELADA, rot: [FACE_UP, 0, .02] }, .8, { arc: 2 });
+    cartaSelada.inspectable = true; cartaSelada.zoom = true;
   },
 
   async fim(titulo, texto, bom, verdade) {
-    // A partida pode acabar em viagem, com a câmara ainda sobre o mapa.
-    await world.shot('reading', 1);
-    if (cartaSelada && cartaSelada.group.rotation.x > 0) await ui.revelar();
+    if (cartaSelada && cartaSelada.rot.x > 0) await ui.revelar();
     await ui.livro({
       capitulo: bom ? 'Epílogo' : 'O fim', titulo,
       arte: LUGARES[G.lugar || G.cidade].terreno,
@@ -181,26 +391,39 @@ const ui = {
     world.resize();
     if (!G) return;
     const max = G.cls ? vidaMax() : 0;
-    $('r-vida').textContent = G.cls ? `${G.vida}/${max}` : '-';
-    $('r-ouro').textContent = G.ouro;
-    $('r-dia').textContent = G.trama ? `${G.dia}/${G.prazo}` : '-';
-    $('r-pistas').textContent = G.trama ? `${G.pistas}/${PISTAS_PRECISAS}` : '-';
+    const prox = G.cls ? xpParaProximo() : null;
+    const base = NIVEIS[G.nivel - 1] || 0;
+    $('b-vida').style.height = `${max ? Math.max(0, G.vida) / max * 100 : 0}%`;
+    $('b-xp').style.height = `${prox === null ? (G.cls ? 100 : 0) : Math.min(100, (G.xp - base) / (prox - base) * 100)}%`;
+    $('t-vida').title = G.cls ? `Vida: ${G.vida} de ${max}` : 'Vida';
+    $('t-xp').title = prox === null ? `Nível ${G.nivel}` : `Nível ${G.nivel}: ${G.xp} de ${prox} XP`;
+    $('r-vida').textContent = G.cls ? G.vida : '-';
     $('r-nivel').textContent = G.nivel;
-    $('rail').classList.toggle('pressa', !!G.trama && pressao() > 0);
-    world.tokens.sync(G.cls ? G.vida : 0, Math.min(G.ouro, 40), G.pistas);
+    $('r-ouro').textContent = G.ouro;
+    $('r-ca').textContent = G.cls ? caJogador() : '-';
+    let olhos = '';
+    for (let i = 0; i < PISTAS_PRECISAS; i++) olhos += `<img src="${icone('eye', i < G.pistas ? '#ff6a5c' : 'rgba(242,227,189,.25)')}" alt="">`;
+    $('r-pistas').innerHTML = olhos;
+    const trilha = $('trilha');
+    if (G.trama) {
+      if (!trilha.classList.contains('on')) { trilha.classList.add('on'); world.resize(); }
+      desenharTrilha();
+    }
+    refazerMapa();
+    sincronizarTabuleiro();
+    world.tokens.sync(G.cls ? Math.max(0, G.vida) : 0, Math.min(G.ouro, 40));
     desenharPainel();
   },
 };
 
 function linhaItem(rotulo, id, extra = '') {
   if (!id) return `<li class="slot vazio"><span class="rotulo">${rotulo}</span><span class="nome">Vazio</span></li>`;
-  const it = ITENS[id];
-  return `<li class="slot"><span class="rotulo">${rotulo}</span><span class="nome">${it.nome}${extra}</span><span class="desc">${it.desc}</span></li>`;
+  return `<li class="slot"><span class="rotulo">${rotulo}</span><span class="nome">${nomeItem(id)}${extra}</span><span class="desc">${descItem(id)}</span></li>`;
 }
 
 function desenharPainel() {
   if (!G.cls) { $('painel-corpo').innerHTML = '<p class="vazio">Por decidir. O baralho ainda está a escolher.</p>'; return; }
-  const pele = [CLASSES[G.cls].nome, G.raca && RACAS[G.raca].nome, G.bg && ANTECEDENTES[G.bg].nome].filter(Boolean).join(' · ');
+  const pele = [nomeClasse(), G.raca && RACAS[G.raca].nome, G.bg && ANTECEDENTES[G.bg].nome].filter(Boolean).join(' · ');
   const prox = xpParaProximo();
   const base = NIVEIS[G.nivel - 1] || 0;
   const barra = prox === null ? 100 : Math.min(100, Math.round((G.xp - base) / (prox - base) * 100));
@@ -228,11 +451,15 @@ function desenharPainel() {
     ? G.aliados.map(id => `<li class="slot"><span class="nome">${ALIADOS[id].nome}</span><span class="desc">${ALIADOS[id].desc}</span></li>`).join('')
     : '<li class="slot vazio"><span class="nome">Viaja sozinho, por agora.</span></li>';
 
+  const pistas = G.diario.map((d, i) => `<li class="slot"><span class="rotulo">Pista ${i + 1}: ${d.lugar}</span><span class="desc">${d.texto}</span></li>`).join('');
+  const rumo = G.destinoRevelado ? fmt('Tudo acaba em {destino}.') : G.rastro ? fmt('A seguinte está em {proximo}.') : '';
+
   const missao = G.trama ? `<section><h3>Missão</h3><p class="missao">${fmt(OBJETIVOS[G.trama.objetivo].titulo)}</p><p class="pequeno">Dia ${G.dia} de ${G.prazo}. Pistas: ${G.pistas} de ${PISTAS_PRECISAS}.${pressao() ? ` O tempo aperta: +${pressao()} em todos os testes.` : ''}</p></section>` : '';
 
   $('painel-corpo').innerHTML = `
-    <header><h2>${pele}</h2><p>Nível ${G.nivel}${prox !== null ? ` · ${G.xp}/${prox} XP` : ' · nível máximo'}</p><div class="barra"><i style="width:${barra}%"></i></div></header>
+    <header><h2>${pele}</h2><p>Nível ${G.nivel}${prox !== null ? ` · ${G.xp}/${prox} XP` : ' · nível máximo'} · CA ${caJogador()}</p><div class="barra"><i style="width:${barra}%"></i></div></header>
     ${missao}
+    ${G.trama ? `<section><h3>Pistas</h3><ul>${pistas || '<li class="slot vazio"><span class="nome">Ainda nenhuma.</span></li>'}</ul><p class="pequeno">${rumo}</p></section>` : ''}
     <section><h3>Atributos</h3><ul class="grelha">${atributos}${tipos}</ul></section>
     <section><h3>No corpo</h3><ul>
       ${linhaItem('Arma', G.equip.arma, G.equip.arma ? ` (${ITENS[G.equip.arma].dado})` : '')}
@@ -242,19 +469,6 @@ function desenharPainel() {
     <section><h3>Mochila</h3><ul>${mochila.join('')}</ul></section>
     <section><h3>Talentos</h3><ul>${arvore}${gerais}</ul></section>
     <section><h3>Aliados</h3><ul>${aliados}</ul></section>`;
-}
-
-let peeking = null;
-let peekReturn = 'reading';
-function peek(name) {
-  if (peeking === name) {
-    peeking = null;
-    world.shot(peekReturn, .8);
-    return;
-  }
-  if (!peeking) peekReturn = world.cam.name;
-  peeking = name;
-  world.shot(name, .8);
 }
 
 async function main() {
@@ -270,11 +484,17 @@ async function main() {
   world = createWorld($('view'));
   window.CARDO = { world, get G() { return G; } };
 
-  world.book.showFirst({
-    capitulo: 'Cardomancer', titulo: 'O Livro das Partidas', arte: 'ruina',
-    texto: 'Ninguém escolhe o seu destino por inteiro. O baralho dá-lhe três caminhos e você fica com um.\n\nUma carta, porém, fica selada até ao fim.',
-  });
   world.updateMap([], []);
+  $('i-vida').src = icone('heart', '#e8675f');
+  $('i-xp').src = icone('star', '#8fc7f0');
+  $('i-ouro').src = icone('coin', '#e4bf63');
+  $('i-ca').src = icone('shield', '#f2e3bd');
+  $('i-trilha').src = icone('hourglass', '#d8b45e');
+  world.handlers.carta = c => {
+    const id = c.spec.itemId;
+    if (!id || !ITENS[id].uso || c.rot.x > 0 || G.emCombate || G.vida <= 0 || G.vida >= vidaMax()) return;
+    if (usarItem(id)) { sfx.coin(); ui.sync(); }
+  };
 
   world.handlers.link = l => {
     if (l.id === 'cena') abrirLore(paginaAtual.titulo, paginaAtual.fundo);
@@ -285,10 +505,16 @@ async function main() {
   $('loading').classList.remove('on');
   $('title').classList.add('on');
 
-  $('peek-map').addEventListener('click', () => peek('map'));
-  $('peek-mesa').addEventListener('click', () => peek('draft'));
+  $('peek-map').addEventListener('click', async () => {
+    await (world.book.aberto ? world.book.fechar() : world.book.abrir());
+    atualizaBotaoMapa();
+  });
+  $('ajuda').addEventListener('click', () => abrirLore('Como se joga', COMO_JOGAR));
   $('abrir-painel').addEventListener('click', () => $('painel').classList.toggle('on'));
   $('fechar-painel').addEventListener('click', () => $('painel').classList.remove('on'));
+  $('musica-btn').addEventListener('click', e => {
+    e.target.textContent = musica.alternar() ? 'Música: sim' : 'Música: não';
+  });
   $('mute').addEventListener('click', e => {
     const m = sfx.toggle();
     e.target.textContent = m ? 'Som: não' : 'Som: sim';
@@ -305,6 +531,7 @@ async function main() {
 
   await new Promise(resolve => $('start').addEventListener('click', resolve, { once: true }));
   sfx.card();
+  musica.ligar();
   $('title').classList.remove('on');
   novoEstado();
   ui.sync();

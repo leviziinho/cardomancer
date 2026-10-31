@@ -7,7 +7,7 @@ const sinal = v => `${v >= 0 ? '+' : ''}${v}`;
 function especItem(id, extra = {}) {
   const it = ITENS[id];
   const nomes = { arma: 'Arma', armadura: 'Armadura', acessorio: 'Acessório', mochila: 'Mochila' };
-  return { tema: 'equipamento', etiqueta: nomes[it.slot], titulo: it.nome, glyph: it.glyph, desc: it.desc, ...extra };
+  return { tema: 'equipamento', etiqueta: nomes[it.slot], titulo: nomeItem(id), glyph: it.glyph, desc: descItem(id), itemId: id, ...extra };
 }
 
 function rotuloReq(req) {
@@ -20,8 +20,11 @@ function rotuloReq(req) {
 
 function textoGanho(o) {
   const fx = (o.ok && o.ok.fx) || {}, ko = (o.ko && o.ko.fx) || {};
+  if (o.roll && o.roll.pv && o.tipo === 'combate') {
+    return 'Combate à vez';
+  }
   const bom = [];
-  if (o.rasto) bom.push('Pista');
+  if (o.rasto) bom.push(G.rastro === G.lugar ? 'Pista' : 'Um dia de avanço');
   if (fx.aliado) bom.push('Aliado');
   if (fx.item) bom.push('Objeto');
   if (fx.mercado) bom.push('Mercado');
@@ -45,26 +48,36 @@ function especOpcao(o) {
   const tipo = o.tipo && TIPOS[o.tipo];
   const r = o.req ? rotuloReq(o.req) : null;
   let rodape, rodapeGlyph;
-  if (o.roll) {
+  if (o.tipo === 'combate' && o.roll && o.roll.pv) {
+    rodape = `CA ${o.roll.dc + (o.dcExtra || 0)}  ·  ${pvDoInimigo(o)} PV`;
+    rodapeGlyph = 'shield';
+  } else if (o.roll) {
     const a = atributoDe(o);
     rodape = `${ATTR[a].nome} ${sinal(bonusDe(o))}  ·  ${dcDe(o)}+  ·  ${pct(chanceDe(o))}`;
-    if (o.tipo === 'combate') rodape += `  ·  ${arma().dado}`;
     rodapeGlyph = ATTR[a].glyph;
   } else {
-    rodape = 'Sucesso garantido';
+    rodape = o.ganhoTexto !== undefined ? 'Sem teste' : 'Sucesso garantido';
   }
+  const preso = !ok || !!o.bloqueada;
   return {
-    tema: !ok ? (o.tipo || 'escolha') : o.rara ? 'rara' : (o.tipo || 'escolha'),
-    etiqueta: r ? r.etiqueta : tipo ? tipo.nome : 'Escolha',
+    tema: o.tema || (!ok ? (o.tipo || 'escolha') : o.rara ? 'rara' : (o.tipo || 'escolha')),
+    etiqueta: o.etiqueta || (r ? r.etiqueta : tipo ? tipo.nome : 'Escolha'),
     titulo: fmt(o.t), desc: fmt(o.d),
-    glyph: r ? r.glyph : tipo ? tipo.glyph : 'sign',
+    glyph: o.glyph || (r ? r.glyph : tipo ? tipo.glyph : 'sign'),
     rodape, rodapeGlyph,
-    ganho: ok ? textoGanho(o) : '',
-    locked: !ok,
-    lockText: o.req ? r.etiqueta : 'Ouro insuficiente',
+    ganho: ok ? (o.ganhoTexto !== undefined ? o.ganhoTexto : textoGanho(o)) : '',
+    locked: preso,
+    lockText: o.bloqueada || (o.req ? r.etiqueta : 'Ouro insuficiente'),
     chance: o.roll ? chanceDe(o) : 1,
     rasto: !!o.rasto,
     rara: !!o.rara,
+    danoMedio: o.danoMedio || 0,
+    cura: (o.m && o.m.cura) || (o.pocao ? ITENS.pocao.uso.vida : 0),
+    fuga: !!(o.fugir || (o.m && o.m.fuga)),
+    custo: (o.m && o.m.custo) || 0,
+    apoio: !!(o.m && (o.m.escudo || o.m.enfraquece || o.m.calar)),
+    entraCombate: !!(o.tipo === 'combate' && o.roll && o.roll.pv),
+    vence: !!(o.m && o.m.vence),
   };
 }
 
@@ -100,9 +113,12 @@ async function aplicar(ui, fx = {}) {
     notas.push(`${ALIADOS[perdido].nome} deixa de estar do seu lado.`);
   }
   if (fx.vida < 0) ui.som('golpe');
-  if (salvarComPocao()) notas.push('A Poção de Cura salva-lhe a vida no último instante.');
   aplicarVida(0);
   ui.sync();
+  if (salvarComPocao()) {
+    ui.sync();
+    await ui.aviso('Ia cair, mas a Poção de Cura salva-lhe a vida no último instante. A carta fica virada na mochila.');
+  }
   return notas;
 }
 
@@ -153,9 +169,12 @@ async function mercado(ui, titulo = 'O Mercado') {
       rodape: `${ITENS[k].preco} Ouro`, rodapeGlyph: 'coin',
       locked: G.ouro < ITENS[k].preco, lockText: 'Ouro insuficiente', preco: ITENS[k].preco, item: k,
     }));
+    const pode = melhoriasDisponiveis().length > 0;
+    if (pode) specs.push({ tema: 'rara', etiqueta: 'Ferreiro', titulo: 'Aprimorar o Equipamento', desc: 'Pôr fogo na lâmina, reforçar o couro, ou o que o ouro pagar.', glyph: 'hammer', aprimorar: true });
     specs.push({ tema: 'escolha', etiqueta: 'Seguir', titulo: 'Sair do Mercado', desc: 'Guardar o que resta na bolsa.', glyph: 'sign', sair: true });
     const i = await ui.escolha(specs, { ctx: 'mercado' });
-    if (i === stock.length) break;
+    if (specs[i].sair) break;
+    if (specs[i].aprimorar) { await forja(ui); continue; }
     const id = stock[i];
     G.ouro -= ITENS[id].preco;
     G.log.comprados++;
@@ -165,6 +184,34 @@ async function mercado(ui, titulo = 'O Mercado') {
     await receberItem(ui, id);
     ui.sync();
     if (!stock.length) break;
+  }
+  ui.prompt('');
+}
+
+// O ferreiro: paga-se para melhorar o que já se traz no corpo.
+async function forja(ui, { titulo = 'O Ferreiro', desconto = 1 } = {}) {
+  const ofertas = baralhar(melhoriasDisponiveis()).slice(0, 3);
+  for (;;) {
+    ui.prompt(titulo, `Tem ${G.ouro} de Ouro. Cada objeto leva duas melhorias, no máximo.`);
+    const livres = ofertas.filter(x => (G.melhorias[x.item] || []).length < MELHORIAS_MAX && !(G.melhorias[x.item] || []).includes(x.m.id) && G.equip[ITENS[x.item].slot] === x.item);
+    const specs = livres.map(x => {
+      const preco = Math.ceil(x.m.preco * desconto);
+      return {
+        tema: 'rara', etiqueta: `Aprimorar ${ITENS[x.item].nome}`, titulo: `${x.m.nome}`, glyph: x.m.glyph,
+        desc: x.m.desc, rodape: `${preco} Ouro`, rodapeGlyph: 'coin', preco,
+        locked: G.ouro < preco, lockText: 'Ouro insuficiente',
+      };
+    });
+    specs.push({ tema: 'escolha', etiqueta: 'Seguir', titulo: 'Sair da Forja', desc: 'Já chega de faíscas.', glyph: 'sign', sair: true });
+    const i = await ui.escolha(specs, { ctx: 'forja' });
+    if (specs[i].sair) break;
+    const x = livres[i];
+    G.ouro -= specs[i].preco;
+    G.melhorias[x.item] = [...(G.melhorias[x.item] || []), x.m.id];
+    G.log.melhorias = (G.log.melhorias || 0) + 1;
+    ui.som('moeda');
+    aplicarVida(x.m.vidaMax || 0);
+    ui.sync();
   }
   ui.prompt('');
 }
@@ -194,14 +241,151 @@ async function fazerTeste(ui, o) {
   const lista = [{ tipo: 'd20', face: r.d20 - 1 }];
   if (r.dadoArma) lista.push({ tipo: r.tipoDado, face: r.dadoArma - 1 });
   await ui.dados(lista);
-  let texto = `d20: ${r.d20} ${sinal(r.bonus)} = ${r.total}, contra ${r.dc}: ${r.ok ? 'Êxito' : 'Revés'}`;
+  if (r.critico) await ui.critico(true);
+  if (r.falhaCritica) await ui.critico(false);
+  let texto = `d20: ${r.d20} ${sinal(r.bonus)} = ${r.total}, contra ${r.dc}: ${r.critico ? 'Acerto crítico' : r.falhaCritica ? 'Falha crítica' : r.ok ? 'Êxito' : 'Revés'}`;
   if (r.repetiu) texto = `Repetido. ${texto}`;
-  if (r.dadoArma && r.ok) texto += `  |  ${arma().nome}: ${r.dano} contra ${r.pv}`;
+  if (r.dadoArma && r.ok) texto += `  |  Dano: ${r.dano}`;
   await ui.resultado(texto, r.ok);
   G.log.testes++;
   if (r.ok) G.log.sucessos++;
   return r;
 }
+
+// O inimigo joga: d20 contra a sua CA e, se acertar, o dado dele. Devolve o texto do que aconteceu.
+async function ataqueInimigo(ui, ini, est) {
+  if (est.escudo) {
+    est.escudo = false;
+    return fmt(`O escudo aguenta o golpe de ${ini.nome}.`);
+  }
+  const r = ataqueDoInimigo(ini, est.exposto);
+  const estava = est.exposto;
+  est.exposto = false;
+  const lista = [{ tipo: 'd20i', face: r.d20 - 1 }];
+  if (r.rolado) lista.push({ tipo: ini.dado, face: r.rolado - 1 });
+  await ui.dados(lista);
+  await ui.resultado(`${ini.nome}: d20 ${r.d20} ${sinal(ini.ataque)} = ${r.total}, contra a sua CA ${r.ca}: ${r.acerta ? `acerta, -${r.dano} Vida` : 'falha'}`, !r.acerta);
+  if (!r.acerta) return `${ini.nome} ataca, e falha.`;
+  await aplicar(ui, { vida: -r.dano });
+  ui.som('golpe');
+  est.rodape = [est.rodape, `-${r.dano} Vida`].filter(Boolean).join('  ·  ');
+  return `${r.critico ? 'Um golpe terrível! ' : estava ? 'Apanha-o exposto. ' : ''}${ini.nome} acerta-lhe, e tira-lhe ${r.dano} de Vida.`;
+}
+
+// O efeito do chefe, antes do ataque. Não precisa de dado, mas o escudo não o trava.
+async function efeitoDoChefe(ui, ini, est) {
+  const e = umDe(ini.efeitos);
+  if (e.tipo === 'cura') ini.pv = Math.min(ini.pvMax, ini.pv + e.v);
+  if (e.tipo === 'ca') ini.defesa = Math.min(ini.caBase + 3, ini.defesa + e.v);
+  if (e.tipo === 'fraco') est.fraco = e.v;
+  if (e.tipo === 'ouro') { G.ouro = Math.max(0, G.ouro - e.v); ui.sync(); }
+  await ui.resultado(`${ini.nome}: ${e.t}`, false);
+  if (e.tipo === 'dreno') await aplicar(ui, { vida: -e.v });
+  const efeito = { cura: `+${e.v} PV para ele`, ca: `CA dele ${ini.defesa}`, fraco: `-${e.v} no seu próximo teste`, ouro: `-${e.v} Ouro`, dreno: `-${e.v} Vida` }[e.tipo];
+  est.rodape = [est.rodape, efeito].filter(Boolean).join('  ·  ');
+  return e.t;
+}
+
+// A vez do inimigo. O chefe tem duas ações: primeiro o efeito, depois o ataque.
+async function turnoInimigo(ui, ini, est) {
+  if (est.calado) { est.calado = false; return `${ini.nome} hesita, e perde a vez.`; }
+  const frases = [];
+  if (ini.efeitos) frases.push(await efeitoDoChefe(ui, ini, est));
+  if (G.vida > 0) frases.push(await ataqueInimigo(ui, ini, est));
+  return frases.join(' ');
+}
+
+// Combate à vez, com um d20 para cada lado. Devolve 'vitoria', 'fuga' ou 'morte'.
+async function combate(ui, ini, arte) {
+  const usadas = new Set(), est = { escudo: false, exposto: false, rodape: '', fraco: 0, calado: false };
+  let ronda = 1;
+  G.log.combates++;
+  G.emCombate = true;
+  G.emCombateFinal = !!ini.chefe;
+  ui.musica(ini.chefe ? 'chefe' : 'combate');
+  const fim = r => {
+    G.emCombate = false;
+    G.emCombateFinal = false;
+    if (ini.chefe) G.log.rondasChefe = ronda;
+    ui.musica('calma');
+    return r;
+  };
+  const primeiro = ini.primeiro ? ini.primeiro === 'jogador' : attr('agilidade') >= ini.agi;
+  const quemComeca = primeiro ? 'É mais rápido, e joga primeiro.' : 'É mais lento, e ele joga primeiro.';
+  let texto = ini.abertura ? fmt(`${ini.abertura} ${quemComeca}`) : `${ini.nome} não o deixa passar. Joga-se à vez: cada um rola o d20 contra a armadura do outro. ${quemComeca}`;
+  const pagina = () => ui.livro({
+    capitulo: `${ini.capitulo || 'Combate'}  ·  Ronda ${ronda}`, titulo: ini.nome, arte, texto, rodape: est.rodape,
+    combate: { nome: ini.nome, pv: Math.max(0, ini.pv), pvMax: ini.pvMax, ataque: ini.ataque, dado: dadoDoInimigo(ini), defesa: ini.defesa, vida: G.vida, vidaMax: vidaMax(), ca: caJogador(), escudo: est.escudo },
+  });
+  if (!primeiro) {
+    await pagina();
+    texto = await turnoInimigo(ui, ini, est);
+    if (G.vida <= 0) return fim('morte');
+  }
+  for (;;) {
+    await pagina();
+    if (ini.pv <= 0) return fim('vitoria');
+    const mao = maoDeCombate(ini, usadas).map(c => (est.fraco && c.roll ? { ...c, dcExtra: (c.dcExtra || 0) + est.fraco } : c));
+    const o = mao[await ui.escolha(mao.map(especOpcao), { ctx: 'combate' })];
+    if (o.m) usadas.add(o.m.id);
+    est.rodape = '';
+    est.fraco = 0;
+
+    if (o.pocao) {
+      usarItem('pocao');
+      ui.sync();
+      texto = 'Bebe a poção de um trago, sem tirar os olhos do inimigo.';
+      est.rodape = `+${ITENS.pocao.uso.vida} Vida`;
+    } else {
+      const m = o.m || {};
+      if (m.custo) {
+        await aplicar(ui, { vida: -m.custo });
+        est.rodape = `-${m.custo} Vida`;
+        if (G.vida <= 0) return fim('morte');
+      }
+      const r = o.roll ? await fazerTeste(ui, o) : { ok: true };
+      if (r.ok) {
+        if (o.fugir || m.fuga) return fim('fuga');
+        if (m.vence) { ini.pv = 0; texto = `${o.t}: ${ini.nome} cai, sem saber o que o atingiu.`; continue; }
+        if (m.calar) {
+          est.calado = true;
+          texto = fmt(ini.frases[o.tipo]);
+        } else if (m.cura) {
+          await aplicar(ui, { vida: m.cura });
+          texto = `${o.t}: as feridas fecham-se.`;
+          est.rodape = `+${m.cura} Vida`;
+        } else if (m.escudo) {
+          est.escudo = true;
+          texto = fmt(`${o.t}: o próximo golpe de ${ini.nome} não lhe vai acertar.`);
+        } else if (m.enfraquece) {
+          ini.defesa = Math.max(6, ini.defesa - m.enfraquece);
+          texto = `${o.t}: a CA de ${ini.nome} desce para ${ini.defesa}.`;
+        } else {
+          ini.pv -= r.dano;
+          const frase = ini.frases && m.id && m.id.startsWith('f_') ? `${fmt(ini.frases[o.tipo])} ` : '';
+          texto = `${r.critico ? 'Um golpe perfeito! ' : ''}${frase}${o.t}: tira ${r.dano} de PV.${ini.pv > 0 ? '' : ' Não volta a levantar-se.'}`;
+          if (m.enfraqueceJunto) ini.defesa = Math.max(6, ini.defesa - m.enfraqueceJunto);
+          const cura = (m.curaJunto || 0) + (o.usaArma ? somaMelhorias('sede') : 0);
+          if (cura) {
+            await aplicar(ui, { vida: cura });
+            est.rodape = [est.rodape, `+${cura} Vida`].filter(Boolean).join('  ·  ');
+          }
+        }
+      } else {
+        est.exposto = !!r.falhaCritica;
+        texto = o.fugir || m.fuga ? 'Tenta fugir, e não consegue.' : r.falhaCritica ? 'Um erro terrível, e fica exposto: o próximo ataque dele acerta de certeza.' : `${o.t}: falha.`;
+      }
+    }
+    if (ini.pv > 0) {
+      const resposta = await turnoInimigo(ui, ini, est);
+      texto = `${texto} ${resposta}`;
+      if (G.vida <= 0) return fim('morte');
+    }
+    ronda++;
+  }
+}
+
+const quandoEsfria = () => (diasDoRasto() === 0 ? 'hoje' : `em ${diasDoRasto()} ${diasDoRasto() === 1 ? 'dia' : 'dias'}`);
 
 async function jogarCena(ui, cena, capitulo = null) {
   const arte = cena.terreno || LUGARES[G.lugar].terreno;
@@ -209,7 +393,8 @@ async function jogarCena(ui, cena, capitulo = null) {
   await ui.livro({ capitulo: cap, titulo: fmt(cena.titulo), arte, texto: fmt(cena.texto), fundo: fmt(cena.fundo) });
 
   const mao = opcoesDaCena(cena);
-  if (mao.some(o => o.rara && o.tokenReq)) ui.prompt('Uma carta rara!', 'O baralho guardou esta para si.');
+  if (mao.some(o => o.tema === 'pista')) ui.prompt('A pista está aqui!', `A carta vermelha A PISTA procura-a. Com outra carta, fica para depois, e esfria ${quandoEsfria()}.`);
+  else if (mao.some(o => o.rara && o.tokenReq)) ui.prompt('Uma carta rara!', 'O baralho guardou esta para si.');
   const i = await ui.escolha(mao.map(especOpcao), { ctx: 'cena' });
   ui.prompt('');
   const o = mao[i];
@@ -218,25 +403,56 @@ async function jogarCena(ui, cena, capitulo = null) {
     G.log.cartasRaras++;
   }
 
-  const r = await fazerTeste(ui, o);
-  const res = r.ok ? o.ok : o.ko;
+  // Uma opção de combate abre rondas até alguém cair ou fugir.
+  let r, res;
+  if (o.tipo === 'combate' && o.roll && o.roll.pv) {
+    const fim = await combate(ui, inimigoDe(o, { titulo: fmt(cena.titulo) }), arte);
+    if (fim === 'morte') {
+      await ui.livro({ capitulo: cap, titulo: fmt(o.t), arte, texto: 'O último golpe tira-lhe as forças.', banner: 'Revés', bannerBom: false });
+      return false;
+    }
+    r = { ok: fim === 'vitoria' };
+    if (r.ok) { res = o.ok; G.xp += COMBATE.xpVitoria; }
+    else {
+      const resto = { ...((o.ko && o.ko.fx) || {}) };
+      delete resto.vida;
+      res = { txt: 'Foge do combate, a arfar, e deixa para trás o que podia ter ganho.', fx: resto };
+    }
+  } else {
+    r = await fazerTeste(ui, o);
+    res = r.ok ? o.ok : o.ko;
+  }
   const fx = { ...(res.fx || {}) };
+  if (!r.ok && fx.vida < 0) fx.vida = Math.round(fx.vida * VIDA.falha);
   let texto = fmt(res.txt || '');
 
   G.xp += r.certo ? XP_GANHO.certeza : r.ok ? XP_GANHO.sucesso : XP_GANHO.falha;
   if (!r.certo) G.xp += talentosAtivos().reduce((s, t) => s + (t.xpExtra || 0), 0);
 
-  if (o.rasto && r.ok) {
+  if (r.critico) {
+    fx.xp = (fx.xp || 0) + 3;
+    fx.ouro = (fx.ouro || 0) + 3;
+    texto = `${texto} Um acerto perfeito, e isso rende mais do que esperava.`;
+  }
+  if (r.falhaCritica) {
+    fx.vida = (fx.vida || 0) - 2;
+    texto = `${texto} E ainda corre pior do que podia.`;
+  }
+
+  const aqui = G.rastro === G.lugar;
+  if (o.rasto && r.ok && aqui) {
     const pista = encontrarPista();
     texto = texto ? `${texto} ${pista}` : pista;
-  }
-  if (o.rasto && !r.ok && res.falsaPista) {
-    escolherRasto();
-    texto += fmt(' Há outro sinal, agora em {proximo}.');
-  }
-  if (r.parcial) {
-    fx.vida = (fx.vida || 0) - 2;
-    texto += ' Vence, mas não sem levar um golpe de volta.';
+    await ui.pista(G.diario.length - 1);
+  } else if (o.rasto && r.ok) {
+    // O prólogo não dá a pista: dá avanço sobre quem a deixou.
+    G.rastroLimite++;
+    G.rastroTotal++;
+    texto += fmt(' Tudo aponta para {proximo}, e parte com um dia de avanço: mais um ponto à volta do olho.');
+  } else if (o.rasto) {
+    texto += fmt(aqui
+      ? (diasDoRasto() >= 1 ? ' Ainda pode procurar de novo antes de partir, enquanto houver pontos à volta do olho.' : ' E já não há tempo para tentar outra vez.')
+      : ' Não é o que esperava, mas ouve falar de {proximo}. É para lá que deve seguir.');
   }
   if (r.ok && o.tipo === 'combate') {
     const cura = talentosAtivos().reduce((s, t) => s + (t.curaCombate || 0), 0);
@@ -250,7 +466,7 @@ async function jogarCena(ui, cena, capitulo = null) {
   await ui.livro({
     capitulo: cap, titulo: fmt(o.t), arte,
     texto: paginaTexto || 'Segue em frente.',
-    banner: r.certo ? 'Feito' : r.ok ? 'Êxito' : 'Revés',
+    banner: r.critico ? 'Acerto Crítico' : r.falhaCritica ? 'Falha Crítica' : r.certo ? 'Feito' : r.ok ? 'Êxito' : 'Revés',
     bannerBom: r.ok,
     rodape: resumoFx(fx),
   });
@@ -259,6 +475,7 @@ async function jogarCena(ui, cena, capitulo = null) {
   await subirDeNivel(ui);
   if (fx.item) await receberItem(ui, fx.item);
   if (fx.mercado) await mercado(ui, 'À Venda');
+  if (fx.forja) await forja(ui, { titulo: 'O Mercador Secreto', desconto: DESCONTO_SECRETO });
   return true;
 }
 
@@ -268,27 +485,37 @@ async function escolherDestino(ui) {
   const destino = VILOES[G.trama.vilao].destino;
   let opcoes = baralhar(vizinhos(G.lugar).filter(k => k !== destino || G.destinoRevelado));
   // Quem vai atrás do rasto tem sempre um caminho para lá.
-  if (G.rastro) {
-    const passo = caminho(G.lugar, G.rastro)[1];
-    if (passo) opcoes = [passo, ...opcoes.filter(k => k !== passo)];
-  }
+  const passo = passoParaRasto();
+  if (passo) opcoes = [passo, ...opcoes.filter(k => k !== passo)];
   opcoes = opcoes.slice(0, 3);
 
-  const suspeitos = G.destinoRevelado ? [destino] : G.rastro ? [G.rastro] : [];
-  ui.mapa(opcoes, suspeitos);
-  await ui.camara('mapChoice');
-  ui.prompt('Para onde seguir?', `Dia ${G.dia} de ${G.prazo}. ${G.destinoRevelado ? fmt('Já sabe: {destino}.') : G.rastro ? fmt('O rasto aponta para {proximo}.') : ''}`);
+  ui.mapa(opcoes);
+  await ui.fecharLivro();
+  const distancia = G.rastro ? (caminhoNovo(G.lugar, G.rastro) || caminho(G.lugar, G.rastro)).length - 1 : 0;
+  const rumoTexto = G.destinoRevelado
+    ? fmt('Tudo acaba em {destino}.')
+    : !G.rastro ? ''
+      : G.rastro === G.lugar ? `A pista está aqui, e esfria ${quandoEsfria()}.`
+        : fmt(`A pista está em {proximo}, a ${distancia} ${distancia === 1 ? 'estrada' : 'estradas'}. Cada ponto à volta do olho é um dia antes de esfriar.`);
+  ui.prompt('Para onde seguir?', `Dia ${G.dia} de ${G.prazo}. ${rumoTexto}`);
 
   const specs = opcoes.map(k => {
     const t = TERRENOS[LUGARES[k].terreno];
-    const sinalRasto = k === G.rastro || (G.rastro && caminho(G.lugar, G.rastro)[1] === k);
+    const sinalRasto = k === G.rastro || k === passo;
     return {
       tema: 'cidade', etiqueta: t.nome, titulo: LUGARES[k].nome, glyph: t.glyph,
       desc: t.desc,
-      rodape: k === G.rastro ? 'O rasto está aqui' : sinalRasto ? 'Na direção do rasto' : '',
+      rodape: k === G.rastro ? 'A pista está aqui' : sinalRasto ? 'Caminho da pista' : '',
       rasto: !!sinalRasto, lugar: k,
     };
   });
+  // Ainda aqui, com tempo: pode procurar outra vez.
+  let procurarIdx = -1;
+  if (G.rastro === G.lugar && diasDoRasto() >= 1 && !G.destinoRevelado) {
+    const c = cartaDeRasto();
+    procurarIdx = specs.length;
+    specs.push({ tema: 'pista', etiqueta: 'A Pista', titulo: 'Procurar a Pista', glyph: 'eye', desc: 'Mais um dia aqui, para mais uma tentativa.', rodape: `+1 dia  ·  ${ATTR[c.roll.a].nome} ${pct(chanceDe(c))}`, rodapeGlyph: 'eye', rasto: true, procurar: true });
+  }
   let finalIdx = -1;
   if (G.destinoRevelado && !opcoes.includes(destino)) {
     const dias = caminho(G.lugar, destino).length - 1;
@@ -298,28 +525,42 @@ async function escolherDestino(ui) {
       desc: 'Sem desvios. É aqui que tudo acaba.', rodape: `${dias} ${dias === 1 ? 'dia' : 'dias'} de viagem`, rasto: true, final: true,
     });
   }
-  const i = await ui.escolha(specs, { ctx: 'destino', onde: 'mapa' });
+  // Fora das cidades também se pode descansar, mas custa um dia e pode correr mal.
+  const curaAcampar = Math.ceil(vidaMax() * VIDA.acampar);
+  let acamparIdx = -1;
+  if (G.vida < vidaMax() && !LUGARES[G.lugar].cidade) {
+    acamparIdx = specs.length;
+    specs.push({
+      tema: 'social', etiqueta: 'Descanso', titulo: 'Acampar', glyph: 'moon',
+      desc: 'Ficar aqui até recuperar forças. Pode haver quem o encontre a dormir.',
+      rodape: `+1 dia  ·  +${curaAcampar} Vida`, acampar: true,
+    });
+  }
+  const i = await ui.escolha(specs, { ctx: 'destino' });
   ui.prompt('');
+  if (i === procurarIdx) return { procurar: true };
+  if (i === acamparIdx) return { acampar: true, cura: curaAcampar };
   if (i === finalIdx) return { final: true, para: destino };
   return { final: opcoes[i] === destino && G.destinoRevelado, para: opcoes[i] };
 }
 
 async function escolherPostura(ui) {
+  await ui.fecharLivro();
   const lento = temTalento('trilho') ? 1 : 2;
   const contra = Math.max(5, SURPRESA_CHANCE - talentosAtivos().reduce((s, t) => s + (t.alerta || 0), 0));
-  ui.prompt('Como quer viajar?', 'O tempo corre contra si, mas a estrada também.');
+  ui.prompt('Como quer viajar?', G.rastro ? `A pista esfria ${quandoEsfria()}. Pelos trilhos, cada estrada leva ${lento} ${lento === 1 ? 'dia' : 'dias'}.` : 'O tempo corre contra si, mas a estrada também.');
   const i = await ui.escolha([
-    { tema: 'combate', etiqueta: 'Depressa', titulo: 'Marcha Forçada', glyph: 'hourglass', desc: 'Chega mais cedo, mas não olha para os lados. Podem apanhá-lo de surpresa.', rodape: `1 dia  ·  ${contra}% de emboscada`, postura: 'depressa' },
-    { tema: 'habilidade', etiqueta: 'Sorrateiro', titulo: 'Pelos Trilhos', glyph: 'feather', desc: 'Mais lento, mas é você quem vê os outros primeiro, e decide o que fazer.', rodape: `${lento} ${lento === 1 ? 'dia' : 'dias'}  ·  ${SURPRESA_CHANCE + 10}% de os surpreender`, postura: 'sorrateiro' },
-  ], { ctx: 'postura', onde: 'mapa' });
+    { tema: 'combate', etiqueta: 'Depressa', titulo: 'Marcha Forçada', glyph: 'hourglass', desc: `Chega mais cedo, exausto e sem olhar para os lados. Com ${contra} ou menos nos dados, há encontro, sem aviso.`, rodape: `1 dia  ·  -${VIDA.marcha} Vida  ·  Encontro ${contra}%`, postura: 'depressa' },
+    { tema: 'habilidade', etiqueta: 'Sorrateiro', titulo: 'Pelos Trilhos', glyph: 'feather', desc: `Mais lento, mas é você quem vê primeiro. Com ${SURPRESA_CHANCE + 10} ou menos nos dados, há encontro, e decide o que fazer.`, rodape: `${lento} ${lento === 1 ? 'dia' : 'dias'}  ·  Encontro ${SURPRESA_CHANCE + 10}%`, postura: 'sorrateiro' },
+  ], { ctx: 'postura' });
   ui.prompt('');
-  return i === 0 ? { dias: 1, tipo: 'contra', chance: contra } : { dias: lento, tipo: 'favor', chance: SURPRESA_CHANCE + 10 };
+  return i === 0 ? { dias: 1, tipo: 'contra', chance: contra, vida: -VIDA.marcha } : { dias: lento, tipo: 'favor', chance: SURPRESA_CHANCE + 10 };
 }
 
 async function passarDias(ui, dias) {
   for (let d = 0; d < dias; d++) {
     G.dia++;
-    if (G.dia > G.prazo) aplicarVida(-1);
+    if (G.dia > G.prazo) await aplicar(ui, { vida: -1 });
     const aviso = presagioAtual();
     ui.sync();
     if (aviso) await ui.aviso(aviso);
@@ -332,7 +573,7 @@ function cenaSurpresa(tipo) {
     return {
       titulo: `Emboscada: ${s.inimigo}`, texto: s.contra,
       opcoes: [
-        { t: 'Lutar para sair', d: 'Sem tempo para mais nada.', tipo: 'combate', roll: { a: 'forca', dc: 13, pv: s.pv }, ok: { txt: 'Abre caminho entre eles, e ainda fica com o que deixam cair.', fx: { ouro: Math.ceil(s.saque / 2) } }, ko: { txt: 'Foi apanhado desprevenido, e paga por isso.', fx: { vida: -5 } } },
+        { t: 'Lutar para sair', d: 'Sem tempo para mais nada.', tipo: 'combate', roll: { a: 'forca', dc: 13, pv: s.pv, ini: s.inimigo, primeiro: 'inimigo' }, ok: { txt: 'Abre caminho entre eles, e ainda fica com o que deixam cair.', fx: { ouro: Math.ceil(s.saque / 2) } }, ko: { txt: 'Foi apanhado desprevenido, e paga por isso.', fx: { vida: -5 } } },
         { t: 'Fugir', d: 'Largar tudo e correr.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 12 }, ok: { txt: 'Salta a vedação e corre até lhe faltar o ar. Ninguém o segue.', fx: {} }, ko: { txt: 'Apanham-no pelas costas antes de conseguir fugir.', fx: { vida: -4 } } },
         { t: 'Falar depressa', d: 'Muito depressa.', tipo: 'social', roll: { a: 'carisma', dc: 14 }, ok: { txt: 'Não sabe bem o que disse, mas eles param, olham uns para os outros e deixam-no ir.', fx: { xp: 2 } }, ko: { txt: 'Ninguém quis ouvir.', fx: { vida: -4 } } },
       ],
@@ -341,11 +582,60 @@ function cenaSurpresa(tipo) {
   return {
     titulo: `À Espreita: ${s.inimigo}`, texto: s.favor,
     opcoes: [
-      { t: 'Atacar primeiro', d: 'Eles nem vão perceber de onde veio.', tipo: 'combate', roll: { a: 'forca', dc: 8, pv: s.pv - 2 }, ok: { txt: 'Acaba tudo antes que se levantem. Fica com o que traziam.', fx: { ouro: s.saque, xp: 2 } }, ko: { txt: 'Falha o primeiro golpe, e a vantagem foi-se.', fx: { vida: -2 } } },
+      { t: 'Atacar primeiro', d: 'Eles nem vão perceber de onde veio.', tipo: 'combate', roll: { a: 'forca', dc: 10, pv: s.pv - 2, ini: s.inimigo, primeiro: 'jogador' }, ok: { txt: 'Acaba tudo antes que se levantem. Fica com o que traziam.', fx: { ouro: s.saque, xp: 2 } }, ko: { txt: 'Falha o primeiro golpe, e a vantagem foi-se.', fx: { vida: -2 } } },
       { t: 'Roubar-lhes as coisas', d: 'Sem acordar ninguém.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 11 }, ok: { txt: 'Sai com as bolsas todas e sem um único arranhão. Só darão por isso de manhã.', fx: { ouro: s.saque + 3 } }, ko: { txt: 'Um ramo parte-se. Sai a correr, com uma ferida a lembrar-lhe a asneira.', fx: { vida: -3 } } },
       { t: 'Passar sem ser visto', d: 'Não precisa desta luta.', ok: { txt: 'Passa à larga, em silêncio. Nunca chegarão a saber.', fx: { xp: 1 } } },
     ],
   };
+}
+
+// O que há numa estrada: um d10 decide. O mestre só aparece uma vez em cada dez encontros.
+async function encontroDaEstrada(ui, postura) {
+  const n = dado(10);
+  await ui.dados([{ tipo: 'd10', face: n - 1 }], { onde: 'mapa' });
+  const mestre = n === 1 && !G.mentorVisto;
+  const secreto = n <= 3 && !mestre;
+  const bom = !mestre && !secreto && n <= 5;
+  await ui.resultado(`O que há na estrada: ${n}: ${mestre ? 'um encontro raríssimo' : secreto ? 'um mercador' : bom ? 'boa sorte' : 'perigo'}`, n <= 5);
+  if (mestre) { await encontroMestre(ui); return null; }
+  if (secreto) return MERCADOR_SECRETO;
+  if (bom) {
+    const livres = BONS_ENCONTROS.filter(e => !G.vistos.has(e.id));
+    if (livres.length) { const e = umDe(livres); G.vistos.add(e.id); return e; }
+  }
+  return cenaSurpresa(postura.tipo);
+}
+
+// O mestre oferece as duas evoluções da classe, uma vez em toda a partida.
+async function encontroMestre(ui) {
+  G.mentorVisto = true;
+  const m = MENTORES[G.cls], ops = EVOLUCOES[G.cls];
+  const arte = LUGARES[G.lugar].terreno;
+  await ui.livro({ capitulo: 'Encontro raríssimo', titulo: m.titulo, arte, texto: m.texto });
+  ui.prompt('Um encontro raríssimo', 'A sua classe pode mudar para sempre. Só acontece uma vez.');
+  const specs = ops.map(e => ({ tema: 'rara', etiqueta: 'Nova Classe', titulo: e.nome, glyph: e.glyph, desc: `${e.desc} Nova carta: ${e.manobra.t}.`, rodape: e.resumo }));
+  specs.push({ tema: 'escolha', etiqueta: 'Recusar', titulo: 'Seguir Como Está', glyph: 'sign', desc: 'Agradece, e continua o seu caminho.' });
+  const i = await ui.escolha(specs, { ctx: 'evolucao' });
+  ui.prompt('');
+  if (i >= ops.length) {
+    await ui.livro({ capitulo: 'Encontro raríssimo', titulo: m.titulo, arte, texto: 'Quando olha para trás, já não vê ninguém. Fica a dúvida, e fica para sempre.' });
+  } else {
+    G.evolucao = ops[i].id;
+    aplicarVida(ops[i].vida || 0);
+    await ui.evoluir();
+    ui.sync();
+    await ui.livro({ capitulo: 'Encontro raríssimo', titulo: ops[i].nome, arte, texto: `${ops[i].desc} Aprende ${ops[i].manobra.t}, que passa a estar sempre à mão em combate.`, banner: 'Classe Aprimorada', bannerBom: true, rodape: ops[i].resumo });
+  }
+  await ui.seguir();
+}
+
+// Um contratempo: pode custar um dia, ou o que pagar para o evitar.
+function cenaDeAtraso(onde) {
+  const livres = ATRASOS[onde].filter(e => !G.vistos.has(e.id));
+  if (!livres.length || Math.random() >= ATRASO_CHANCE) return null;
+  const e = umDe(livres);
+  G.vistos.add(e.id);
+  return { ...e, fechada: true };
 }
 
 function cenaTranquila() {
@@ -386,10 +676,10 @@ function proximaCena(postura) {
 async function rolarSurpresa(ui, postura) {
   const dez = dado(10) - 1, uni = dado(10) - 1;
   const v = dez * 10 + uni || 100;
-  await ui.dados([{ tipo: 'dez', face: dez }, { tipo: 'uni', face: uni }]);
+  await ui.dados([{ tipo: 'dez', face: dez }, { tipo: 'uni', face: uni }], { onde: 'mapa' });
   const houve = v <= postura.chance;
-  const titulo = postura.tipo === 'contra' ? 'Emboscada' : 'À espreita';
-  await ui.resultado(`Sorte da estrada: ${v}, precisa de ${postura.chance} ou menos: ${houve ? titulo : 'Nada'}`, postura.tipo === 'favor' ? houve : !houve);
+  const nome = postura.nome || 'Encontro';
+  await ui.resultado(`${nome} com ${postura.chance} ou menos. Saiu ${v}: ${houve ? (postura.tipo === 'contra' ? 'apanham-no!' : 'vê-os primeiro!') : 'estrada livre'}`, postura.tipo === 'favor' ? houve : !houve);
   return houve;
 }
 
@@ -404,85 +694,54 @@ async function menuCidade(ui) {
     ];
     const i = await ui.escolha(specs, { ctx: 'cidade' });
     ui.prompt('');
+    if (i === 2) break;
     if (i === 0) await mercado(ui, `Mercado de ${LUGARES[G.lugar].nome}`);
-    else if (i === 1) {
+    else {
       G.ouro -= 3;
+      G.log.noites++;
       aplicarVida(cura);
       await passarDias(ui, 1);
       ui.sync();
-    } else break;
+    }
+    const atraso = cenaDeAtraso('cidade');
+    if (atraso) {
+      if (!await jogarCena(ui, atraso)) return;
+      await ui.seguir();
+    }
   }
 }
 
 // ---------- Final ----------
 
-function opcoesFinais() {
-  const v = VILOES[G.trama.vilao];
-  const trunfos = ['enganou', 'traidorvirado', 'ajudado', 'sangue'].filter(m => G.marcas.has(m)).length;
-  const extra = -trunfos;
-  const mao = [
-    { t: 'Enfrentar de frente', d: 'Sem truques. Um golpe forte conta a dobrar.', tipo: 'combate', roll: { a: 'forca', dc: 14, pv: 9 }, dcExtra: extra },
-    { t: 'Falar-lhe ao que resta', d: 'Toda a gente tem uma fenda.', tipo: 'social', roll: { a: 'carisma', dc: 14 }, dcExtra: extra },
-    { t: 'Passar à frente', d: 'Chegar onde ninguém o espera.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 14 }, dcExtra: extra },
-    { t: 'Usar o que descobriu', d: 'As pistas tinham um propósito.', tipo: 'investigacao', roll: { a: 'mente', dc: 14 }, dcExtra: extra },
-  ];
-  if (v.fraqueza.includes(G.cls)) {
-    mao[1] = { t: `Golpe de ${CLASSES[G.cls].nome}`, d: 'Foi para isto que treinou. Conta a dobrar.', tipo: 'combate', roll: { a: umDe(Object.keys(CLASSES[G.cls].attrs)), dc: 11, pv: 1 }, rara: true, req: { cls: G.cls }, dcExtra: extra, dobra: true };
-  }
-  return mao;
-}
-
 async function jogarFinal(ui) {
-  const t = G.trama, v = VILOES[t.vilao], obj = OBJETIVOS[t.objetivo], rev = REVIRAVOLTAS[t.reviravolta];
+  const v = VILOES[G.trama.vilao];
   await ui.revelar();
-  let progresso = 0, ronda = 1;
-  let texto = fmt(`${v.finalTexto} ${t.motivo}`);
-  const sucessos = 2;
-  while (progresso < sucessos && G.vida > 0) {
-    await ui.livro({ capitulo: 'Capítulo Final', titulo: LUGARES[v.destino].nome, arte: LUGARES[v.destino].terreno, texto, rodape: `Golpes decisivos: ${progresso} de ${sucessos}` });
-    ui.prompt(`Ronda ${ronda}`, 'Precisa de dois sucessos antes de cair.');
-    const mao = opcoesFinais();
-    const i = await ui.escolha(mao.map(especOpcao), { ctx: 'final' });
-    ui.prompt('');
-    const o = mao[i];
-    const r = await fazerTeste(ui, o);
-    G.xp += r.ok ? XP_GANHO.sucesso : XP_GANHO.falha;
-    if (r.ok) {
-      const dobro = o.dobra || (o.tipo === 'combate' && r.dano >= r.pv);
-      progresso += dobro ? 2 : 1;
-      texto = fmt(`${v.ronda[o.tipo]} ${dobro ? 'O golpe é decisivo.' : 'Ainda não acabou.'}`);
-    } else {
-      const dano = 3 + Math.min(4, pressao());
-      await aplicar(ui, { vida: -dano });
-      texto = fmt(`O contra-ataque é brutal, e custa-lhe ${dano} de Vida. {vilao} parece mais forte do que nunca.`);
-    }
-    ronda++;
-    ui.sync();
-  }
-  return { venceu: progresso >= sucessos, obj, rev };
+  G.log.chefes = 1;
+  // Antes da última porta há sempre um momento para respirar.
+  aplicarVida(Math.ceil(vidaMax() * COMBATE.vilao.folego));
+  ui.sync();
+  return { venceu: await combate(ui, chefeFinal(), LUGARES[v.destino].terreno) === 'vitoria' };
 }
 
 // ---------- A partida inteira ----------
 
 async function fazerDraft(ui) {
-  await ui.camara('draft', 1.8);
-
   const cls = tirar(CLASSES, 3);
   G.cls = cls[await ui.draft('Escolha a sua classe', 'O baralho oferece três. As outras voltam ao monte.', cls.map(k => ({
-    tema: 'classe', titulo: CLASSES[k].nome, glyph: CLASSES[k].glyph, desc: CLASSES[k].desc, rodape: `Vida ${CLASSES[k].vida}`, rodapeGlyph: 'sun', cls: k,
-  })))];
+    tema: 'classe', titulo: CLASSES[k].nome, glyph: CLASSES[k].glyph, desc: CLASSES[k].desc, rodape: `Vida ${CLASSES[k].vida}`, rodapeGlyph: 'heart', cls: k,
+  })), { lugar: 'classe' })];
   ui.sync();
 
   const bgs = tirar(ANTECEDENTES, 3);
   G.bg = bgs[await ui.draft('Escolha o seu antecedente', 'De onde você vem muda o que consegue fazer.', bgs.map(k => ({
     tema: 'antecedente', titulo: ANTECEDENTES[k].nome, glyph: ANTECEDENTES[k].glyph, desc: ANTECEDENTES[k].desc,
-  })))];
+  })), { lugar: 'antecedente' })];
   ui.sync();
 
   const racas = tirar(RACAS, 3);
   G.raca = racas[await ui.draft('Escolha a sua raça', 'Algumas portas só se abrem para certos povos.', racas.map(k => ({
     tema: 'raca', titulo: RACAS[k].nome, glyph: RACAS[k].glyph, desc: RACAS[k].desc,
-  })))];
+  })), { lugar: 'raca' })];
   ui.sync();
 
   G.ouro += (ANTECEDENTES[G.bg].ouro || 0) + (RACAS[G.raca].ouro || 0);
@@ -507,11 +766,12 @@ async function fazerDraft(ui) {
   })))];
   G.lugar = G.cidade;
   G.visitados = [G.cidade];
+  ui.pino();
 }
 
 async function fimDaPartida(ui, tipo) {
   const t = G.trama, v = VILOES[t.vilao], obj = OBJETIVOS[t.objetivo], rev = REVIRAVOLTAS[t.reviravolta];
-  const quem = `${CLASSES[G.cls].nome} ${RACAS[G.raca].nome}, ${ANTECEDENTES[G.bg].nome}, nível ${G.nivel}.`;
+  const quem = `${nomeClasse()} ${RACAS[G.raca].nome}, ${ANTECEDENTES[G.bg].nome}, nível ${G.nivel}.`;
   const verdade = fmt(`A verdade: {vilao}. ${t.motivo} ${rev.nome}: ${rev.resumo}`);
   if (tipo === 'vitoria') {
     await ui.fim('Vitória', fmt(`${obj.vitoria} ${quem} Dia ${G.dia}.`), true, verdade);
@@ -532,7 +792,7 @@ async function partida(ui) {
   await ui.missao();
   ui.sync();
 
-  if (!await jogarCena(ui, GANCHO, 'Prólogo')) return fimDaPartida(ui, 'morte');
+  if (!await jogarCena(ui, umDe(GANCHOS[G.trama.objetivo]), 'Prólogo')) return fimDaPartida(ui, 'morte');
   await ui.seguir();
 
   for (;;) {
@@ -547,7 +807,33 @@ async function partida(ui) {
       await ui.aviso(fmt('Já se vê a coluna de fumo no horizonte. Tudo acontece em {destino}.'));
     }
 
+    // O rasto nunca obriga a voltar atrás: se ficou para trás, segue em frente.
+    const atras = rastoFicouParaTras();
+    if (atras) {
+      const onde = LUGARES[G.rastro].nome;
+      escolherRasto();
+      await ui.aviso(fmt(atras === 'esfriou' ? `O rasto esfriou em ${onde}. Quem o deixou já seguiu para {proximo}, e pode alcançá-lo lá.` : `O caminho para ${onde} ficou para trás, mas há outra pista em {proximo}.`));
+    }
+
     const rumo = await escolherDestino(ui);
+    if (rumo.procurar) {
+      await passarDias(ui, 1);
+      if (G.vida <= 0) return fimDaPartida(ui, 'morte');
+      if (!await jogarCena(ui, CENA_PISTA)) return fimDaPartida(ui, 'morte');
+      await ui.seguir();
+      continue;
+    }
+    if (rumo.acampar) {
+      await passarDias(ui, 1);
+      await aplicar(ui, { vida: rumo.cura });
+      G.log.noites++;
+      if (G.vida > 0 && await rolarSurpresa(ui, { tipo: 'contra', chance: VIDA.emboscadaAcampar, nome: 'Emboscada' })) {
+        if (!await jogarCena(ui, cenaSurpresa('contra'))) return fimDaPartida(ui, 'morte');
+        await ui.seguir();
+      }
+      if (G.vida <= 0) return fimDaPartida(ui, 'morte');
+      continue;
+    }
     let postura = null;
     let trajeto = [G.lugar, rumo.para];
     if (rumo.final) {
@@ -557,22 +843,28 @@ async function partida(ui) {
     }
     await ui.andar(trajeto);
     await passarDias(ui, postura ? postura.dias : trajeto.length - 1);
+    if (postura && postura.vida) await aplicar(ui, { vida: postura.vida });
     G.lugar = rumo.para;
     trajeto.slice(1).forEach(k => G.visitados.push(k));
-    ui.mapa([], []);
+    ui.mapa([]);
     ui.sync();
     if (G.vida <= 0) return fimDaPartida(ui, 'morte');
     if (G.dia >= G.prazo + 4) return fimDaPartida(ui, 'tarde');
 
     if (rumo.final) {
-      await ui.camara('reading');
       const { venceu } = await jogarFinal(ui);
       return fimDaPartida(ui, venceu ? 'vitoria' : 'morte');
     }
 
-    await ui.camara('reading');
+    const atraso = cenaDeAtraso('estrada');
+    if (atraso) {
+      if (!await jogarCena(ui, atraso)) return fimDaPartida(ui, 'morte');
+      await ui.seguir();
+      if (G.dia >= G.prazo + 4) return fimDaPartida(ui, 'tarde');
+    }
+
     let cena = null;
-    if (!G.reviravoltaPendente && await rolarSurpresa(ui, postura)) cena = cenaSurpresa(postura.tipo);
+    if (!G.reviravoltaPendente && await rolarSurpresa(ui, postura)) cena = await encontroDaEstrada(ui, postura);
     if (!cena) cena = proximaCena(postura);
     if (!await jogarCena(ui, cena)) return fimDaPartida(ui, 'morte');
     await ui.seguir();

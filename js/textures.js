@@ -5,7 +5,8 @@ const FONT_TITLE = '"Cinzel", Georgia, serif';
 const FONT_BODY = '"EB Garamond", Georgia, serif';
 
 const GLYPHS = {
-  axe: 'M46 8h8v84h-8z M54 12c24 0 34 14 36 36-12-8-24-10-36-8z M46 12c-24 0-34 14-36 36 12-8 24-10 36-8z',
+  axe: 'M40 4h10v92H40z M50 18l10 4c5-9 13-15 24-18 12 15 12 43 0 60-11-3-19-9-24-18l-10 4z M40 22L24 30l16 8z',
+  heart: 'M50 92C20 68 5 51 5 32 5 18 16 8 29 8c9 0 17 5 21 14C54 13 62 8 71 8c13 0 24 10 24 24 0 19-15 36-45 60z',
   dagger: 'M50 4l10 52H40z M28 56h44v8H28z M44 64h12v22H44z M40 86h20v9H40z',
   note: 'M38 18l42-10v58a14 11 0 1 1-8-10V24l-26 6v46a14 11 0 1 1-8-10z',
   star: 'M50 3l10 37 37 10-37 10-10 37-10-37L3 50l37-10z',
@@ -35,6 +36,8 @@ const GLYPHS = {
   seal: 'M50 8l11 8 14-1 5 13 12 8-4 14 4 14-12 8-5 13-14-1-11 8-11-8-14 1-5-13-12-8 4-14-4-14 12-8 5-13 14 1z',
 };
 
+const CARTA_TAB = { w: 3.3 * .56, h: 4.62 * .56 };
+
 const CARD_THEMES = {
   classe: { band: '#7c1f1f', accent: '#c9a24a', label: 'Classe' },
   antecedente: { band: '#2b2f6b', accent: '#c9a24a', label: 'Antecedente' },
@@ -48,6 +51,9 @@ const CARD_THEMES = {
   investigacao: { band: '#4f2f73', accent: '#c9a24a', label: 'Investigação' },
   talento: { band: '#14535a', accent: '#d8b45e', label: 'Talento' },
   rara: { band: '#8a6414', accent: '#f4d675', label: 'Rara' },
+  pista: { band: '#a3201a', accent: '#ffd76a', label: 'A Pista' },
+  magia: { band: '#7a2a78', accent: '#e8c4f0', label: 'Magia' },
+  tecnica: { band: '#a2481a', accent: '#f0c98a', label: 'Técnica' },
   destino: { band: '#191310', accent: '#c9a24a', label: 'Trama Secreta' },
 };
 
@@ -121,7 +127,7 @@ function wrapLines(ctx, text, maxW) {
 function fitText(ctx, text, x, y, maxW, maxH, size, minSize, family, color, align = 'center') {
   let lines, lh;
   for (; size >= minSize; size -= 2) {
-    ctx.font = `${size}px ${family}`;
+    ctx.font = `${family === FONT_TITLE ? '700 ' : ''}${size}px ${family}`;
     lines = wrapLines(ctx, text, maxW);
     lh = size * 1.22;
     if (lines.length * lh <= maxH) break;
@@ -214,11 +220,11 @@ function textures(renderer) {
     x.strokeStyle = th.accent; x.lineWidth = 4; x.strokeRect(50, 50, CARD_W - 100, CARD_H - 100);
 
     // faixa do tipo
-    x.fillStyle = th.band; x.fillRect(50, 50, CARD_W - 100, 96);
+    x.fillStyle = th.band; x.fillRect(50, 50, CARD_W - 100, spec.tema === 'pista' ? 124 : 96);
     x.fillStyle = '#f2e3bd'; x.textAlign = 'center';
-    x.font = `600 44px ${FONT_TITLE}`;
+    x.font = `${spec.tema === 'pista' ? 700 : 600} ${spec.tema === 'pista' ? 92 : 44}px ${FONT_TITLE}`;
     const label = (spec.etiqueta || th.label).toUpperCase();
-    x.fillText(label, CARD_W / 2, 114);
+    x.fillText(label, CARD_W / 2, spec.tema === 'pista' ? 145 : 114);
 
     // medalhão com o símbolo
     const my = 450, mr = 262;
@@ -252,9 +258,9 @@ function textures(renderer) {
     drawGlyph(x, 'star', CARD_W / 2, 878, 44, th.band);
 
     // brilho dourado das cartas raras
-    if (spec.tema === 'rara') {
+    if (spec.tema === 'rara' || spec.tema === 'pista') {
       x.save();
-      x.strokeStyle = '#f4d675'; x.lineWidth = 10; x.strokeRect(30, 30, CARD_W - 60, CARD_H - 60);
+      x.strokeStyle = spec.tema === 'pista' ? '#ffd76a' : '#f4d675'; x.lineWidth = 10; x.strokeRect(30, 30, CARD_W - 60, CARD_H - 60);
       const foil = x.createLinearGradient(0, 0, CARD_W, CARD_H);
       foil.addColorStop(0, 'rgba(255,225,130,.2)');
       foil.addColorStop(.5, 'rgba(255,255,255,0)');
@@ -406,7 +412,39 @@ function textures(renderer) {
 
     // Escolhe o maior tamanho de letra que cabe na página.
     let size = 62, lines, lh;
-    const footerH = (p.rodape ? 90 : 0) + (p.fundo ? 80 : 0);
+    // Ganhos e perdas: fichas grandes, verdes ou vermelhas, por cima da margem de baixo.
+    x.font = `700 58px ${FONT_TITLE}`;
+    const fichas = (p.rodape || '').split('  ·  ').filter(Boolean).map(t => ({ t, w: x.measureText(t).width + 56 }));
+    const linhasFichas = [];
+    fichas.forEach(f => {
+      const l = linhasFichas[linhasFichas.length - 1];
+      if (l && l.reduce((a, b) => a + b.w + 18, 0) + f.w <= maxW) l.push(f);
+      else linhasFichas.push([f]);
+    });
+    const alturaFichas = linhasFichas.length * 96;
+    const footerH = alturaFichas + (p.fundo ? 80 : 0);
+
+    if (p.combate) {
+      const c = p.combate;
+      const barra = (rot, val, max, cor, yy) => {
+        x.textAlign = 'left'; x.fillStyle = '#2a1a0d';
+        x.font = `600 42px ${FONT_TITLE}`;
+        x.fillText(rot, marginL, yy);
+        x.textAlign = 'right';
+        x.font = `700 46px ${FONT_TITLE}`;
+        x.fillText(`${val}/${max}`, marginL + maxW, yy);
+        x.fillStyle = 'rgba(60,35,12,.3)'; x.fillRect(marginL, yy + 12, maxW, 26);
+        x.fillStyle = cor; x.fillRect(marginL, yy + 12, maxW * Math.max(0, val) / Math.max(1, max), 26);
+      };
+      barra(`PV do inimigo`, c.pv, c.pvMax, '#7c1f1f', y);
+      barra('A sua Vida', c.vida, c.vidaMax, '#2f5a33', y + 96);
+      x.textAlign = 'left'; x.fillStyle = '#6d1f1a';
+      x.font = `italic 44px ${FONT_BODY}`;
+      x.fillText(`Ele: CA ${c.defesa}  ·  Ataca ${c.ataque >= 0 ? '+' : ''}${c.ataque}  ·  Dano ${c.dado}`, marginL, y + 192);
+      x.fillStyle = '#2f5a33';
+      x.fillText(`Você: CA ${c.ca}${c.escudo ? '  ·  Com escudo' : ''}`, marginL, y + 244);
+      y += 274;
+    }
     for (; size >= 34; size -= 2) {
       x.font = `${size}px ${FONT_BODY}`;
       lines = wrapLines(x, texto, maxW);
@@ -445,19 +483,27 @@ function textures(renderer) {
       const label = 'Ler mais sobre esta cena';
       x.font = `italic 44px ${FONT_BODY}`;
       x.textAlign = 'left';
-      const w = x.measureText(label).width, lx = marginL, ly = PAGE_H - (p.rodape ? 190 : 110);
+      const w = x.measureText(label).width, lx = marginL, ly = PAGE_H - 70 - alturaFichas - 30;
       x.fillStyle = '#8a1d16';
       x.fillText(label, lx, ly);
       x.fillRect(lx, ly + 7, w, 3);
       links.push({ x: lx, y: ly - 44, w, h: 62, id: 'cena' });
     }
 
-    if (p.rodape) {
-      x.textAlign = 'center';
-      x.fillStyle = '#6d1f1a';
-      x.font = `italic 40px ${FONT_BODY}`;
-      x.fillText(p.rodape, marginL + maxW / 2, PAGE_H - 110);
-    }
+    linhasFichas.forEach((l, i) => {
+      const total = l.reduce((a, b) => a + b.w + 18, -18);
+      let fx = marginL + (maxW - total) / 2;
+      const fy = PAGE_H - 70 - (linhasFichas.length - i) * 96 + 10;
+      l.forEach(f => {
+        const mais = f.t[0] === '+', menos = f.t[0] === '-';
+        x.fillStyle = mais ? '#2f5a33' : menos ? '#7c1f1f' : '#4a3a28';
+        x.fillRect(fx, fy, f.w, 82);
+        x.fillStyle = '#f7ecd0'; x.textAlign = 'center';
+        x.font = `700 58px ${FONT_TITLE}`;
+        x.fillText(f.t, fx + f.w / 2, fy + 60);
+        fx += f.w + 18;
+      });
+    });
     const tex = toTexture(c, renderer);
     tex.userData.links = links;
     return tex;
@@ -553,7 +599,7 @@ function textures(renderer) {
   }
 
   // visitados: lista ordenada de chaves de LUGARES; destaque: chaves a realçar.
-  function mapTexture(tex, visitados = [], destaque = [], suspeitos = []) {
+  function mapTexture(tex, visitados = [], destaque = [], suspeitos = [], rasto = null) {
     if (!mapBase) buildMapBase();
     const [c, x] = tex ? [tex.image, tex.image.getContext('2d')] : canvas(MAP_W, MAP_H);
     x.drawImage(mapBase, 0, 0);
@@ -583,7 +629,17 @@ function textures(renderer) {
         x.beginPath(); x.arc(px, py, 19, 0, 7); x.fill();
         x.strokeStyle = '#e9dbb8'; x.lineWidth = 5; x.stroke();
       }
-      if (suspeitos.includes(key)) {
+      if (rasto && rasto.key === key) {
+        // Cada ponto é um dia: os cheios ainda faltam, os vazios já passaram.
+        const n = Math.max(rasto.total, rasto.dias), raio = 118;
+        for (let i = 0; i < n; i++) {
+          const a = -Math.PI / 2 + i * 2 * Math.PI / n, cheio = i < rasto.dias;
+          x.beginPath(); x.arc(px + Math.cos(a) * raio, py + Math.sin(a) * raio, 26, 0, 7);
+          x.fillStyle = cheio ? '#a4161a' : 'rgba(233,219,184,.75)'; x.fill();
+          x.strokeStyle = cheio ? '#f2e3bd' : '#a4161a'; x.lineWidth = 5; x.stroke();
+        }
+        drawGlyph(x, 'eye', px, py - 196, 104, '#a4161a');
+      } else if (suspeitos.includes(key)) {
         x.strokeStyle = '#a4161a'; x.lineWidth = 9;
         x.beginPath(); x.arc(px, py, 58, 0, 7); x.stroke();
         drawGlyph(x, 'eye', px, py - 96, 64, '#a4161a');
@@ -615,6 +671,19 @@ function textures(renderer) {
     return toTexture(c, renderer);
   }
 
+  // Medalhão do pino: o símbolo da classe, para se ver de longe no mapa.
+  function pinFace(glyph, cor) {
+    const [c, x] = canvas(256, 256);
+    x.fillStyle = '#efe2bd';
+    x.beginPath(); x.arc(128, 128, 118, 0, 7); x.fill();
+    x.strokeStyle = cor; x.lineWidth = 16;
+    x.beginPath(); x.arc(128, 128, 112, 0, 7); x.stroke();
+    x.strokeStyle = '#2a1a0d'; x.lineWidth = 4;
+    x.beginPath(); x.arc(128, 128, 122, 0, 7); x.stroke();
+    drawGlyph(x, glyph, 128, 128, 150, cor === '#d8c27a' ? '#8a6414' : cor);
+    return toTexture(c, renderer);
+  }
+
   function glowSprite(rgb = '255,190,110') {
     const [c, x] = canvas(256, 256);
     const g = x.createRadialGradient(128, 128, 0, 128, 128, 128);
@@ -625,6 +694,28 @@ function textures(renderer) {
     return toTexture(c, renderer);
   }
 
+  // O tabuleiro da personagem: um lugar marcado para cada carta.
+  function characterBoard(lugares, escala, ox, oz, w, h) {
+    const [c, x] = canvas(Math.round(w * escala), Math.round(h * escala));
+    x.fillStyle = '#21140b'; x.fillRect(0, 0, c.width, c.height);
+    speckle(x, c.width, c.height, 26000, .35);
+    x.strokeStyle = '#c9a24a'; x.lineWidth = 12; x.strokeRect(14, 14, c.width - 28, c.height - 28);
+    x.lineWidth = 3; x.strokeRect(32, 32, c.width - 64, c.height - 64);
+    const cw = CARTA_TAB.w * escala, ch = CARTA_TAB.h * escala;
+    lugares.forEach(l => {
+      const px = (l.x - ox) * escala, py = (l.z - oz) * escala;
+      x.fillStyle = 'rgba(0,0,0,.42)'; x.fillRect(px - cw / 2, py - ch / 2, cw, ch);
+      x.strokeStyle = 'rgba(216,180,94,.6)'; x.lineWidth = 4; x.setLineDash([16, 12]);
+      x.strokeRect(px - cw / 2, py - ch / 2, cw, ch);
+      x.setLineDash([]);
+      drawGlyph(x, l.glyph, px, py - 34, 170, 'rgba(216,180,94,.42)');
+      x.fillStyle = 'rgba(242,227,189,.82)'; x.textAlign = 'center';
+      x.font = `600 40px ${FONT_TITLE}`;
+      x.fillText(l.nome, px, py + 128);
+    });
+    return toTexture(c, renderer);
+  }
+
   function pageEdge() {
     const [c, x] = canvas(256, 64);
     x.fillStyle = '#d9c9a2'; x.fillRect(0, 0, 256, 64);
@@ -632,5 +723,5 @@ function textures(renderer) {
     return toTexture(c, renderer);
   }
 
-  return { wood, leather, cardBack, cardFace, leftPage, rightPage, mapTexture, diceAtlas, glowSprite, pageEdge, CARD_W, CARD_H };
+  return { characterBoard, wood, leather, cardBack, cardFace, leftPage, rightPage, mapTexture, diceAtlas, glowSprite, pinFace, pageEdge, CARD_W, CARD_H };
 }
