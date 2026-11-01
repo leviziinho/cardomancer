@@ -46,6 +46,7 @@ Faça duplo clique em `index.html`. É preciso Internet para descarregar o motor
 | `js/partida.js` | Ordem da partida, sem nada de 3D |
 | `js/ui.js` | Liga a partida à mesa e desenha o painel |
 | `js/textures.js` | Desenho das cartas, páginas, mapa e dados |
+| `js/imagem.js` | Acabamento da imagem (brilho das luzes, tons de filme) e níveis de qualidade |
 | `js/scene.js` | Mesa 3D, luz, câmara, dados e animações |
 | `tools/sim.js` | Simulador de partidas |
 
@@ -54,6 +55,8 @@ Para acrescentar um encontro, basta copiar um bloco de `ENCONTROS` em `js/histor
 ## Testar o equilíbrio
 
 A música é gerada em tempo real em `js/musica.js`, sem ficheiros de áudio.
+
+O botão **Imagem** troca a qualidade entre alta, média e baixa, e a escolha fica guardada. Sem escolha, o jogo desce sozinho quando a máquina não aguenta.
 
 Corre milhares de partidas com as regras do jogo e mostra as taxas de vitória por classe, raça, antecedente, vilão e reviravolta:
 

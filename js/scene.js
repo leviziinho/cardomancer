@@ -75,7 +75,7 @@ const sfx = (() => {
 })();
 
 const CARD = { w: 3.3, h: 4.62 };
-const NITIDEZ = { folga: 1.5, maxPixeis: 9e6, fpsMinimo: 28 };
+const NITIDEZ = { fpsMinimo: 24 };
 const TILT = -1.15;
 const FACE_DOWN = Math.PI / 2;
 const FACE_UP = -Math.PI / 2;
@@ -108,7 +108,7 @@ function roundedRect(w, h, r) {
 function createWorld(canvasEl) {
   const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true });
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
 
@@ -123,36 +123,42 @@ function createWorld(canvasEl) {
   // Ambiente para os metais e o vidro terem o que refletir.
   (function environment() {
     const env = new THREE.Scene();
-    env.background = new THREE.Color(0x120a06);
+    env.background = new THREE.Color(0x2a1a10);
     const glow = (color, x, y, z, s) => {
       const m = new THREE.Mesh(new THREE.SphereGeometry(s, 16, 12), new THREE.MeshBasicMaterial({ color }));
       m.position.set(x, y, z); env.add(m);
     };
-    glow(0xffb066, 6, 8, 4, 3.4);
-    glow(0xff8a3c, -8, 3, -5, 2.2);
-    glow(0x6688aa, -3, 9, 8, 1.6);
+    glow(0xffc488, 6, 9, 4, 4.6);
+    glow(0xff9a4c, -8, 4, -5, 3.2);
+    glow(0xffe0b0, 0, 12, -3, 3.4);
+    glow(0x7a98c0, -4, 8, 8, 2);
+    glow(0x3a2212, 0, -8, 0, 7);
     const pm = new THREE.PMREMGenerator(renderer);
     scene.environment = pm.fromScene(env, 0.03).texture;
     pm.dispose();
   })();
 
   // Luz
-  scene.add(new THREE.HemisphereLight(0xffe2bd, 0x1c0e05, 0.32));
-  const key = new THREE.SpotLight(0xffdcae, 3.1, 0, 0.95, 0.4, 0);
+  scene.add(new THREE.HemisphereLight(0xffe2bd, 0x1c0e05, 0.2));
+  const key = new THREE.SpotLight(0xffdcae, 3.3, 0, 0.95, 0.72, 0);
   key.position.set(CX, 38, 12);
   key.target.position.set(CX, 0, 0);
   key.castShadow = true;
-  key.shadow.mapSize.set(4096, 4096);
   key.shadow.camera.near = 10; key.shadow.camera.far = 60;
   key.shadow.bias = -0.0004;
-  key.shadow.radius = 5;
+  key.shadow.normalBias = .02;
   scene.add(key, key.target);
+  // Um fio de luz fria por trás, para o metal e o vidro ganharem contorno.
+  const contraluz = new THREE.DirectionalLight(0x8fb0d8, .32);
+  contraluz.position.set(CX - 22, 12, -24);
+  contraluz.target.position.set(CX, 0, 0);
+  scene.add(contraluz, contraluz.target);
 
   // Mesa
   const wood = tex.wood();
   const table = new THREE.Mesh(
     new THREE.PlaneGeometry(130, 90),
-    new THREE.MeshStandardMaterial({ map: wood.map, bumpMap: wood.bump, bumpScale: 0.9, roughness: 0.62, metalness: 0.02, envMapIntensity: 0.35 })
+    new THREE.MeshStandardMaterial({ map: wood.map, normalMap: wood.normal, normalScale: new THREE.Vector2(.5, .5), roughnessMap: wood.rough, roughness: 1, metalness: 0.02, envMapIntensity: 0.5 })
   );
   table.rotation.x = -Math.PI / 2;
   table.receiveShadow = true;
@@ -162,7 +168,38 @@ function createWorld(canvasEl) {
   const leatherRed = tex.leather('#4a1712');
   const leatherGreen = tex.leather('#1f3a2c');
   const leatherBlue = tex.leather('#1d2642');
-  const brass = new THREE.MeshStandardMaterial({ color: 0xb98a3e, metalness: 1, roughness: 0.34 });
+  const grao = tex.relevoCouro();
+  const couro = map => new THREE.MeshStandardMaterial({ map, normalMap: grao, normalScale: new THREE.Vector2(.7, .7), roughness: .6 });
+  const brass = new THREE.MeshStandardMaterial({ color: 0xc9994a, metalness: 1, roughness: 0.3 });
+
+  // Sombra de contacto: onde um objeto toca na mesa, a luz não chega.
+  const texSombra = tex.sombraSuave();
+  function sombraDe(x, z, w, h = w) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: texSombra, transparent: true, depthWrite: false, toneMapped: false }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, .006, z);
+    scene.add(m);
+    return m;
+  }
+
+  // Pasta de couro cosida, onde o mapa assenta.
+  (function pasta() {
+    const W = 16.4, H = 12, z = AREA.map.z;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(W, .06, H), couro(leatherGreen));
+    m.position.set(CX, -.015, z);
+    m.receiveShadow = true;
+    scene.add(m);
+    const pontos = [], passo = .26, folga = .22;
+    for (let a = -W / 2 + folga; a < W / 2 - folga; a += passo) pontos.push([a, -H / 2 + folga, 0], [a, H / 2 - folga, 0]);
+    for (let b = -H / 2 + folga; b < H / 2 - folga; b += passo) pontos.push([-W / 2 + folga, b, 1], [W / 2 - folga, b, 1]);
+    const cosido = new THREE.InstancedMesh(new THREE.BoxGeometry(.16, .012, .035), new THREE.MeshStandardMaterial({ color: 0xc9a25a, roughness: .7 }), pontos.length);
+    const d = new THREE.Object3D();
+    pontos.forEach(([a, b, vira], i) => {
+      d.position.set(CX + a, .018, z + b); d.rotation.y = vira * Math.PI / 2; d.updateMatrix();
+      cosido.setMatrixAt(i, d.matrix);
+    });
+    scene.add(cosido);
+  })();
 
   // ---- Livro flutuante ----
   const book = (() => {
@@ -174,7 +211,7 @@ function createWorld(canvasEl) {
     // A metade esquerda roda sobre a lombada para o livro fechar.
     const hinge = new THREE.Group();
     g.add(hinge);
-    const coverMat = new THREE.MeshStandardMaterial({ map: leatherRed, roughness: 0.68 });
+    const coverMat = couro(leatherRed);
     const coverHalf = sign => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(W + 0.28, 0.16, H + 0.42), coverMat);
       m.position.set(sign * (W + 0.28) / 2, 0.08, 0);
@@ -204,7 +241,13 @@ function createWorld(canvasEl) {
     hinge.add(profile(-1));
 
     // As páginas têm luz própria: o livro está longe das velas.
-    const pageMat = () => new THREE.MeshBasicMaterial({ color: 0xf4ecd8, toneMapped: false });
+    const paginas = [];
+    const pageMat = () => {
+      const m = new THREE.MeshBasicMaterial({ color: 0xf4ecd8, toneMapped: false });
+      paginas.push(m);
+      return m;
+    };
+    const luzDasPaginas = k => paginas.forEach(m => m.color.set(0xf4ecd8).multiplyScalar(k));
     const surface = (sign, parent) => {
       const geo = new THREE.PlaneGeometry(W, H, 36, 1);
       geo.rotateX(-Math.PI / 2);
@@ -234,6 +277,11 @@ function createWorld(canvasEl) {
     const fBack = new THREE.Mesh(fGeoB, pageMat());
     flip.add(fFront, fBack);
     g.add(flip);
+
+    // Fita a marcar a página, a sair por baixo do livro.
+    const fita = new THREE.Mesh(new THREE.BoxGeometry(.3, .02, 1.3), new THREE.MeshStandardMaterial({ color: 0x8f1d1a, roughness: .55 }));
+    fita.position.set(.5, .2, H / 2 + .55);
+    g.add(fita);
 
     g.rotation.x = Math.PI / 2;
     g.position.set(0, LIVRO.y, -LIVRO.d);
@@ -296,7 +344,7 @@ function createWorld(canvasEl) {
       oldL && oldL.dispose(); oldR && oldR.dispose();
     }
     return {
-      group: g, linkAt, rightSurface: right,
+      group: g, linkAt, rightSurface: right, luzDasPaginas,
       turn: pages => emFila(() => vira(pages)),
       fechar: () => emFila(fechar),
       abrir: () => emFila(abrir),
@@ -318,10 +366,17 @@ function createWorld(canvasEl) {
     }
     geo.computeVertexNormals();
     const texMap = tex.mapTexture(null);
-    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: texMap, roughness: 0.88, envMapIntensity: 0.15, side: THREE.DoubleSide }));
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: texMap, normalMap: tex.relevoMapa(), normalScale: new THREE.Vector2(.55, .55), alphaTest: .5, roughness: 0.88, envMapIntensity: 0.15, side: THREE.DoubleSide }));
     m.receiveShadow = true; m.castShadow = true;
     m.position.set(AREA.map.x, 0, AREA.map.z);
     scene.add(m);
+    // Tachas de latão nos cantos.
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => {
+      const tacha = shadowed(new THREE.Mesh(new THREE.SphereGeometry(.13, 16, 10), brass));
+      tacha.scale.y = .5;
+      tacha.position.set(AREA.map.x + a * (W / 2 - .4), .15, AREA.map.z + b * (H / 2 - .34));
+      scene.add(tacha);
+    });
     return m;
   })();
   const pontoNoMapa = p => new THREE.Vector3(AREA.map.x + (p.x - .5) * AREA.map.w, 0.05, AREA.map.z + (p.y - .5) * AREA.map.h);
@@ -337,21 +392,51 @@ function createWorld(canvasEl) {
       ['Mochila', 'bag'], ['Mochila', 'bag'], ['Mochila', 'bag'],
     ];
     const lugares = nomes.map(([nome, glyph], i) => ({ nome, glyph, ...lugarTabuleiro(i % 3, Math.floor(i / 3)) }));
-    const map = tex.characterBoard(lugares, 200, x - w / 2, z - h / 2, w, h);
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map, roughness: .78, envMapIntensity: .2 }));
+    const covas = [
+      { x: CX - 12.52, z: 3.55, w: 2.75, h: 2.1 },
+      { x: CX - 9.42, z: 3.55, w: 2.75, h: 2.1 },
+    ];
+    const { map, normal } = tex.characterBoard(lugares, covas, 200, x - w / 2, z - h / 2, w, h);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map, normalMap: normal, roughness: .74, envMapIntensity: .25 }));
     m.rotation.x = -Math.PI / 2;
     m.position.set(x, .02, z);
     m.receiveShadow = true;
     scene.add(m);
+
+    // Moldura de madeira com cantos de latão, à volta das covas.
+    const e = .3, fora = roundedRect(w + e * 2, h + e * 2, .12), buraco = new THREE.Path();
+    buraco.moveTo(-w / 2, -h / 2); buraco.lineTo(-w / 2, h / 2); buraco.lineTo(w / 2, h / 2); buraco.lineTo(w / 2, -h / 2); buraco.closePath();
+    fora.holes.push(buraco);
+    const geo = new THREE.ExtrudeGeometry(fora, { depth: .2, bevelEnabled: true, bevelThickness: .05, bevelSize: .05, bevelSegments: 2, curveSegments: 6 });
+    geo.rotateX(-Math.PI / 2);
+    const veios = wood.map.clone();
+    veios.needsUpdate = true;
+    veios.repeat.set(.05, .05);
+    const normaisVeios = wood.normal.clone();
+    normaisVeios.needsUpdate = true;
+    normaisVeios.repeat.set(.05, .05);
+    const moldura = shadowed(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: veios, normalMap: normaisVeios, color: 0xa88c6c, roughness: .46, envMapIntensity: .55 })));
+    moldura.position.set(x, .05, z);
+    scene.add(moldura);
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => {
+      const canto = shadowed(new THREE.Mesh(new THREE.BoxGeometry(.56, .3, .56), brass));
+      canto.position.set(x + a * (w / 2 + e - .14), .16, z + b * (h / 2 + e - .14));
+      scene.add(canto);
+    });
+    sombraDe(x, z, w + 3, h + 3);
   })();
 
   // Pino de viagem: a cor e o símbolo são os da classe.
-  const pinLac = new THREE.MeshStandardMaterial({ color: 0x9c1414, roughness: 0.26, metalness: 0.15 });
+  const pinLac = new THREE.MeshPhysicalMaterial({ color: 0x9c1414, roughness: 0.3, metalness: 0.1, clearcoat: .8, clearcoatRoughness: .12 });
   const pinFace = new THREE.SpriteMaterial({ transparent: true, depthWrite: false });
   const pin = (() => {
     const g = new THREE.Group();
     const pts = [[0, 0], [.34, 0], [.36, .07], [.24, .14], [.13, .3], [.1, .74], [.2, .84], [.09, .9]].map(p => new THREE.Vector2(p[0], p[1]));
     g.add(shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 32), pinLac)));
+    const colar = new THREE.Mesh(new THREE.TorusGeometry(.13, .035, 10, 26), brass);
+    colar.rotation.x = Math.PI / 2;
+    colar.position.y = .74;
+    g.add(colar);
     const face = new THREE.Sprite(pinFace);
     face.position.y = 1.35;
     face.scale.set(.95, .95, 1);
@@ -383,20 +468,41 @@ function createWorld(canvasEl) {
 
   // ---- Adereços ----
   const candles = [];
+  const texChama = tex.chama();
   function candle(x, z, h = 2.7) {
+    sombraDe(x, z, 3.2);
     const g = new THREE.Group();
     const dish = [[0, 0], [.72, 0], [.78, .05], [.74, .13], [.28, .16], [.2, .32], [.26, .38], [0, .38]].map(p => new THREE.Vector2(p[0], p[1]));
     g.add(shadowed(new THREE.Mesh(new THREE.LatheGeometry(dish, 36), brass)));
-    const wax = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(.2, .23, h, 24),
-      new THREE.MeshStandardMaterial({ color: 0xe8d8b5, roughness: .55, emissive: 0x4a2206, emissiveIntensity: .35 })));
+    // Cera escorrida: o cilindro incha em gotas que ficam mais grossas em baixo.
+    const fase = Math.random() * 6;
+    const geoCera = new THREE.CylinderGeometry(.2, .24, h, 32, 14);
+    {
+      const p = geoCera.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const a = Math.atan2(p.getZ(i), p.getX(i)), v = p.getY(i) / h + .5;
+        const gota = Math.pow(Math.max(0, Math.sin(a * 5 + fase) * Math.sin(a * 2 - fase)), 2);
+        const k = 1 + gota * .34 * Math.max(0, 1 - v * 1.25) + Math.sin(a * 11 + fase) * .012;
+        p.setX(i, p.getX(i) * k); p.setZ(i, p.getZ(i) * k);
+      }
+      geoCera.computeVertexNormals();
+    }
+    const wax = shadowed(new THREE.Mesh(geoCera, new THREE.MeshStandardMaterial({ color: 0xe8d8b5, roughness: .42, emissive: 0x7a3a0c, emissiveIntensity: .3, envMapIntensity: .6 })));
     wax.position.y = .36 + h / 2;
     g.add(wax);
+    const poca = new THREE.Mesh(new THREE.CircleGeometry(.17, 20), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.3, .55) }));
+    poca.rotation.x = -Math.PI / 2;
+    poca.position.y = .36 + h + .004;
+    g.add(poca);
+    const pavio = new THREE.Mesh(new THREE.CylinderGeometry(.014, .018, .16, 6), new THREE.MeshBasicMaterial({ color: 0x140b06 }));
+    pavio.position.y = .36 + h + .07;
+    g.add(pavio);
     const flameY = .36 + h + .24;
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex.glowSprite(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex.glowSprite(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .75 }));
     sprite.position.y = flameY; sprite.scale.set(1.5, 2.1, 1);
     g.add(sprite);
-    const flame = new THREE.Mesh(new THREE.ConeGeometry(.09, .42, 12), new THREE.MeshBasicMaterial({ color: 0xffe6b0 }));
-    flame.position.y = flameY;
+    const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: texChama, color: new THREE.Color(5, 3.4, 1.9), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+    flame.position.y = flameY + .08;
     g.add(flame);
     const light = new THREE.PointLight(0xffa458, 38, 26, 2);
     light.position.y = flameY + .2;
@@ -407,13 +513,13 @@ function createWorld(canvasEl) {
   }
   candle(CX + 14.4, -6.9, 2.6);
   candle(CX - 15.8, -7.4, 2.6);
-  candle(CX + 13, 8.6, 1.5);
+  candle(CX + 11.8, 8.2, 1.5);
 
   function bookStack(x, z, rot) {
     const g = new THREE.Group();
     let y = 0;
     [[5.2, .62, 3.6, leatherGreen, .06], [4.6, .5, 3.3, leatherBlue, -.13], [3.9, .7, 2.9, leatherRed, .2]].forEach(([w, h, d, map, r]) => {
-      const cover = shadowed(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ map, roughness: .68 })));
+      const cover = shadowed(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), couro(map)));
       cover.position.y = y + h / 2; cover.rotation.y = r;
       g.add(cover);
       const pages = new THREE.Mesh(new THREE.BoxGeometry(w - .18, h - .13, d + .02), new THREE.MeshStandardMaterial({ color: 0xd9c9a2, roughness: .9 }));
@@ -427,15 +533,68 @@ function createWorld(canvasEl) {
     g.position.set(x, 0, z); g.rotation.y = rot;
     scene.add(g);
   }
+  sombraDe(CX + 13.5, -11.5, 8, 6.5);
   bookStack(CX + 13.5, -11.5, .32);
 
   // Cálice
   (function goblet() {
     const pts = [[0, 0], [.55, 0], [.6, .05], [.2, .16], [.12, .6], [.14, .9], [.44, 1.15], [.56, 1.72], [.52, 1.74], [.4, 1.2], [0, 1.0]].map(p => new THREE.Vector2(p[0], p[1]));
-    const m = shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 40), brass));
-    m.position.set(CX - 13, 0, 8.8);
+    const m = shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 40), brass.clone()));
+    m.material.side = THREE.DoubleSide;
+    m.position.set(CX - 11.6, 0, 8.3);
     m.scale.setScalar(1.25);
     scene.add(m);
+    const vinho = new THREE.Mesh(new THREE.CircleGeometry(.46, 32), new THREE.MeshStandardMaterial({ color: 0x7a0e16, roughness: .07, metalness: 0, envMapIntensity: 1.8 }));
+    vinho.rotation.x = -Math.PI / 2;
+    vinho.position.y = 1.46;
+    m.add(vinho);
+    const bordo = new THREE.Mesh(new THREE.TorusGeometry(.545, .028, 10, 44), brass);
+    bordo.rotation.x = Math.PI / 2;
+    bordo.position.y = 1.73;
+    m.add(bordo);
+    sombraDe(CX - 11.6, 8.3, 3);
+  })();
+
+  // Tinteiro e pena
+  (function tinteiro() {
+    const x = CX - 13.4, z = 6.4;
+    sombraDe(x, z, 2.1);
+    const pts = [[0, 0], [.46, 0], [.5, .05], [.5, .42], [.42, .54], [.2, .6], [.2, .72], [.26, .75], [.15, .76], [.12, .6], [0, .58]].map(p => new THREE.Vector2(p[0], p[1]));
+    const vidro = shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 28), new THREE.MeshPhysicalMaterial({ color: 0x14202c, roughness: .1, metalness: .1, clearcoat: 1, envMapIntensity: 1.6 })));
+    vidro.position.set(x, 0, z);
+    scene.add(vidro);
+    const contorno = new THREE.Shape();
+    contorno.moveTo(0, 0);
+    contorno.bezierCurveTo(.3, .5, .34, 1.7, .05, 2.9);
+    contorno.bezierCurveTo(-.2, 1.9, -.2, .7, 0, 0);
+    const geoPena = new THREE.ShapeGeometry(contorno, 14);
+    {
+      const p = geoPena.attributes.position, uv = geoPena.attributes.uv;
+      for (let i = 0; i < p.count; i++) {
+        const y = p.getY(i);
+        uv.setXY(i, p.getX(i) / .7 + .5, y / 2.9);
+        p.setX(i, p.getX(i) + y * y * .05);
+      }
+    }
+    const pluma = new THREE.Mesh(geoPena, new THREE.MeshStandardMaterial({ map: tex.pena(), roughness: .85, side: THREE.DoubleSide }));
+    pluma.castShadow = true;
+    pluma.position.set(x, .62, z);
+    pluma.rotation.set(-.95, .5, -.85);
+    scene.add(pluma);
+  })();
+
+  // Selo de lacre
+  (function selo() {
+    const x = CX + 15.9, z = 3.2;
+    const lacre = new THREE.MeshPhysicalMaterial({ color: 0x8f1612, roughness: .32, clearcoat: .6 });
+    const m = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(.5, .56, .1, 12), lacre));
+    m.position.set(x, .05, z); m.rotation.y = .4;
+    scene.add(m);
+    const aro = new THREE.Mesh(new THREE.TorusGeometry(.33, .035, 8, 26), lacre);
+    aro.rotation.x = Math.PI / 2;
+    aro.position.set(x, .105, z);
+    scene.add(aro);
+    sombraDe(x, z, 1.7);
   })();
 
   // Pergaminho enrolado
@@ -471,6 +630,7 @@ function createWorld(canvasEl) {
   const bodyGeo = new THREE.ExtrudeGeometry(cardShape, { depth: .01, bevelEnabled: false, curveSegments: 8 });
   bodyGeo.translate(0, 0, -.005);
   const bodyMat = new THREE.MeshStandardMaterial({ color: 0xcdbb92, roughness: .8 });
+  const superficie = tex.superficieCarta();
   const backTex = tex.cardBack();
   const backMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: .5, envMapIntensity: .6 });
 
@@ -480,7 +640,11 @@ function createWorld(canvasEl) {
   function createCard(spec, { at = [BARALHO[0], .7, BARALHO[2]], back = null } = {}) {
     const g = new THREE.Group();
     const map = tex.cardFace(spec);
-    const frontMat = new THREE.MeshStandardMaterial({ map, roughness: .66, envMapIntensity: .25 });
+    // Onde há folha de ouro a luz reflete, e as cartas raras mudam de cor conforme o ângulo.
+    const base = { map, normalMap: superficie.normal, normalScale: new THREE.Vector2(.35, .35), roughnessMap: superficie.brilho, metalnessMap: superficie.brilho, roughness: 1, metalness: 1, envMapIntensity: .85 };
+    const frontMat = spec.tema === 'pista' || spec.tema === 'rara'
+      ? new THREE.MeshPhysicalMaterial({ ...base, iridescence: .55, iridescenceIOR: 1.4, iridescenceThicknessRange: [180, 420] })
+      : new THREE.MeshStandardMaterial(base);
     const front = new THREE.Mesh(faceGeo, frontMat);
     front.position.z = .012;
     const backMesh = new THREE.Mesh(faceGeo, back ? new THREE.MeshStandardMaterial({ map: back, roughness: .5 }) : backMat);
@@ -540,6 +704,7 @@ function createWorld(canvasEl) {
     top.rotation.x = -Math.PI / 2;
     top.position.y = .856;
     g.add(top);
+    sombraDe(BARALHO[0], BARALHO[2], 3.2, 4.2);
     g.position.set(...BARALHO);
     g.rotation.y = .06;
     g.scale.setScalar(.6);
@@ -568,20 +733,27 @@ function createWorld(canvasEl) {
         const d = p.clone().sub(c);
         return [cu + d.dot(right) / radius * .46 / cols, cv + d.dot(up) / radius * .46 / rows];
       };
-      for (let i = 1; i < poly.length - 1; i++) {
-        [poly[0], poly[i], poly[i + 1]].forEach(p => {
-          positions.push(p.x, p.y, p.z);
-          normals.push(n.x, n.y, n.z);
-          uvs.push(...uvOf(p));
-        });
-      }
+      // A face fica plana e as arestas ganham um chanfro, que é onde a luz brilha nos dados a sério.
+      const poe = (p, normal) => {
+        positions.push(p.x, p.y, p.z);
+        normals.push(normal.x, normal.y, normal.z);
+        uvs.push(...uvOf(p));
+      };
+      const dentro = poly.map(p => p.clone().sub(c).multiplyScalar(.87).add(c));
+      const fora = poly.map(p => n.clone().multiplyScalar(.72).add(p.clone().sub(c).normalize().multiplyScalar(.7)).normalize());
+      for (let i = 1; i < dentro.length - 1; i++) [dentro[0], dentro[i], dentro[i + 1]].forEach(p => poe(p, n));
+      poly.forEach((p, i) => {
+        const j = (i + 1) % poly.length;
+        poe(p, fora[i]); poe(poly[j], fora[j]); poe(dentro[j], n);
+        poe(p, fora[i]); poe(dentro[j], n); poe(dentro[i], n);
+      });
       faces.push({ n, up, right, height: c.dot(n), value: f });
     });
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    const mesh = shadowed(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: atlas, roughness: .28, metalness: .05, envMapIntensity: .9 })));
+    const mesh = shadowed(new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ map: atlas, roughness: .3, metalness: .05, clearcoat: .7, clearcoatRoughness: .14, envMapIntensity: 1 })));
     mesh.visible = false;
     scene.add(mesh);
     return { mesh, faces };
@@ -726,9 +898,12 @@ function createWorld(canvasEl) {
   // ---- Fichas de Vida, Ouro e Pistas sobre a mesa ----
   const tokens = (() => {
     const gemGeo = new THREE.IcosahedronGeometry(.27, 0);
-    const gemMat = new THREE.MeshStandardMaterial({ color: 0xc01622, roughness: .13, metalness: .1, flatShading: true, emissive: 0x4a0408, emissiveIntensity: .5, envMapIntensity: 1.6 });
+    const gemMat = new THREE.MeshPhysicalMaterial({ color: 0xd01a28, roughness: .1, metalness: .1, flatShading: true, emissive: 0x4a0408, emissiveIntensity: .35, envMapIntensity: 2, clearcoat: 1, clearcoatRoughness: .05 });
     const coinGeo = new THREE.CylinderGeometry(.3, .3, .07, 28);
-    const coinMat = new THREE.MeshStandardMaterial({ color: 0xe8b84a, metalness: .55, roughness: .38, emissive: 0x6a4608, emissiveIntensity: .7 });
+    const cunho = tex.moeda();
+    const coinSide = new THREE.MeshStandardMaterial({ color: 0xd8a640, metalness: 1, roughness: .4, envMapIntensity: 1.3 });
+    const coinFace = new THREE.MeshStandardMaterial({ map: cunho.map, normalMap: cunho.normal, metalness: 1, roughness: .36, envMapIntensity: 1.3 });
+    const coinMat = [coinSide, coinFace, coinFace];
     const gems = [], coins = [];
 
     function pop(mesh, target = 1) {
@@ -847,41 +1022,68 @@ function createWorld(canvasEl) {
     if (i >= 0 && i < choice.list.length) select(choice.list[i]);
   });
 
-  let nitidez = NITIDEZ.folga, ultimoTamanho = '';
+  // ---- Qualidade da imagem: a escolha do jogador manda; sem escolha, ajusta-se à máquina ----
+  const imagem = criarImagem(renderer);
+  const lerEscolha = () => {
+    const url = new URLSearchParams(location.search).get('q');
+    if (QUALIDADES[url]) return url;
+    try { const g = localStorage.getItem('cardomancer-imagem'); return QUALIDADES[g] ? g : null; } catch (e) { return null; }
+  };
+  let escolhida = lerEscolha(), qualidade = escolhida || 'alto';
+  let nitidez = QUALIDADES[qualidade].folga, acabamento = false, ultimoTamanho = '', aoMudar = null;
+  function aplicarQualidade(nome) {
+    qualidade = nome;
+    const q = QUALIDADES[nome];
+    nitidez = q.folga;
+    acabamento = q.acabamento && imagem.possivel;
+    key.shadow.mapSize.set(q.sombra, q.sombra);
+    key.shadow.radius = q.raio;
+    if (key.shadow.map) { key.shadow.map.dispose(); key.shadow.map = null; }
+    // O papel passa pelos tons de filme, por isso leva mais luz para continuar a ler-se bem.
+    book.luzDasPaginas(acabamento ? 1.32 : 1);
+    ultimoTamanho = '';
+    resize();
+    if (aoMudar) aoMudar(q.nome);
+  }
   function resize() {
     const rail = document.getElementById('rail');
     const trilha = document.getElementById('trilha');
     const w = innerWidth - (rail ? rail.offsetWidth : 0);
     const h = innerHeight - (trilha ? trilha.offsetHeight : 0);
     // Desenha com folga e encolhe: as letras pequenas das cartas ficam nítidas. A densidade do ecrã lê-se sempre de novo, porque muda com o zoom.
-    const densidade = Math.min((window.devicePixelRatio || 1) * nitidez, Math.sqrt(NITIDEZ.maxPixeis / (w * h)));
+    const densidade = Math.min((window.devicePixelRatio || 1) * nitidez, Math.sqrt(QUALIDADES[qualidade].maxPixeis / (w * h)));
     const chave = `${w}x${h}@${densidade}`;
     if (chave === ultimoTamanho) return;
     ultimoTamanho = chave;
     renderer.setPixelRatio(densidade);
     renderer.setSize(w, h);
+    if (acabamento) imagem.tamanho(Math.floor(w * densidade), Math.floor(h * densidade), densidade);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
   window.addEventListener('resize', resize);
-  resize();
+  aplicarQualidade(qualidade);
 
   // ---- Ciclo ----
   const clock = new THREE.Clock();
   let lastHoverSound = 0;
-  const medida = { tempo: 0, frames: 0 };
+  const medida = { tempo: 0, frames: 0, mas: 0, lentos: 0 };
+  document.addEventListener('visibilitychange', () => { medida.tempo = 0; medida.frames = 0; medida.mas = 0; medida.lentos = 0; clock.getDelta(); });
   const zoomAlvo = new THREE.Vector3();
   function loop() {
     requestAnimationFrame(loop);
     const bruto = clock.getDelta();
     const dt = Math.min(bruto, .05), t = clock.elapsedTime;
     if (d20Tema) pulsarD20(t);
-    // Se a máquina não aguentar, abdica da folga. Os saltos grandes são o separador escondido, e não contam.
-    if (nitidez > 1 && bruto < .5) {
+    // Se a máquina não aguentar, desce um degrau. Os soluços ao criar cartas não contam.
+    medida.lentos = bruto >= 2 ? medida.lentos + 1 : 0;
+    if (!escolhida && qualidade !== 'baixo' && medida.lentos >= 3) { medida.lentos = 0; aplicarQualidade('baixo'); }
+    if (!escolhida && qualidade !== 'baixo' && !document.hidden && bruto < 2) {
       medida.tempo += bruto; medida.frames++;
       if (medida.tempo > 3) {
-        if (medida.frames / medida.tempo < NITIDEZ.fpsMinimo) { nitidez = 1; resize(); }
+        medida.mas = medida.frames / medida.tempo < NITIDEZ.fpsMinimo ? medida.mas + 1 : 0;
         medida.tempo = 0; medida.frames = 0;
+        if (medida.mas >= 2) { medida.mas = 0; aplicarQualidade(ORDEM_QUALIDADE[ORDEM_QUALIDADE.indexOf(qualidade) + 1]); }
       }
     }
     runTweens(dt);
@@ -890,9 +1092,10 @@ function createWorld(canvasEl) {
       const f = Math.sin(t * 11 + c.seed) * .06 + Math.sin(t * 23 + c.seed * 2) * .04 + Math.sin(t * 3.1 + c.seed) * .09;
       c.light.intensity = 38 * (1 + f * 1.4);
       c.sprite.scale.set(1.5 + f, 2.1 + f * 2, 1);
-      c.flame.scale.set(1 + f, 1 + f * 2, 1);
-      c.flame.rotation.z = f * .5;
+      c.flame.scale.set(.34 + f * .1, .74 + f * .34, 1);
+      c.flame.material.rotation = f * .22;
     }
+    key.intensity = 3.3 * (1 + Math.sin(t * 2.3) * Math.sin(t * .9) * .018);
     dust.rotation.y = t * .004;
     dust.position.y = Math.sin(t * .13) * .5;
 
@@ -945,9 +1148,18 @@ function createWorld(canvasEl) {
     const link = !over && bookLinkAtMouse();
     canvasEl.style.cursor = (over && over.enabled && !over.spec.locked) || link ? 'pointer' : 'default';
 
-    renderer.render(scene, camera);
+    if (acabamento) imagem.desenha(scene, camera, t);
+    else renderer.render(scene, camera);
   }
   loop();
 
-  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, hideDice, efeitoCritico, cards, resize, handlers };
+  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, hideDice, efeitoCritico, cards, resize, handlers,
+    get qualidade() { return QUALIDADES[qualidade].nome; },
+    set aoMudarQualidade(f) { aoMudar = f; },
+    proximaQualidade() {
+      escolhida = ORDEM_QUALIDADE[(ORDEM_QUALIDADE.indexOf(qualidade) + 1) % ORDEM_QUALIDADE.length];
+      try { localStorage.setItem('cardomancer-imagem', escolhida); } catch (e) { /* a escolha só dura esta sessão */ }
+      aplicarQualidade(escolhida);
+    },
+  };
 }

@@ -82,6 +82,56 @@ function drawGlyph(ctx, name, x, y, size, color) {
   ctx.restore();
 }
 
+// Símbolo com volume: sombra por baixo, cor em degradé e um fio de luz por cima.
+function drawGlyphRico(ctx, name, x, y, size, escuro, claro) {
+  const caminho = new Path2D(GLYPHS[name] || GLYPHS.star);
+  ctx.save();
+  ctx.translate(x - size / 2, y - size / 2);
+  ctx.scale(size / 100, size / 100);
+  ctx.save();
+  ctx.translate(1.1, 1.6);
+  ctx.fillStyle = 'rgba(30,15,5,.55)';
+  ctx.fill(caminho, 'evenodd');
+  ctx.restore();
+  const g = ctx.createLinearGradient(0, 0, 0, 100);
+  g.addColorStop(0, claro); g.addColorStop(.55, escuro); g.addColorStop(1, escuro);
+  ctx.fillStyle = g;
+  ctx.fill(caminho, 'evenodd');
+  ctx.lineWidth = .7; ctx.strokeStyle = 'rgba(255,240,200,.55)';
+  ctx.stroke(caminho);
+  ctx.restore();
+}
+
+// Folha de ouro: um degradé com vários reflexos.
+function ouroEm(ctx, x0, y0, x1, y1) {
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  [[0, '#7a5a1c'], [.18, '#f4d986'], [.36, '#b0822e'], [.52, '#fff0b4'], [.7, '#a87c2a'], [.86, '#ecca74'], [1, '#6e4f18']].forEach(([a, b]) => g.addColorStop(a, b));
+  return g;
+}
+
+function losango(ctx, x, y, r) {
+  ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill();
+}
+
+// Relevo: transforma uma imagem de alturas em cinzento num mapa de normais.
+function normaisDe(altura, renderer, forca = 2) {
+  const w = altura.width, h = altura.height, src = altura.getContext('2d').getImageData(0, 0, w, h).data;
+  const [c, x] = canvas(w, h);
+  const img = x.createImageData(w, h), d = img.data;
+  for (let j = 0; j < h; j++) {
+    const cima = (j + h - 1) % h, baixo = (j + 1) % h;
+    for (let i = 0; i < w; i++) {
+      const esq = (i + w - 1) % w, dir = (i + 1) % w;
+      const nx = -(src[(j * w + dir) * 4] - src[(j * w + esq) * 4]) / 255 * forca;
+      const ny = (src[(baixo * w + i) * 4] - src[(cima * w + i) * 4]) / 255 * forca;
+      const l = 1 / Math.sqrt(nx * nx + ny * ny + 1), k = (j * w + i) * 4;
+      d[k] = (nx * l * .5 + .5) * 255; d[k + 1] = (ny * l * .5 + .5) * 255; d[k + 2] = (l * .5 + .5) * 255; d[k + 3] = 255;
+    }
+  }
+  x.putImageData(img, 0, 0);
+  return toTexture(c, renderer, { linear: true });
+}
+
 function speckle(ctx, w, h, count, alpha, dark = true) {
   for (let i = 0; i < count; i++) {
     const r = Math.random() * 2.2 + 0.3;
@@ -144,124 +194,318 @@ function textures(renderer) {
   const CARD_W = 1024, CARD_H = 1434;
 
   function wood() {
-    const [c, x] = canvas(2048, 2048);
-    const [b, bx] = canvas(2048, 2048);
-    bx.fillStyle = '#808080'; bx.fillRect(0, 0, 2048, 2048);
-    const planks = 5, ph = 2048 / planks;
+    const S = 2048;
+    const [c, x] = canvas(S, S);
+    const [b, bx] = canvas(S, S);
+    const [r, rx] = canvas(1024, 1024);
+    bx.fillStyle = '#808080'; bx.fillRect(0, 0, S, S);
+    rx.fillStyle = 'rgb(0,120,0)'; rx.fillRect(0, 0, 1024, 1024);
+    const planks = 5, ph = S / planks;
     for (let p = 0; p < planks; p++) {
-      const hue = 22 + Math.random() * 6, l = 17 + Math.random() * 6;
-      x.fillStyle = `hsl(${hue},48%,${l}%)`;
-      x.fillRect(0, p * ph, 2048, ph);
-      for (let i = 0; i < 420; i++) {
-        const y0 = p * ph + Math.random() * ph;
-        const amp = 2 + Math.random() * 16, freq = 0.002 + Math.random() * 0.004, phase = Math.random() * 9;
-        const dark = Math.random() < 0.66;
-        const stroke = dark ? `rgba(18,8,3,${0.05 + Math.random() * 0.2})` : `rgba(190,125,70,${0.02 + Math.random() * 0.07})`;
-        x.strokeStyle = stroke; x.lineWidth = 0.5 + Math.random() * 1.8;
-        bx.strokeStyle = dark ? 'rgba(40,40,40,.25)' : 'rgba(190,190,190,.1)'; bx.lineWidth = x.lineWidth;
+      const y0p = p * ph;
+      const hue = 21 + Math.random() * 7, sat = 36 + Math.random() * 9, l = 13 + Math.random() * 7;
+      x.fillStyle = `hsl(${hue},${sat}%,${l}%)`;
+      x.fillRect(0, y0p, S, ph);
+      // Cada tábua tem o seu desgaste, e os nós dobram os veios à volta.
+      rx.fillStyle = `rgb(0,${90 + Math.random() * 70},0)`; rx.fillRect(0, y0p / 2, 1024, ph / 2);
+      const nos = Array.from({ length: Math.random() < .6 ? 1 : 0 }, () => ({ x: Math.random() * S, y: y0p + ph * (.25 + Math.random() * .5), r: 7 + Math.random() * 11 }));
+      for (let i = 0; i < 90; i++) {
+        const px = Math.random() * S, py = y0p + Math.random() * ph, w = 200 + Math.random() * 600, hh = 14 + Math.random() * 50;
+        const g = x.createRadialGradient(px, py, 0, px, py, w);
+        const tom = Math.random() < .5 ? '10,4,1' : '150,88,40';
+        g.addColorStop(0, `rgba(${tom},${.02 + Math.random() * .05})`); g.addColorStop(1, `rgba(${tom},0)`);
+        x.save(); x.beginPath(); x.rect(0, y0p, S, ph); x.clip();
+        x.translate(px, py); x.scale(1, hh / w); x.translate(-px, -py);
+        x.fillStyle = g; x.beginPath(); x.arc(px, py, w, 0, 7); x.fill(); x.restore();
+      }
+      x.save(); x.beginPath(); x.rect(0, y0p, S, ph); x.clip();
+      bx.save(); bx.beginPath(); bx.rect(0, y0p, S, ph); bx.clip();
+      for (let i = 0; i < 460; i++) {
+        const y0 = y0p + Math.random() * ph;
+        const amp = 2 + Math.random() * 12, freq = 0.002 + Math.random() * 0.004, phase = Math.random() * 9;
+        const dark = Math.random() < 0.68;
+        x.strokeStyle = dark ? `rgba(14,6,2,${0.06 + Math.random() * 0.24})` : `rgba(196,130,74,${0.02 + Math.random() * 0.08})`;
+        x.lineWidth = bx.lineWidth = 0.5 + Math.random() * 1.9;
+        bx.strokeStyle = dark ? 'rgba(30,30,30,.3)' : 'rgba(200,200,200,.12)';
         x.beginPath(); bx.beginPath();
-        for (let px = 0; px <= 2048; px += 24) {
-          const yy = y0 + Math.sin(px * freq + phase) * amp;
+        for (let px = 0; px <= S; px += 22) {
+          let yy = y0 + Math.sin(px * freq + phase) * amp;
+          for (const n of nos) {
+            const dy = y0 - n.y, dx = px - n.x, sobe = Math.exp(-dx * dx / (2 * 4200));
+            yy += (dy >= 0 ? 1 : -1) * sobe * n.r * 1.5 / (1 + Math.abs(dy) / 34);
+          }
           if (px === 0) { x.moveTo(px, yy); bx.moveTo(px, yy); } else { x.lineTo(px, yy); bx.lineTo(px, yy); }
         }
         x.stroke(); bx.stroke();
       }
-      // junta entre tábuas
-      x.fillStyle = 'rgba(0,0,0,.75)'; x.fillRect(0, p * ph - 2, 2048, 5);
-      bx.fillStyle = '#101010'; bx.fillRect(0, p * ph - 3, 2048, 7);
+      nos.forEach(n => {
+        for (let k = 6; k > 0; k--) {
+          x.fillStyle = `rgba(${10 + k * 4},${5 + k * 2},2,.42)`;
+          x.beginPath(); x.ellipse(n.x, n.y, n.r * k / 3.2, n.r * k / 6, 0, 0, 7); x.fill();
+        }
+        bx.fillStyle = 'rgba(40,40,40,.6)'; bx.beginPath(); bx.ellipse(n.x, n.y, n.r * 1.2, n.r * .6, 0, 0, 7); bx.fill();
+      });
+      x.restore(); bx.restore();
+      // Junta entre tábuas, e um corte com pregos.
+      x.fillStyle = 'rgba(0,0,0,.8)'; x.fillRect(0, y0p - 2, S, 5);
+      x.fillStyle = 'rgba(255,190,120,.09)'; x.fillRect(0, y0p + 3, S, 2);
+      bx.fillStyle = '#080808'; bx.fillRect(0, y0p - 3, S, 7);
+      const corte = Math.random() * S;
+      x.fillStyle = 'rgba(0,0,0,.72)'; x.fillRect(corte, y0p, 4, ph);
+      bx.fillStyle = '#101010'; bx.fillRect(corte - 1, y0p, 6, ph);
+      [[-26, .2], [-26, .8], [30, .2], [30, .8]].forEach(([dx, f]) => {
+        const nx = corte + dx, ny = y0p + ph * f;
+        x.fillStyle = '#0c0705'; x.beginPath(); x.arc(nx, ny, 8, 0, 7); x.fill();
+        x.fillStyle = 'rgba(190,170,140,.35)'; x.beginPath(); x.arc(nx - 2, ny - 2, 3, 0, 7); x.fill();
+        bx.fillStyle = '#e8e8e8'; bx.beginPath(); bx.arc(nx, ny, 7, 0, 7); bx.fill();
+      });
     }
+    // A vida da mesa: riscos, nódoas de copos, cera e tinta.
+    for (let i = 0; i < 70; i++) {
+      const px = Math.random() * S, py = Math.random() * S, a = Math.random() * 6.28, l = 40 + Math.random() * 260;
+      x.strokeStyle = `rgba(210,160,110,${.04 + Math.random() * .1})`; x.lineWidth = .8 + Math.random();
+      x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke();
+      bx.strokeStyle = 'rgba(20,20,20,.55)'; bx.lineWidth = 1.2;
+      bx.beginPath(); bx.moveTo(px, py); bx.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); bx.stroke();
+      rx.strokeStyle = 'rgba(0,210,0,.5)'; rx.lineWidth = 1;
+      rx.beginPath(); rx.moveTo(px / 2, py / 2); rx.lineTo((px + Math.cos(a) * l) / 2, (py + Math.sin(a) * l) / 2); rx.stroke();
+    }
+    for (let i = 0; i < 7; i++) {
+      const px = Math.random() * S, py = Math.random() * S, rr = 58 + Math.random() * 36;
+      x.strokeStyle = `rgba(8,3,1,${.16 + Math.random() * .16})`; x.lineWidth = 3 + Math.random() * 4;
+      x.beginPath(); x.arc(px, py, rr, Math.random() * 3, Math.random() * 3 + 4.4); x.stroke();
+      rx.strokeStyle = 'rgba(0,200,0,.45)'; rx.lineWidth = 3;
+      rx.beginPath(); rx.arc(px / 2, py / 2, rr / 2, 0, 7); rx.stroke();
+    }
+    for (let i = 0; i < 16; i++) {
+      const px = Math.random() * S, py = Math.random() * S, rr = 4 + Math.random() * 16;
+      x.fillStyle = Math.random() < .4 ? 'rgba(4,4,10,.55)' : 'rgba(216,196,150,.32)';
+      x.beginPath(); x.ellipse(px, py, rr, rr * (.6 + Math.random() * .5), Math.random() * 3, 0, 7); x.fill();
+      bx.fillStyle = 'rgba(225,225,225,.45)'; bx.beginPath(); bx.arc(px, py, rr * .8, 0, 7); bx.fill();
+    }
+    const [m, mx] = canvas(1024, 1024);
+    mx.drawImage(b, 0, 0, 1024, 1024);
     const map = toTexture(c, renderer);
-    const bump = toTexture(b, renderer, { linear: true });
-    [map, bump].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2.2); });
-    return { map, bump };
+    const normal = normaisDe(m, renderer, 1.5);
+    const rough = toTexture(r, renderer, { linear: true });
+    [map, normal, rough].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2.2); });
+    return { map, normal, rough };
+  }
+
+  // Grão do couro, partilhado por tudo o que é coberto a couro.
+  let graoCouro = null;
+  function relevoCouro() {
+    if (graoCouro) return graoCouro;
+    const [c, x] = canvas(512, 512);
+    x.fillStyle = '#808080'; x.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 5200; i++) {
+      const px = Math.random() * 512, py = Math.random() * 512, r = 1.6 + Math.random() * 3.6, v = Math.random() < .55 ? 170 : 90;
+      x.fillStyle = `rgba(${v},${v},${v},.34)`;
+      x.beginPath(); x.ellipse(px, py, r, r * (.6 + Math.random() * .5), Math.random() * 3, 0, 7); x.fill();
+    }
+    graoCouro = normaisDe(c, renderer, 1.5);
+    graoCouro.wrapS = graoCouro.wrapT = THREE.RepeatWrapping;
+    return graoCouro;
   }
 
   function leather(hex) {
     const [c, x] = canvas(512, 512);
     x.fillStyle = hex; x.fillRect(0, 0, 512, 512);
-    speckle(x, 512, 512, 9000, 0.3);
+    for (let i = 0; i < 46; i++) {
+      const px = Math.random() * 512, py = Math.random() * 512, r = 40 + Math.random() * 120;
+      const g = x.createRadialGradient(px, py, 0, px, py, r), tom = Math.random() < .6 ? '0,0,0' : '255,210,170';
+      g.addColorStop(0, `rgba(${tom},${.03 + Math.random() * .08})`); g.addColorStop(1, `rgba(${tom},0)`);
+      x.fillStyle = g; x.fillRect(0, 0, 512, 512);
+    }
+    speckle(x, 512, 512, 9000, 0.26);
     speckle(x, 512, 512, 3000, 0.05, false);
-    return toTexture(c, renderer);
+    const t = toTexture(c, renderer);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  }
+
+  // Relevo do pergaminho do mapa: fibras e as dobras de quem o guardou no bolso.
+  function relevoMapa() {
+    const [c, x] = canvas(1400, 1000);
+    x.fillStyle = '#808080'; x.fillRect(0, 0, 1400, 1000);
+    for (let i = 0; i < 9000; i++) {
+      const v = Math.random() < .5 ? 165 : 95, a = Math.random() * 6.28, l = 3 + Math.random() * 12;
+      const px = Math.random() * 1400, py = Math.random() * 1000;
+      x.strokeStyle = `rgba(${v},${v},${v},.22)`; x.lineWidth = 1;
+      x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke();
+    }
+    const dobra = (x0, y0, x1, y1) => {
+      x.strokeStyle = 'rgba(40,40,40,.75)'; x.lineWidth = 3;
+      x.beginPath(); x.moveTo(x0, y0); x.lineTo(x1, y1); x.stroke();
+      x.strokeStyle = 'rgba(190,190,190,.5)'; x.lineWidth = 5;
+      x.beginPath(); x.moveTo(x0 + 4, y0 + 4); x.lineTo(x1 + 4, y1 + 4); x.stroke();
+    };
+    [350, 700, 1050].forEach(a => dobra(a + (Math.random() - .5) * 8, 0, a + (Math.random() - .5) * 8, 1000));
+    [333, 666].forEach(a => dobra(0, a + (Math.random() - .5) * 8, 1400, a + (Math.random() - .5) * 8));
+    return normaisDe(c, renderer, 2.2);
+  }
+
+  // Superfície das cartas: onde há folha de ouro a luz reflete, e o papel fica mate.
+  let cartaBase = null;
+  function superficieCarta() {
+    if (cartaBase) return cartaBase;
+    const W = 512, H = 717, k = 512 / CARD_W;
+    const [a, ax] = canvas(W, H);
+    const [o, ox] = canvas(W, H);
+    ax.fillStyle = '#808080'; ax.fillRect(0, 0, W, H);
+    for (let i = 0; i < 3800; i++) {
+      const v = Math.random() < .5 ? 150 : 106;
+      ax.fillStyle = `rgba(${v},${v},${v},.5)`;
+      ax.fillRect(Math.random() * W, Math.random() * H, 1 + Math.random() * 2, 1 + Math.random());
+    }
+    ox.fillStyle = 'rgb(0,240,0)'; ox.fillRect(0, 0, W, H);
+    const traco = (ctx, cor, l, f) => { ctx.strokeStyle = cor; ctx.lineWidth = l * k; f(ctx); };
+    const moldura = ctx => { ctx.strokeRect(50 * k, 50 * k, (CARD_W - 100) * k, (CARD_H - 100) * k); };
+    const anel = ctx => { ctx.beginPath(); ctx.arc(CARD_W / 2 * k, 450 * k, 262 * k, 0, 7); ctx.stroke(); };
+    traco(ax, '#f0f0f0', 12, moldura); traco(ax, '#f0f0f0', 22, anel);
+    traco(ox, 'rgb(0,115,255)', 9, moldura); traco(ox, 'rgb(0,115,255)', 18, anel);
+    cartaBase = { normal: normaisDe(a, renderer, 1.8), brilho: toTexture(o, renderer, { linear: true }) };
+    return cartaBase;
   }
 
   function cardBack(band = '#3a1414') {
     const [c, x] = canvas(CARD_W, CARD_H);
-    x.fillStyle = band; x.fillRect(0, 0, CARD_W, CARD_H);
-    speckle(x, CARD_W, CARD_H, 22000, 0.25);
-    x.strokeStyle = '#c9a24a';
-    x.lineWidth = 8; x.strokeRect(46, 46, CARD_W - 92, CARD_H - 92);
-    x.lineWidth = 2; x.strokeRect(66, 66, CARD_W - 132, CARD_H - 132);
-    // losangos do padrão
-    x.lineWidth = 1.6; x.strokeStyle = 'rgba(201,162,74,.35)';
-    for (let i = -14; i < 24; i++) {
-      x.beginPath(); x.moveTo(66, 66 + i * 90); x.lineTo(CARD_W - 66, 66 + i * 90 + (CARD_W - 132)); x.stroke();
-      x.beginPath(); x.moveTo(CARD_W - 66, 66 + i * 90); x.lineTo(66, 66 + i * 90 + (CARD_W - 132)); x.stroke();
+    const fundo = x.createRadialGradient(CARD_W / 2, CARD_H / 2, 80, CARD_W / 2, CARD_H / 2, CARD_H * .7);
+    fundo.addColorStop(0, '#6a2019'); fundo.addColorStop(.55, band); fundo.addColorStop(1, '#180806');
+    x.fillStyle = fundo; x.fillRect(0, 0, CARD_W, CARD_H);
+    speckle(x, CARD_W, CARD_H, 22000, 0.2);
+    // losangos do padrão, com um ponto de ouro em cada cruzamento
+    x.save();
+    x.beginPath(); x.rect(70, 70, CARD_W - 140, CARD_H - 140); x.clip();
+    x.lineWidth = 2; x.strokeStyle = 'rgba(216,180,94,.3)';
+    const passo = 92;
+    for (let i = -16; i < 26; i++) {
+      x.beginPath(); x.moveTo(0, i * passo); x.lineTo(CARD_W, i * passo + CARD_W); x.stroke();
+      x.beginPath(); x.moveTo(CARD_W, i * passo); x.lineTo(0, i * passo + CARD_W); x.stroke();
     }
-    x.fillStyle = band;
-    x.beginPath(); x.arc(CARD_W / 2, CARD_H / 2, 250, 0, 7); x.fill();
-    x.strokeStyle = '#c9a24a'; x.lineWidth = 6;
-    x.beginPath(); x.arc(CARD_W / 2, CARD_H / 2, 250, 0, 7); x.stroke();
-    x.lineWidth = 2;
+    x.fillStyle = 'rgba(232,196,110,.5)';
+    for (let i = 0; i < 12; i++) for (let j = 0; j < 17; j++) losango(x, (i + (j % 2) * .5) * passo, j * passo / 2 + 2, 7);
+    x.restore();
+    x.lineWidth = 12; x.strokeStyle = ouroEm(x, 0, 0, CARD_W, CARD_H); x.strokeRect(46, 46, CARD_W - 92, CARD_H - 92);
+    x.lineWidth = 3; x.strokeRect(70, 70, CARD_W - 140, CARD_H - 140);
+    [[70, 70], [CARD_W - 70, 70], [70, CARD_H - 70], [CARD_W - 70, CARD_H - 70]].forEach(([a, b]) => {
+      x.fillStyle = ouroEm(x, a - 30, b - 30, a + 30, b + 30); losango(x, a, b, 30);
+      x.fillStyle = band; losango(x, a, b, 13);
+    });
+    const halo = x.createRadialGradient(CARD_W / 2, CARD_H / 2, 0, CARD_W / 2, CARD_H / 2, 262);
+    halo.addColorStop(0, '#5a1a15'); halo.addColorStop(1, '#260c09');
+    x.fillStyle = halo;
+    x.beginPath(); x.arc(CARD_W / 2, CARD_H / 2, 262, 0, 7); x.fill();
+    x.strokeStyle = ouroEm(x, CARD_W / 2 - 260, CARD_H / 2 - 260, CARD_W / 2 + 260, CARD_H / 2 + 260); x.lineWidth = 12;
+    x.beginPath(); x.arc(CARD_W / 2, CARD_H / 2, 256, 0, 7); x.stroke();
+    x.lineWidth = 3;
     x.beginPath(); x.arc(CARD_W / 2, CARD_H / 2, 228, 0, 7); x.stroke();
-    drawGlyph(x, 'eye', CARD_W / 2, CARD_H / 2 - 30, 220, '#c9a24a');
-    x.fillStyle = '#c9a24a'; x.textAlign = 'center';
+    drawGlyphRico(x, 'eye', CARD_W / 2, CARD_H / 2 - 30, 230, '#b98a3a', '#ffeeb0');
+    x.fillStyle = ouroEm(x, CARD_W / 2 - 200, 0, CARD_W / 2 + 200, 0); x.textAlign = 'center';
     x.font = `600 44px ${FONT_TITLE}`;
     x.fillText('CARDOMANCER', CARD_W / 2, CARD_H / 2 + 150);
     return toTexture(c, renderer);
+  }
+
+  // O papel das cartas desenha-se uma vez, e cada carta vira-o à sua maneira.
+  let papelCarta = null;
+  function pintaPapelCarta(x) {
+    if (!papelCarta) {
+      const [p, px] = canvas(CARD_W, CARD_H);
+      paintParchment(px, CARD_W, CARD_H);
+      papelCarta = p;
+    }
+    x.save();
+    if (Math.random() < .5) { x.translate(CARD_W, 0); x.scale(-1, 1); }
+    if (Math.random() < .5) { x.translate(0, CARD_H); x.scale(1, -1); }
+    x.drawImage(papelCarta, 0, 0);
+    x.restore();
   }
 
   // spec: { tema, titulo, desc, glyph, rodape, rodapeGlyph, locked, lockText }
   function cardFace(spec) {
     const [c, x] = canvas(CARD_W, CARD_H);
     const th = CARD_THEMES[spec.tema] || CARD_THEMES.escolha;
-    paintParchment(x, CARD_W, CARD_H);
+    pintaPapelCarta(x);
+    const ouro = ouroEm(x, 0, 0, CARD_W, CARD_H);
 
-    // moldura
-    x.strokeStyle = th.band; x.lineWidth = 16; x.strokeRect(30, 30, CARD_W - 60, CARD_H - 60);
-    x.strokeStyle = th.accent; x.lineWidth = 4; x.strokeRect(50, 50, CARD_W - 100, CARD_H - 100);
+    // moldura: uma faixa da cor do tipo, um filete de ouro e cantos trabalhados
+    const bandaCor = x.createLinearGradient(0, 0, 0, CARD_H);
+    bandaCor.addColorStop(0, th.band); bandaCor.addColorStop(.5, th.band); bandaCor.addColorStop(1, 'rgba(20,10,5,.92)');
+    x.strokeStyle = th.band; x.lineWidth = 34; x.strokeRect(17, 17, CARD_W - 34, CARD_H - 34);
+    x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 3; x.strokeRect(34, 34, CARD_W - 68, CARD_H - 68);
+    x.strokeStyle = ouro; x.lineWidth = 7; x.strokeRect(50, 50, CARD_W - 100, CARD_H - 100);
+    x.strokeStyle = 'rgba(60,35,12,.4)'; x.lineWidth = 2; x.strokeRect(60, 60, CARD_W - 120, CARD_H - 120);
+    [[50, 50], [CARD_W - 50, 50], [50, CARD_H - 50], [CARD_W - 50, CARD_H - 50]].forEach(([a, b]) => {
+      x.fillStyle = ouro; losango(x, a, b, 24);
+      x.fillStyle = th.band; losango(x, a, b, 12);
+    });
 
     // faixa do tipo
-    x.fillStyle = th.band; x.fillRect(50, 50, CARD_W - 100, spec.tema === 'pista' ? 124 : 96);
-    x.fillStyle = '#f2e3bd'; x.textAlign = 'center';
-    x.font = `${spec.tema === 'pista' ? 700 : 600} ${spec.tema === 'pista' ? 92 : 44}px ${FONT_TITLE}`;
+    const pista = spec.tema === 'pista', alturaFaixa = pista ? 124 : 96;
+    const faixa = x.createLinearGradient(0, 50, 0, 50 + alturaFaixa);
+    faixa.addColorStop(0, th.band); faixa.addColorStop(1, 'rgba(10,5,2,.5)');
+    x.fillStyle = th.band; x.fillRect(53, 53, CARD_W - 106, alturaFaixa);
+    x.fillStyle = faixa; x.fillRect(53, 53, CARD_W - 106, alturaFaixa);
+    x.fillStyle = ouro; x.fillRect(53, 53 + alturaFaixa, CARD_W - 106, 6);
+    x.textAlign = 'center';
+    x.font = `${pista ? 700 : 600} ${pista ? 92 : 44}px ${FONT_TITLE}`;
     const label = (spec.etiqueta || th.label).toUpperCase();
-    x.fillText(label, CARD_W / 2, spec.tema === 'pista' ? 145 : 114);
+    x.fillStyle = 'rgba(0,0,0,.5)'; x.fillText(label, CARD_W / 2, (pista ? 145 : 114) + 3);
+    x.fillStyle = '#fbeec8'; x.fillText(label, CARD_W / 2, pista ? 145 : 114);
 
     // medalhão com o símbolo
-    const my = 450, mr = 262;
-    const glow = x.createRadialGradient(CARD_W / 2, my, 30, CARD_W / 2, my, mr);
-    glow.addColorStop(0, 'rgba(255,240,195,.95)');
-    glow.addColorStop(1, 'rgba(160,110,50,.15)');
-    x.fillStyle = glow;
-    x.beginPath(); x.arc(CARD_W / 2, my, mr, 0, 7); x.fill();
+    const cx0 = CARD_W / 2, my = 450, mr = 262;
     x.save();
-    x.translate(CARD_W / 2, my);
-    x.strokeStyle = th.band; x.globalAlpha = 0.5;
-    for (let i = 0; i < 72; i++) {
-      x.rotate(Math.PI / 36);
-      x.lineWidth = i % 2 ? 2 : 5;
-      x.beginPath(); x.moveTo(0, -(mr - 46)); x.lineTo(0, -(mr - (i % 2 ? 28 : 14))); x.stroke();
+    x.shadowColor = 'rgba(40,20,5,.55)'; x.shadowBlur = 26; x.shadowOffsetY = 8;
+    x.fillStyle = th.band; x.beginPath(); x.arc(cx0, my, mr, 0, 7); x.fill();
+    x.restore();
+    x.save();
+    x.beginPath(); x.arc(cx0, my, mr - 34, 0, 7); x.clip();
+    const disco = x.createRadialGradient(cx0, my - 40, 20, cx0, my, mr);
+    disco.addColorStop(0, '#fff6dc'); disco.addColorStop(.62, '#ecd8a6'); disco.addColorStop(1, '#b58f55');
+    x.fillStyle = disco; x.fillRect(cx0 - mr, my - mr, mr * 2, mr * 2);
+    // raios que saem do símbolo, como numa gravura
+    x.translate(cx0, my);
+    x.fillStyle = th.band; x.globalAlpha = .13;
+    for (let i = 0; i < 28; i++) {
+      x.rotate(Math.PI * 2 / 28);
+      x.beginPath(); x.moveTo(0, 0); x.lineTo(-22, -mr); x.lineTo(22, -mr); x.closePath(); x.fill();
     }
     x.restore();
-    x.strokeStyle = th.band; x.lineWidth = 9;
-    x.beginPath(); x.arc(CARD_W / 2, my, mr, 0, 7); x.stroke();
-    x.strokeStyle = th.accent; x.lineWidth = 4;
-    x.beginPath(); x.arc(CARD_W / 2, my, mr - 12, 0, 7); x.stroke();
+    // coroa de marcas douradas
     x.save();
-    x.shadowColor = 'rgba(255,240,200,.8)'; x.shadowBlur = 6; x.shadowOffsetY = 3;
-    drawGlyph(x, spec.glyph, CARD_W / 2, my, 280, th.band);
+    x.translate(cx0, my);
+    x.fillStyle = '#f4d986';
+    for (let i = 0; i < 48; i++) {
+      x.rotate(Math.PI / 24);
+      x.fillRect(-(i % 2 ? 1.5 : 3), -(mr - 7), i % 2 ? 3 : 6, i % 2 ? 12 : 22);
+    }
     x.restore();
+    x.strokeStyle = ouroEm(x, cx0 - mr, my - mr, cx0 + mr, my + mr);
+    x.lineWidth = 14; x.beginPath(); x.arc(cx0, my, mr - 2, 0, 7); x.stroke();
+    x.lineWidth = 6; x.beginPath(); x.arc(cx0, my, mr - 34, 0, 7); x.stroke();
+    drawGlyphRico(x, spec.glyph, cx0, my, 280, th.band, '#d9b878');
 
     // título
+    x.save();
+    x.shadowColor = 'rgba(255,245,215,.85)'; x.shadowBlur = 0; x.shadowOffsetY = 2;
     fitText(x, spec.titulo, CARD_W / 2, 722, CARD_W - 150, 150, 74, 44, FONT_TITLE, '#2a1a0d');
-    x.strokeStyle = th.band; x.lineWidth = 3;
-    x.beginPath(); x.moveTo(170, 878); x.lineTo(CARD_W - 170, 878); x.stroke();
-    drawGlyph(x, 'star', CARD_W / 2, 878, 44, th.band);
+    x.restore();
+    const filete = x.createLinearGradient(150, 0, CARD_W - 150, 0);
+    filete.addColorStop(0, 'rgba(150,110,40,0)'); filete.addColorStop(.25, '#a87c2a'); filete.addColorStop(.5, '#f4d986'); filete.addColorStop(.75, '#a87c2a'); filete.addColorStop(1, 'rgba(150,110,40,0)');
+    x.fillStyle = filete; x.fillRect(150, 876, CARD_W - 300, 4);
+    x.fillStyle = ouro; losango(x, CARD_W / 2, 878, 15);
+    x.fillStyle = th.band; losango(x, CARD_W / 2, 878, 7);
 
     // brilho dourado das cartas raras
     if (spec.tema === 'rara' || spec.tema === 'pista') {
       x.save();
-      x.strokeStyle = spec.tema === 'pista' ? '#ffd76a' : '#f4d675'; x.lineWidth = 10; x.strokeRect(30, 30, CARD_W - 60, CARD_H - 60);
+      x.strokeStyle = ouroEm(x, 0, CARD_H, CARD_W, 0); x.lineWidth = 12; x.strokeRect(24, 24, CARD_W - 48, CARD_H - 48);
+      for (let i = 0; i < 40; i++) {
+        const a = Math.random() * 6.28, d = mr + 18 + Math.random() * 110;
+        drawGlyph(x, 'star', cx0 + Math.cos(a) * d, my + Math.sin(a) * d * .8, 10 + Math.random() * 18, 'rgba(216,160,50,.7)');
+      }
       const foil = x.createLinearGradient(0, 0, CARD_W, CARD_H);
       foil.addColorStop(0, 'rgba(255,225,130,.2)');
       foil.addColorStop(.5, 'rgba(255,255,255,0)');
@@ -282,9 +526,12 @@ function textures(renderer) {
 
     // rodapé
     if (spec.rodape) {
-      x.fillStyle = th.band;
-      x.fillRect(50, CARD_H - 170, CARD_W - 100, 120);
-      if (spec.rodapeGlyph) drawGlyph(x, spec.rodapeGlyph, 122, CARD_H - 110, 72, '#f2e3bd');
+      const pe = x.createLinearGradient(0, CARD_H - 170, 0, CARD_H - 50);
+      pe.addColorStop(0, 'rgba(10,5,2,.45)'); pe.addColorStop(.5, 'rgba(10,5,2,0)');
+      x.fillStyle = th.band; x.fillRect(53, CARD_H - 170, CARD_W - 106, 117);
+      x.fillStyle = pe; x.fillRect(53, CARD_H - 170, CARD_W - 106, 117);
+      x.fillStyle = ouro; x.fillRect(53, CARD_H - 176, CARD_W - 106, 6);
+      if (spec.rodapeGlyph) drawGlyph(x, spec.rodapeGlyph, 122, CARD_H - 110, 72, '#f6dc8c');
       fitText(x, spec.rodape, CARD_W / 2 + (spec.rodapeGlyph ? 36 : 0), CARD_H - 160, CARD_W - 240, 104, 46, 28, FONT_TITLE, '#f2e3bd');
     }
 
@@ -319,6 +566,9 @@ function textures(renderer) {
     const hatch = (y0, n) => { for (let i = 0; i < n; i++) { const a = Math.random() * w; line(a, y0 + Math.random() * 6, a + 24 + Math.random() * 80, y0 + Math.random() * 6); } };
 
     if (kind === 'floresta') {
+      x.save(); x.globalAlpha = .4;
+      for (let i = 0; i < 26; i++) tree(w * (i + 0.5) / 26 + (Math.random() - .5) * 16, ground - 48 + Math.random() * 12, 50 + Math.random() * 54);
+      x.restore();
       for (let i = 0; i < 18; i++) tree(w * (i + 0.5) / 18 + (Math.random() - .5) * 20, ground - 18 + Math.random() * 26, 80 + Math.random() * 110);
       hatch(ground + 14, 14);
     } else if (kind === 'montanha') {
@@ -351,9 +601,11 @@ function textures(renderer) {
       while (px < w - 40) {
         const bw = 40 + Math.random() * 44, bh = 70 + Math.random() * 110;
         x.fillStyle = '#e8d8b0'; x.fillRect(px, ground - bh, bw, bh); x.strokeRect(px, ground - bh, bw, bh);
+        x.fillStyle = ['#7c2f20', '#8f4a28', '#5e3a2a'][Math.floor(Math.random() * 3)];
+        x.beginPath(); x.moveTo(px - 5, ground - bh); x.lineTo(px + bw / 2, ground - bh - bw * .55); x.lineTo(px + bw + 5, ground - bh); x.closePath(); x.fill(); x.stroke();
+        x.fillStyle = '#e8a93c';
+        x.fillRect(px + bw * .4, ground - bh * .5, bw * .18, bh * .2);
         x.fillStyle = '#3a2412';
-        x.beginPath(); x.moveTo(px - 5, ground - bh); x.lineTo(px + bw / 2, ground - bh - bw * .55); x.lineTo(px + bw + 5, ground - bh); x.closePath(); x.fill();
-        x.fillRect(px + bw * .4, ground - bh * .5, bw * .18, bh * .24);
         px += bw + 4;
       }
       hatch(ground + 8, 12);
@@ -365,6 +617,39 @@ function textures(renderer) {
       x.fillRect(w * .62, ground - 90, 7, 66); x.fillRect(w * .62 - 24, ground - 86, 54, 13);
     }
     x.restore();
+  }
+
+  // Aguarela por baixo do desenho a tinta: céu, luz e montes ao longe, conforme o terreno.
+  const AGUADAS = {
+    floresta: { ceu: ['#c9d8a8', '#efe4b4'], chao: '#5f7a42', monte: 'rgba(78,110,70,.5)', astro: 'rgba(255,240,180,.85)' },
+    montanha: { ceu: ['#9fb4c0', '#e6e0cc'], chao: '#8d8468', monte: 'rgba(96,112,130,.5)', astro: 'rgba(255,250,225,.9)' },
+    pantano: { ceu: ['#8c9672', '#c6c294'], chao: '#4c5c3e', monte: 'rgba(60,74,54,.55)', astro: 'rgba(235,235,170,.7)' },
+    ruina: { ceu: ['#c98d7c', '#efd2a2'], chao: '#94795a', monte: 'rgba(112,72,76,.42)', astro: 'rgba(255,214,150,.95)' },
+    costa: { ceu: ['#97bcc4', '#ecdfbd'], chao: '#5f8c98', monte: 'rgba(84,122,134,.45)', astro: 'rgba(255,240,195,.9)' },
+    cidade: { ceu: ['#e0b27c', '#f4e2b6'], chao: '#a08a62', monte: 'rgba(146,104,70,.38)', astro: 'rgba(255,226,160,.95)' },
+    estrada: { ceu: ['#b9c6ae', '#f2e6bc'], chao: '#a89562', monte: 'rgba(110,126,90,.42)', astro: 'rgba(255,240,180,.9)' },
+  };
+  function aguarela(x, kind, rx, ry, rw, rh) {
+    const a = AGUADAS[kind] || AGUADAS.estrada, solo = ry + rh * .72;
+    const ceu = x.createLinearGradient(0, ry, 0, solo);
+    ceu.addColorStop(0, a.ceu[0]); ceu.addColorStop(1, a.ceu[1]);
+    x.fillStyle = ceu; x.fillRect(rx, ry, rw, rh);
+    const sx = rx + rw * (.2 + Math.random() * .6), sy = ry + rh * .24;
+    const astro = x.createRadialGradient(sx, sy, 6, sx, sy, 190);
+    astro.addColorStop(0, a.astro); astro.addColorStop(.18, a.astro); astro.addColorStop(.22, 'rgba(255,240,190,.3)'); astro.addColorStop(1, 'rgba(255,240,190,0)');
+    x.fillStyle = astro; x.fillRect(rx, ry, rw, rh);
+    x.fillStyle = 'rgba(255,250,235,.28)';
+    for (let i = 0; i < 5; i++) { x.beginPath(); x.ellipse(rx + Math.random() * rw, ry + rh * (.08 + Math.random() * .28), 60 + Math.random() * 110, 8 + Math.random() * 14, 0, 0, 7); x.fill(); }
+    [[.5, 38], [.6, 26]].forEach(([f, amp]) => {
+      x.fillStyle = a.monte;
+      x.beginPath(); x.moveTo(rx, solo);
+      const fase = Math.random() * 6;
+      for (let px = 0; px <= rw; px += 14) x.lineTo(rx + px, ry + rh * f + Math.sin(px * .012 + fase) * amp + Math.sin(px * .04 + fase) * amp * .35);
+      x.lineTo(rx + rw, solo); x.closePath(); x.fill();
+    });
+    const chao = x.createLinearGradient(0, solo - 20, 0, ry + rh);
+    chao.addColorStop(0, a.chao); chao.addColorStop(1, 'rgba(50,34,18,.85)');
+    x.fillStyle = chao; x.fillRect(rx, solo - 6, rw, ry + rh - solo + 6);
   }
 
   const PAGE_W = 1024, PAGE_H = 1300;
@@ -379,12 +664,28 @@ function textures(renderer) {
     x.font = `600 40px ${FONT_TITLE}`;
     x.fillText((p.capitulo || '').toUpperCase(), PAGE_W / 2 - 20, 130);
     fitText(x, p.titulo || '', PAGE_W / 2 - 20, 160, PAGE_W - 200, 240, 80, 48, FONT_TITLE, '#2a1a0d');
-    x.strokeStyle = '#6d1f1a'; x.lineWidth = 3;
-    x.beginPath(); x.moveTo(230, 410); x.lineTo(PAGE_W - 270, 410); x.stroke();
-    if (p.arte) inkScene(x, p.arte, PAGE_W / 2 - 20, 750, PAGE_W - 230, 560);
-    x.strokeStyle = '#3a2412'; x.lineWidth = 3;
-    x.strokeRect(102, 464, PAGE_W - 244, 620);
-    x.lineWidth = 1; x.strokeRect(112, 474, PAGE_W - 264, 600);
+    const risco = x.createLinearGradient(190, 0, PAGE_W - 230, 0);
+    risco.addColorStop(0, 'rgba(109,31,26,0)'); risco.addColorStop(.5, '#6d1f1a'); risco.addColorStop(1, 'rgba(109,31,26,0)');
+    x.fillStyle = risco; x.fillRect(190, 409, PAGE_W - 420, 3);
+    x.fillStyle = '#6d1f1a'; losango(x, PAGE_W / 2 - 20, 410, 11);
+    if (p.arte) {
+      x.save();
+      x.beginPath(); x.rect(112, 474, PAGE_W - 264, 600); x.clip();
+      aguarela(x, p.arte, 112, 474, PAGE_W - 264, 600);
+      inkScene(x, p.arte, PAGE_W / 2 - 20, 750, PAGE_W - 230, 560);
+      const sombra = x.createRadialGradient(PAGE_W / 2 - 20, 774, 210, PAGE_W / 2 - 20, 774, 520);
+      sombra.addColorStop(0, 'rgba(50,28,8,0)'); sombra.addColorStop(1, 'rgba(50,28,8,.42)');
+      x.fillStyle = sombra; x.fillRect(112, 474, PAGE_W - 264, 600);
+      speckle(x, PAGE_W, PAGE_H, 4000, .12);
+      x.restore();
+    }
+    x.strokeStyle = ouroEm(x, 102, 464, PAGE_W - 142, 1084); x.lineWidth = 7;
+    x.strokeRect(104, 466, PAGE_W - 248, 616);
+    x.strokeStyle = '#3a2412'; x.lineWidth = 1.5; x.strokeRect(113, 475, PAGE_W - 266, 598);
+    [[104, 466], [PAGE_W - 144, 466], [104, 1082], [PAGE_W - 144, 1082]].forEach(([a, b]) => {
+      x.fillStyle = ouroEm(x, a - 20, b - 20, a + 20, b + 20); losango(x, a, b, 19);
+      x.fillStyle = '#6d1f1a'; losango(x, a, b, 9);
+    });
     return toTexture(c, renderer);
   }
 
@@ -524,57 +825,167 @@ function textures(renderer) {
   const MAP_W = 2800, MAP_H = 2000;
   const mapBases = {};
 
+  // A borda do pergaminho: rasgada e queimada, nunca um retângulo perfeito.
+  function bordaRasgada(x, W, H) {
+    const pontos = [], lado = (ax, ay, bx, by, n) => {
+      for (let i = 0; i < n; i++) {
+        const t = i / n, j = Math.random() * 15 + (Math.random() < .08 ? 10 : 0);
+        pontos.push([ax + (bx - ax) * t + (ax === bx ? (ax === 0 ? j : -j) : 0), ay + (by - ay) * t + (ay === by ? (ay === 0 ? j : -j) : 0)]);
+      }
+    };
+    lado(0, 0, W, 0, 170); lado(W, 0, W, H, 120); lado(W, H, 0, H, 170); lado(0, H, 0, 0, 120);
+    const caminho = new Path2D();
+    pontos.forEach(([a, b], i) => (i ? caminho.lineTo(a, b) : caminho.moveTo(a, b)));
+    caminho.closePath();
+    x.save();
+    x.globalCompositeOperation = 'source-atop';
+    [[46, .1], [28, .16], [14, .24], [6, .5]].forEach(([l, a]) => { x.lineWidth = l; x.strokeStyle = `rgba(52,26,8,${a})`; x.stroke(caminho); });
+    x.restore();
+    x.save();
+    x.globalCompositeOperation = 'destination-in';
+    x.fill(caminho);
+    x.restore();
+  }
+
+  function rosaDosVentos(x, cx, cy, r) {
+    x.save();
+    x.translate(cx, cy);
+    x.fillStyle = 'rgba(232,216,176,.45)';
+    x.beginPath(); x.arc(0, 0, r * .98, 0, 7); x.fill();
+    x.strokeStyle = '#3a2412'; x.lineWidth = 5;
+    x.beginPath(); x.arc(0, 0, r * .98, 0, 7); x.stroke();
+    x.lineWidth = 2;
+    x.beginPath(); x.arc(0, 0, r * .86, 0, 7); x.stroke();
+    for (let i = 0; i < 32; i++) {
+      x.save(); x.rotate(i * Math.PI / 16); x.lineWidth = i % 4 ? 2 : 4;
+      x.beginPath(); x.moveTo(0, -r * .86); x.lineTo(0, -r * .98); x.stroke();
+      x.restore();
+    }
+    const ponta = (rot, comp, larg, claro, escuro) => {
+      x.save(); x.rotate(rot);
+      x.fillStyle = claro; x.beginPath(); x.moveTo(0, -comp); x.lineTo(larg, 0); x.lineTo(0, 0); x.closePath(); x.fill();
+      x.fillStyle = escuro; x.beginPath(); x.moveTo(0, -comp); x.lineTo(-larg, 0); x.lineTo(0, 0); x.closePath(); x.fill();
+      x.lineWidth = 2; x.strokeStyle = '#2a1a0d';
+      x.beginPath(); x.moveTo(0, -comp); x.lineTo(larg, 0); x.lineTo(-larg, 0); x.closePath(); x.stroke();
+      x.restore();
+    };
+    for (let i = 0; i < 4; i++) ponta(Math.PI / 4 + i * Math.PI / 2, r * .62, r * .1, '#e8d8b0', '#3a2412');
+    for (let i = 0; i < 4; i++) ponta(i * Math.PI / 2, r * .94, r * .15, i ? '#f0dfb4' : '#c33b2c', i ? '#3a2412' : '#6d1f1a');
+    x.fillStyle = ouroEm(x, -18, -18, 18, 18); x.beginPath(); x.arc(0, 0, r * .09, 0, 7); x.fill(); x.stroke();
+    x.restore();
+  }
+
+  function barco(x, px, py, s) {
+    x.save();
+    x.translate(px, py); x.scale(s, s);
+    x.strokeStyle = '#2a1a0d'; x.lineWidth = 2.6;
+    x.fillStyle = '#6b4023';
+    x.beginPath(); x.moveTo(-44, 0); x.quadraticCurveTo(0, 26, 44, -2); x.lineTo(36, 16); x.quadraticCurveTo(0, 28, -34, 16); x.closePath(); x.fill(); x.stroke();
+    x.beginPath(); x.moveTo(0, 8); x.lineTo(0, -60); x.stroke();
+    x.fillStyle = '#efe2bd';
+    x.beginPath(); x.moveTo(2, -56); x.quadraticCurveTo(38, -38, 4, -8); x.closePath(); x.fill(); x.stroke();
+    x.beginPath(); x.moveTo(-2, -50); x.quadraticCurveTo(-30, -36, -2, -14); x.closePath(); x.fill(); x.stroke();
+    x.fillStyle = '#a4161a'; x.beginPath(); x.moveTo(0, -60); x.lineTo(16, -68); x.lineTo(0, -74); x.closePath(); x.fill();
+    x.strokeStyle = 'rgba(30,60,70,.6)';
+    x.beginPath(); x.moveTo(-58, 24); x.quadraticCurveTo(-30, 30, 0, 24); x.quadraticCurveTo(30, 18, 58, 24); x.stroke();
+    x.restore();
+  }
+
   function buildMapBase() {
     const [c, x] = canvas(MAP_W, MAP_H);
     paintParchment(x, MAP_W, MAP_H, '#dcc899');
     const W = MAP_W, H = MAP_H;
 
-    const azul = 'rgba(70,110,120,.42)';
+    // Manchas de aguarela na terra, para o papel não parecer vazio.
+    [['rgba(120,136,70,.12)', 26], ['rgba(170,120,60,.1)', 22], ['rgba(95,120,80,.1)', 16]].forEach(([cor, n]) => {
+      for (let i = 0; i < n; i++) {
+        const px = Math.random() * W, py = Math.random() * H, r = 120 + Math.random() * 300;
+        const g = x.createRadialGradient(px, py, 0, px, py, r);
+        g.addColorStop(0, cor); g.addColorStop(.7, cor); g.addColorStop(1, 'rgba(120,136,70,0)');
+        x.fillStyle = g; x.beginPath(); x.ellipse(px, py, r, r * .7, Math.random() * 3, 0, 7); x.fill();
+      }
+    });
 
     // O mar. Só os pontos na costa tremem: os da moldura ficam onde estão.
-    x.beginPath();
-    MAPA.mar.forEach(([a, b], i) => {
+    const costa = new Path2D();
+    const contorno = [];
+    MAPA.mar.forEach(([a, b]) => {
       const borda = a === 0 || a === 1 || b === 0 || b === 1;
-      const px = W * a + (borda ? 0 : (Math.random() - .5) * 18), py = H * b + (borda ? 0 : (Math.random() - .5) * 18);
-      if (i) x.lineTo(px, py); else x.moveTo(px, py);
+      contorno.push([W * a + (borda ? 0 : (Math.random() - .5) * 16), H * b + (borda ? 0 : (Math.random() - .5) * 16), borda]);
     });
-    x.closePath();
-    x.fillStyle = azul; x.fill();
-    x.lineWidth = 7; x.strokeStyle = '#3a2412'; x.stroke();
-    x.save(); x.clip();
-    x.strokeStyle = 'rgba(30,60,70,.42)'; x.lineWidth = 3;
-    for (let r = 0; r < 640; r++) {
+    // A costa ganha reentrâncias entre os pontos dados, para não parecer uma régua.
+    contorno.forEach(([a, b, borda], i) => {
+      if (!i) { costa.moveTo(a, b); return; }
+      const [pa, pb, pborda] = contorno[i - 1];
+      if (!borda && !pborda) {
+        for (let k = 1; k < 7; k++) {
+          const t = k / 7, d = Math.hypot(a - pa, b - pb);
+          costa.lineTo(pa + (a - pa) * t + (Math.random() - .5) * d * .05, pb + (b - pb) * t + (Math.random() - .5) * d * .05);
+        }
+      }
+      costa.lineTo(a, b);
+    });
+    costa.closePath();
+    const fundoMar = x.createLinearGradient(0, 0, W, H);
+    fundoMar.addColorStop(0, 'rgba(62,108,118,.62)'); fundoMar.addColorStop(1, 'rgba(38,84,104,.72)');
+    x.fillStyle = fundoMar; x.fill(costa);
+    x.save(); x.clip(costa);
+    // Linhas de água junto à costa, como nas cartas antigas.
+    [[120, .08], [86, .1], [56, .13], [30, .18]].forEach(([l, a]) => { x.lineWidth = l; x.strokeStyle = `rgba(214,226,206,${a})`; x.stroke(costa); });
+    x.strokeStyle = 'rgba(20,50,62,.36)'; x.lineWidth = 2.6;
+    for (let r = 0; r < 260; r++) {
       const px = Math.random() * W, py = Math.random() * H;
-      x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + 22, py - 12, px + 44, py); x.quadraticCurveTo(px + 66, py + 12, px + 88, py); x.stroke();
+      x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + 18, py - 10, px + 36, py); x.quadraticCurveTo(px + 54, py + 10, px + 72, py); x.stroke();
     }
     x.restore();
+    x.lineWidth = 7; x.strokeStyle = '#2f1c0e'; x.lineJoin = 'round'; x.stroke(costa);
+    // Barcos onde houver mar aberto.
+    let barcos = 0;
+    for (let i = 0; i < 400 && barcos < 2; i++) {
+      const px = W * (.05 + Math.random() * .9), py = H * (.08 + Math.random() * .84);
+      const longe = Object.values(LUGARES).every(l => Math.hypot(l.x * W - px, l.y * H - py) > 260);
+      const fundo = [[-90, 0], [90, 0], [0, -90], [0, 60]].every(([a, b]) => x.isPointInPath(costa, px + a, py + b));
+      if (longe && fundo) { barco(x, px, py, 1.15 + Math.random() * .4); barcos++; }
+    }
 
     // Ilhas e lagos
     (MAPA.ilhas || []).forEach(i => {
       x.beginPath(); x.ellipse(W * i.x, H * i.y, W * i.rx, H * i.ry, .3, 0, 7);
       x.fillStyle = i.cor; x.fill();
-      x.lineWidth = 7; x.strokeStyle = '#3a2412'; x.stroke();
+      x.lineWidth = 7; x.strokeStyle = '#2f1c0e'; x.stroke();
     });
     (MAPA.lagos || []).forEach(l => {
       x.beginPath(); x.ellipse(W * l.x, H * l.y, W * l.rx, H * l.ry, 0, 0, 7);
-      x.fillStyle = 'rgba(70,110,120,.6)'; x.fill();
-      x.lineWidth = 5; x.strokeStyle = '#3a2412'; x.stroke();
+      x.fillStyle = 'rgba(62,108,118,.7)'; x.fill();
+      x.lineWidth = 5; x.strokeStyle = '#2f1c0e'; x.stroke();
+      x.lineWidth = 2; x.strokeStyle = 'rgba(214,226,206,.5)';
+      x.beginPath(); x.ellipse(W * l.x, H * l.y, W * l.rx * .7, H * l.ry * .62, 0, 0, 7); x.stroke();
     });
     (MAPA.rios || []).forEach(rio => {
       x.beginPath();
       rio.forEach(([a, b], i) => (i ? x.lineTo(W * a, H * b) : x.moveTo(W * a, H * b)));
       x.lineCap = 'round'; x.lineJoin = 'round';
-      x.lineWidth = 17; x.strokeStyle = '#3a2412'; x.stroke();
-      x.lineWidth = 10; x.strokeStyle = '#7c9ca2'; x.stroke();
+      x.lineWidth = 15; x.strokeStyle = '#2f1c0e'; x.stroke();
+      x.lineWidth = 9; x.strokeStyle = '#6f99a2'; x.stroke();
     });
 
-    // Serras
+    // Serras: o lado da luz é claro, o da sombra é tracejado, e os picos altos têm neve.
     const mountain = (mx, my, s) => {
-      x.fillStyle = '#d6c08f';
-      x.beginPath(); x.moveTo(mx - s, my); x.lineTo(mx, my - s * 1.25); x.lineTo(mx + s, my); x.closePath(); x.fill();
-      x.strokeStyle = '#3a2412'; x.lineWidth = 5; x.stroke();
-      x.lineWidth = 2.6;
-      for (let i = 1; i < s / 9; i++) { x.beginPath(); x.moveTo(mx + i * 4, my - s * 1.25 + i * 10); x.lineTo(mx + i * 7.4, my - 3); x.stroke(); }
+      const topo = my - s * 1.25, dx = s * (.05 + Math.random() * .12);
+      x.fillStyle = 'rgba(40,24,10,.16)';
+      x.beginPath(); x.ellipse(mx + s * .3, my + 3, s * 1.05, s * .2, 0, 0, 7); x.fill();
+      x.fillStyle = '#e2cfa0';
+      x.beginPath(); x.moveTo(mx - s, my); x.lineTo(mx + dx, topo); x.lineTo(mx + s, my); x.closePath(); x.fill();
+      x.fillStyle = '#9b8259';
+      x.beginPath(); x.moveTo(mx + dx, topo); x.lineTo(mx + s, my); x.lineTo(mx + s * .12, my); x.lineTo(mx + dx - s * .08, my - s * .62); x.closePath(); x.fill();
+      if (s > 66) {
+        x.fillStyle = '#f7f2e4';
+        x.beginPath(); x.moveTo(mx + dx, topo); x.lineTo(mx + dx + s * .26, topo + s * .34); x.lineTo(mx + dx + s * .06, topo + s * .26); x.lineTo(mx + dx - s * .08, topo + s * .4); x.lineTo(mx + dx - s * .25, topo + s * .32); x.closePath(); x.fill();
+      }
+      x.strokeStyle = '#2f1c0e'; x.lineWidth = 4.6; x.lineJoin = 'round';
+      x.beginPath(); x.moveTo(mx - s, my); x.lineTo(mx + dx, topo); x.lineTo(mx + s, my); x.stroke();
+      x.lineWidth = 2;
+      for (let i = 1; i < s / 8; i++) { x.beginPath(); x.moveTo(mx + dx + i * 3.6, topo + i * 9); x.lineTo(mx + dx + i * 6.8, my - 4); x.stroke(); }
     };
     MAPA.serras.forEach(z => {
       const ridge = [];
@@ -582,24 +993,43 @@ function textures(renderer) {
       ridge.sort((a, b) => a[1] - b[1]).forEach(([a, b]) => mountain(a, b + 60, 46 + Math.random() * 44));
     });
 
-    // Florestas
+    // Florestas: um chão verde, e árvores com lado de luz e de sombra.
     const tree = (tx, ty, s) => {
-      x.fillStyle = '#4e6b3c';
-      x.beginPath(); x.moveTo(tx, ty - s); x.lineTo(tx - s * .46, ty); x.lineTo(tx + s * .46, ty); x.closePath(); x.fill();
-      x.strokeStyle = '#26361e'; x.lineWidth = 3; x.stroke();
+      x.fillStyle = 'rgba(25,30,12,.3)';
+      x.beginPath(); x.ellipse(tx + s * .2, ty + 2, s * .5, s * .13, 0, 0, 7); x.fill();
+      const verde = ['#567a3d', '#4a6c37', '#60823f'][Math.floor(Math.random() * 3)];
+      x.fillStyle = '#3b2412'; x.fillRect(tx - 2.5, ty - s * .12, 5, s * .14);
+      [[1, 0, .48], [.72, -.3, .38], [.46, -.56, .27]].forEach(([k, sobe, larg]) => {
+        const by = ty + s * sobe * .55 - s * .06;
+        x.fillStyle = verde;
+        x.beginPath(); x.moveTo(tx, by - s * k * .68); x.lineTo(tx - s * larg, by); x.lineTo(tx + s * larg, by); x.closePath(); x.fill();
+        x.fillStyle = 'rgba(20,34,14,.42)';
+        x.beginPath(); x.moveTo(tx, by - s * k * .68); x.lineTo(tx + s * larg, by); x.lineTo(tx + s * larg * .1, by); x.closePath(); x.fill();
+        x.strokeStyle = '#1f2e18'; x.lineWidth = 2.2;
+        x.beginPath(); x.moveTo(tx - s * larg, by); x.lineTo(tx, by - s * k * .68); x.lineTo(tx + s * larg, by); x.stroke();
+      });
     };
     MAPA.florestas.forEach(z => {
+      const chao = x.createRadialGradient(W * z.x, H * z.y, 0, W * z.x, H * z.y, W * z.rx * 1.25);
+      chao.addColorStop(0, 'rgba(80,110,50,.42)'); chao.addColorStop(.75, 'rgba(80,110,50,.26)'); chao.addColorStop(1, 'rgba(80,110,50,0)');
+      x.fillStyle = chao;
+      x.save(); x.translate(W * z.x, H * z.y); x.scale(1, (H * z.ry) / (W * z.rx)); x.translate(-W * z.x, -H * z.y);
+      x.beginPath(); x.arc(W * z.x, H * z.y, W * z.rx * 1.25, 0, 7); x.fill(); x.restore();
       const forest = [];
       for (let i = 0; i < z.n; i++) {
         const a = Math.random() * 6.28, r = Math.sqrt(Math.random());
         forest.push([W * (z.x + Math.cos(a) * r * z.rx), H * (z.y + Math.sin(a) * r * z.ry)]);
       }
-      forest.sort((a, b) => a[1] - b[1]).forEach(([a, b]) => tree(a, b, 34 + Math.random() * 22));
+      forest.sort((a, b) => a[1] - b[1]).forEach(([a, b]) => tree(a, b, 40 + Math.random() * 24));
     });
 
     // Pântanos
-    x.strokeStyle = '#34452c'; x.lineWidth = 3;
     MAPA.pantanos.forEach(z => {
+      x.save(); x.translate(W * z.x, H * z.y); x.scale(1, (H * z.ry) / (W * z.rx));
+      const g = x.createRadialGradient(0, 0, 0, 0, 0, W * z.rx);
+      g.addColorStop(0, 'rgba(50,70,44,.5)'); g.addColorStop(.7, 'rgba(50,70,44,.3)'); g.addColorStop(1, 'rgba(50,70,44,0)');
+      x.fillStyle = g; x.beginPath(); x.arc(0, 0, W * z.rx, 0, 7); x.fill(); x.restore();
+      x.strokeStyle = '#27341f'; x.lineWidth = 3;
       for (let i = 0; i < z.n; i++) {
         const a = Math.random() * 6.28, r = Math.sqrt(Math.random());
         const px = W * (z.x + Math.cos(a) * r * z.rx), py = H * (z.y + Math.sin(a) * r * z.ry);
@@ -607,35 +1037,97 @@ function textures(renderer) {
       }
     });
 
-    // Estradas
-    x.strokeStyle = '#6b3f1d'; x.lineWidth = 7; x.setLineDash([22, 16]); x.lineCap = 'round';
+    // Estradas, com um fio claro por baixo para se destacarem do fundo.
+    x.lineCap = 'round';
     for (const [a, b] of ESTRADAS) {
       const A = LUGARES[a], B = LUGARES[b];
       const C = controloDaEstrada(A, B);
-      x.beginPath(); x.moveTo(A.x * W, A.y * H); x.quadraticCurveTo(C.x * W, C.y * H, B.x * W, B.y * H); x.stroke();
+      const linha = () => { x.beginPath(); x.moveTo(A.x * W, A.y * H); x.quadraticCurveTo(C.x * W, C.y * H, B.x * W, B.y * H); x.stroke(); };
+      x.setLineDash([]); x.strokeStyle = 'rgba(240,226,190,.5)'; x.lineWidth = 13; linha();
+      x.setLineDash([24, 16]); x.strokeStyle = '#5d3417'; x.lineWidth = 7; linha();
     }
     x.setLineDash([]);
 
-    // Moldura e rosa dos ventos
-    x.strokeStyle = '#3a2412'; x.lineWidth = 14; x.strokeRect(40, 40, W - 80, H - 80);
-    x.lineWidth = 4; x.strokeRect(68, 68, W - 136, H - 136);
-    drawGlyph(x, 'star', W * .92, H * .18, 240, '#6d1f1a');
-    x.fillStyle = '#3a2412'; x.textAlign = 'center';
+    // Moldura de carta antiga: filetes e uma faixa aos quadrados.
+    x.strokeStyle = '#2f1c0e'; x.lineWidth = 10; x.strokeRect(44, 44, W - 88, H - 88);
+    x.lineWidth = 3; x.strokeRect(84, 84, W - 168, H - 168);
+    const quadrados = (ax, ay, bx, by) => {
+      const d = Math.hypot(bx - ax, by - ay), n = Math.round(d / 76), ux = (bx - ax) / n, uy = (by - ay) / n;
+      for (let i = 0; i < n; i++) {
+        x.fillStyle = i % 2 ? '#2f1c0e' : '#ecdcb4';
+        x.fillRect(ax + ux * i + (uy ? -13 : 0), ay + uy * i + (ux ? -13 : 0), ux || 26, uy || 26);
+      }
+    };
+    quadrados(84, 64, W - 84, 64); quadrados(84, H - 64, W - 84, H - 64);
+    quadrados(64, 84, 64, H - 84); quadrados(W - 64, 84, W - 64, H - 84);
+    [[64, 64], [W - 64, 64], [64, H - 64], [W - 64, H - 64]].forEach(([a, b]) => {
+      x.fillStyle = '#ecdcb4'; x.fillRect(a - 24, b - 24, 48, 48);
+      x.strokeStyle = '#2f1c0e'; x.lineWidth = 3; x.strokeRect(a - 24, b - 24, 48, 48);
+      x.fillStyle = '#6d1f1a'; losango(x, a, b, 18);
+    });
+
+    // Rosa dos ventos
+    rosaDosVentos(x, W * .92, H * .19, 160);
+    x.fillStyle = '#2a1a0d'; x.textAlign = 'center';
     x.font = `700 58px ${FONT_TITLE}`;
-    x.fillText('N', W * .92, H * .18 - 134);
-    x.font = `700 72px ${FONT_TITLE}`;
-    x.fillText(MAPA.titulo, W * MAPA.tituloX, H * .94);
+    x.fillText('N', W * .92, H * .19 - 172);
+
+    // Título numa fita
+    x.font = `700 70px ${FONT_TITLE}`;
+    const tw = x.measureText(MAPA.titulo).width, tx = W * MAPA.tituloX, ty = H * .935, fw = tw / 2 + 70;
+    const fita = (d, cor) => {
+      x.fillStyle = cor;
+      x.beginPath(); x.moveTo(tx + d * fw, ty - 62); x.lineTo(tx + d * (fw + 74), ty - 44); x.lineTo(tx + d * (fw + 40), ty - 2); x.lineTo(tx + d * (fw + 80), ty + 34); x.lineTo(tx + d * fw, ty + 18); x.closePath(); x.fill();
+      x.strokeStyle = '#2f1c0e'; x.lineWidth = 3; x.stroke();
+    };
+    fita(-1, '#8a2c22'); fita(1, '#8a2c22');
+    const faixa = x.createLinearGradient(0, ty - 66, 0, ty + 22);
+    faixa.addColorStop(0, '#efe2bd'); faixa.addColorStop(.5, '#fbf1d4'); faixa.addColorStop(1, '#cdb988');
+    x.fillStyle = faixa; x.fillRect(tx - fw, ty - 68, fw * 2, 88);
+    x.strokeStyle = '#2f1c0e'; x.lineWidth = 4; x.strokeRect(tx - fw, ty - 68, fw * 2, 88);
+    x.fillStyle = '#2a1a0d';
+    x.fillText(MAPA.titulo, tx, ty);
+
+    bordaRasgada(x, W, H);
     mapBases[MAPA.titulo] = c;
+  }
+
+  // Castelo de cidade: muralha, duas torres e uma bandeira.
+  function castelo(x, px, py, s, visitada) {
+    x.save();
+    x.translate(px, py); x.scale(s, s);
+    x.lineWidth = 3; x.strokeStyle = '#1f130a'; x.lineJoin = 'round';
+    x.fillStyle = 'rgba(30,18,8,.3)'; x.beginPath(); x.ellipse(5, 16, 46, 9, 0, 0, 7); x.fill();
+    const parede = (a, b, c, d) => {
+      x.fillStyle = '#efe3c2'; x.fillRect(a, b, c, d); x.strokeRect(a, b, c, d);
+      x.fillStyle = 'rgba(70,45,20,.3)'; x.fillRect(a + c * .55, b, c * .45, d);
+    };
+    parede(-28, -18, 56, 32);
+    for (let i = 0; i < 5; i++) { x.fillStyle = '#efe3c2'; x.fillRect(-28 + i * 12.5, -25, 7, 7); x.strokeRect(-28 + i * 12.5, -25, 7, 7); }
+    [[-30, 13, 40], [30, 13, 40]].forEach(([a, l, h]) => {
+      parede(a - l / 2, 14 - h, l, h);
+      x.fillStyle = visitada ? '#b0261f' : '#8a3324';
+      x.beginPath(); x.moveTo(a - l / 2 - 3, 14 - h); x.lineTo(a, 14 - h - 26); x.lineTo(a + l / 2 + 3, 14 - h); x.closePath(); x.fill(); x.stroke();
+    });
+    parede(-9, -38, 18, 52);
+    x.fillStyle = visitada ? '#b0261f' : '#8a3324';
+    x.beginPath(); x.moveTo(-12, -38); x.lineTo(0, -66); x.lineTo(12, -38); x.closePath(); x.fill(); x.stroke();
+    x.beginPath(); x.moveTo(0, -66); x.lineTo(0, -82); x.stroke();
+    x.fillStyle = '#a4161a'; x.beginPath(); x.moveTo(0, -82); x.lineTo(15, -77); x.lineTo(0, -72); x.closePath(); x.fill();
+    x.fillStyle = '#2a1a0d';
+    x.beginPath(); x.arc(0, 6, 7, Math.PI, 0); x.lineTo(7, 14); x.lineTo(-7, 14); x.closePath(); x.fill();
+    x.restore();
   }
 
   // visitados: lista ordenada de chaves de LUGARES; destaque: chaves a realçar.
   function mapTexture(tex, visitados = [], destaque = [], suspeitos = [], rasto = null) {
     if (!mapBases[MAPA.titulo]) buildMapBase();
     const [c, x] = tex ? [tex.image, tex.image.getContext('2d')] : canvas(MAP_W, MAP_H);
+    x.clearRect(0, 0, MAP_W, MAP_H);
     x.drawImage(mapBases[MAPA.titulo], 0, 0);
 
     // Trilho percorrido
-    x.strokeStyle = '#a4161a'; x.lineWidth = 15; x.lineCap = 'round'; x.lineJoin = 'round';
+    x.strokeStyle = 'rgba(164,22,26,.88)'; x.lineWidth = 13; x.lineCap = 'round'; x.lineJoin = 'round';
     if (visitados.length > 1) {
       x.beginPath();
       visitados.forEach((k, i) => {
@@ -653,7 +1145,7 @@ function textures(renderer) {
         g.addColorStop(0, 'rgba(255,214,120,.95)'); g.addColorStop(1, 'rgba(255,214,120,0)');
         x.fillStyle = g; x.beginPath(); x.arc(px, py, 110, 0, 7); x.fill();
       }
-      if (p.cidade) drawGlyph(x, 'tower', px, py - 12, 92, '#2a1a0d');
+      if (p.cidade) castelo(x, px, py - 6, .98, visitados.includes(key));
       else {
         x.fillStyle = visitados.includes(key) ? '#a4161a' : '#2a1a0d';
         x.beginPath(); x.arc(px, py, 19, 0, 7); x.fill();
@@ -690,13 +1182,22 @@ function textures(renderer) {
     const cell = 200;
     const [c, x] = canvas(cols * cell, rows * cell);
     x.fillStyle = color; x.fillRect(0, 0, c.width, c.height);
+    // Resina com veios, como os dados de verdade.
+    for (let i = 0; i < 120; i++) {
+      const px = Math.random() * c.width, py = Math.random() * c.height, r = 20 + Math.random() * 70;
+      const tom = Math.random() < .5 ? '255,255,255' : '0,0,0';
+      const g = x.createRadialGradient(px, py, 0, px, py, r);
+      g.addColorStop(0, `rgba(${tom},${.03 + Math.random() * .08})`); g.addColorStop(1, `rgba(${tom},0)`);
+      x.fillStyle = g; x.fillRect(px - r, py - r, r * 2, r * 2);
+    }
     speckle(x, c.width, c.height, 1800, .1);
-    x.fillStyle = ink; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.textAlign = 'center'; x.textBaseline = 'middle';
     labels.forEach((l, i) => {
       const px = (i % cols + .5) * cell, py = (Math.floor(i / cols) + .5) * cell;
-      x.font = `700 ${l.length > 1 ? 66 : 82}px ${FONT_TITLE}`;
-      x.fillText(l, px, py);
-      if (l === '6' || l === '9') x.fillRect(px - 20, py + 36, 40, 7);
+      x.font = `700 ${l.length > 1 ? 70 : 86}px ${FONT_TITLE}`;
+      x.fillStyle = 'rgba(0,0,0,.55)'; x.fillText(l, px + 2, py + 3);
+      x.fillStyle = ink; x.fillText(l, px, py);
+      if (l === '6' || l === '9') x.fillRect(px - 20, py + 38, 40, 7);
     });
     return toTexture(c, renderer);
   }
@@ -753,13 +1254,69 @@ function textures(renderer) {
   // Medalhão do pino: o símbolo da classe, para se ver de longe no mapa.
   function pinFace(glyph, cor) {
     const [c, x] = canvas(256, 256);
-    x.fillStyle = '#efe2bd';
-    x.beginPath(); x.arc(128, 128, 118, 0, 7); x.fill();
-    x.strokeStyle = cor; x.lineWidth = 16;
-    x.beginPath(); x.arc(128, 128, 112, 0, 7); x.stroke();
-    x.strokeStyle = '#2a1a0d'; x.lineWidth = 4;
-    x.beginPath(); x.arc(128, 128, 122, 0, 7); x.stroke();
-    drawGlyph(x, glyph, 128, 128, 150, cor === '#d8c27a' ? '#8a6414' : cor);
+    x.fillStyle = 'rgba(20,10,4,.55)';
+    x.beginPath(); x.arc(128, 132, 124, 0, 7); x.fill();
+    const disco = x.createRadialGradient(118, 96, 10, 128, 128, 118);
+    disco.addColorStop(0, '#fff6dc'); disco.addColorStop(1, '#d9c28c');
+    x.fillStyle = disco;
+    x.beginPath(); x.arc(128, 128, 116, 0, 7); x.fill();
+    x.strokeStyle = cor; x.lineWidth = 11;
+    x.beginPath(); x.arc(128, 128, 100, 0, 7); x.stroke();
+    x.strokeStyle = ouroEm(x, 0, 0, 256, 256); x.lineWidth = 13;
+    x.beginPath(); x.arc(128, 128, 116, 0, 7); x.stroke();
+    drawGlyphRico(x, glyph, 128, 128, 140, cor === '#d8c27a' ? '#8a6414' : cor, '#e8c78a');
+    return toTexture(c, renderer);
+  }
+
+  // Chama de vela: uma gota, branca por dentro e laranja por fora.
+  function chama() {
+    const [c, x] = canvas(128, 256);
+    x.save();
+    x.translate(64, 190); x.scale(1, 3.2);
+    const g = x.createRadialGradient(0, -6, 2, 0, -6, 56);
+    g.addColorStop(0, 'rgba(255,255,240,1)'); g.addColorStop(.25, 'rgba(255,226,150,.95)'); g.addColorStop(.55, 'rgba(255,140,50,.55)'); g.addColorStop(1, 'rgba(255,70,10,0)');
+    x.fillStyle = g; x.fillRect(-64, -60, 128, 100);
+    x.restore();
+    x.globalCompositeOperation = 'destination-in';
+    const corte = new Path2D('M64 2C76 60 112 122 112 170a48 56 0 0 1-96 0C16 122 52 60 64 2z');
+    x.fill(corte);
+    return toTexture(c, renderer);
+  }
+
+  function pena() {
+    const [c, x] = canvas(96, 384);
+    const g = x.createLinearGradient(0, 0, 0, 384);
+    g.addColorStop(0, '#2e2620'); g.addColorStop(.32, '#8d7f6c'); g.addColorStop(.7, '#e8dfca'); g.addColorStop(1, '#f6f0e0');
+    x.fillStyle = g; x.fillRect(0, 0, 96, 384);
+    x.lineWidth = 1;
+    for (let i = 0; i < 150; i++) {
+      const py = Math.random() * 384, lado = Math.random() < .5 ? -1 : 1;
+      x.strokeStyle = `rgba(40,30,20,${.1 + Math.random() * .24})`;
+      x.beginPath(); x.moveTo(48, py + 16); x.lineTo(48 + lado * 48, py); x.stroke();
+    }
+    x.strokeStyle = '#efe6d2'; x.lineWidth = 3;
+    x.beginPath(); x.moveTo(48, 0); x.lineTo(48, 384); x.stroke();
+    return toTexture(c, renderer);
+  }
+
+  function moeda() {
+    const [c, x] = canvas(128, 128);
+    const [a, ax] = canvas(128, 128);
+    x.fillStyle = ouroEm(x, 0, 0, 128, 128); x.fillRect(0, 0, 128, 128);
+    x.strokeStyle = 'rgba(90,60,15,.7)'; x.lineWidth = 4; x.beginPath(); x.arc(64, 64, 54, 0, 7); x.stroke();
+    drawGlyph(x, 'crown', 64, 64, 66, 'rgba(90,60,15,.7)');
+    ax.fillStyle = '#808080'; ax.fillRect(0, 0, 128, 128);
+    ax.strokeStyle = '#e0e0e0'; ax.lineWidth = 5; ax.beginPath(); ax.arc(64, 64, 54, 0, 7); ax.stroke();
+    drawGlyph(ax, 'crown', 64, 64, 66, '#e8e8e8');
+    return { map: toTexture(c, renderer), normal: normaisDe(a, renderer, 3) };
+  }
+
+  // Sombra macia por baixo dos objetos, onde a luz quase não chega.
+  function sombraSuave() {
+    const [c, x] = canvas(128, 128);
+    const g = x.createRadialGradient(64, 64, 6, 64, 64, 64);
+    g.addColorStop(0, 'rgba(0,0,0,.8)'); g.addColorStop(.5, 'rgba(0,0,0,.42)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 128, 128);
     return toTexture(c, renderer);
   }
 
@@ -774,25 +1331,44 @@ function textures(renderer) {
   }
 
   // O tabuleiro da personagem: um lugar marcado para cada carta.
-  function characterBoard(lugares, escala, ox, oz, w, h) {
+  function characterBoard(lugares, covas, escala, ox, oz, w, h) {
     const [c, x] = canvas(Math.round(w * escala), Math.round(h * escala));
-    x.fillStyle = '#21140b'; x.fillRect(0, 0, c.width, c.height);
-    speckle(x, c.width, c.height, 26000, .35);
-    x.strokeStyle = '#c9a24a'; x.lineWidth = 12; x.strokeRect(14, 14, c.width - 28, c.height - 28);
-    x.lineWidth = 3; x.strokeRect(32, 32, c.width - 64, c.height - 64);
+    const [a, ax] = canvas(c.width, c.height);
+    const fundo = x.createLinearGradient(0, 0, c.width, c.height);
+    fundo.addColorStop(0, '#2e1c10'); fundo.addColorStop(1, '#1d110a');
+    x.fillStyle = fundo; x.fillRect(0, 0, c.width, c.height);
+    speckle(x, c.width, c.height, 26000, .3);
+    ax.fillStyle = '#a0a0a0'; ax.fillRect(0, 0, c.width, c.height);
+    x.strokeStyle = ouroEm(x, 0, 0, c.width, c.height); x.lineWidth = 7; x.strokeRect(26, 26, c.width - 52, c.height - 52);
+    // Cada lugar é uma cova escavada na tábua, mais funda e mais escura.
+    const cova = (px, py, cw, ch, raio) => {
+      const fim = new Path2D();
+      fim.roundRect(px - cw / 2, py - ch / 2, cw, ch, raio);
+      x.save();
+      const g = x.createLinearGradient(0, py - ch / 2, 0, py + ch / 2);
+      g.addColorStop(0, '#0c0604'); g.addColorStop(1, '#1b0f08');
+      x.fillStyle = g; x.fill(fim);
+      x.clip(fim);
+      x.shadowColor = 'rgba(0,0,0,.9)'; x.shadowBlur = 26; x.shadowOffsetY = 12;
+      x.lineWidth = 10; x.strokeStyle = 'rgba(0,0,0,.8)'; x.stroke(fim);
+      x.restore();
+      x.lineWidth = 3; x.strokeStyle = 'rgba(216,180,94,.55)'; x.stroke(fim);
+      ax.save();
+      ax.shadowColor = '#000'; ax.shadowBlur = 6;
+      ax.fillStyle = '#505050'; ax.fill(fim);
+      ax.restore();
+    };
     const cw = CARTA_TAB.w * escala, ch = CARTA_TAB.h * escala;
+    covas.forEach(k => cova((k.x - ox) * escala, (k.z - oz) * escala, k.w * escala, k.h * escala, 18));
     lugares.forEach(l => {
       const px = (l.x - ox) * escala, py = (l.z - oz) * escala;
-      x.fillStyle = 'rgba(0,0,0,.42)'; x.fillRect(px - cw / 2, py - ch / 2, cw, ch);
-      x.strokeStyle = 'rgba(216,180,94,.6)'; x.lineWidth = 4; x.setLineDash([16, 12]);
-      x.strokeRect(px - cw / 2, py - ch / 2, cw, ch);
-      x.setLineDash([]);
-      drawGlyph(x, l.glyph, px, py - 34, 170, 'rgba(216,180,94,.42)');
-      x.fillStyle = 'rgba(242,227,189,.82)'; x.textAlign = 'center';
+      cova(px, py, cw, ch, 16);
+      drawGlyphRico(x, l.glyph, px, py - 34, 170, '#8a6a2e', '#d8b45e');
+      x.fillStyle = 'rgba(242,227,189,.86)'; x.textAlign = 'center';
       x.font = `600 40px ${FONT_TITLE}`;
       x.fillText(l.nome, px, py + 128);
     });
-    return toTexture(c, renderer);
+    return { map: toTexture(c, renderer), normal: normaisDe(a, renderer, 3) };
   }
 
   function pageEdge() {
@@ -802,5 +1378,5 @@ function textures(renderer) {
     return toTexture(c, renderer);
   }
 
-  return { characterBoard, wood, leather, cardBack, cardFace, leftPage, rightPage, mapTexture, diceAtlas, diceAtlasTema, glowSprite, pinFace, pageEdge, CARD_W, CARD_H };
+  return { characterBoard, wood, leather, relevoCouro, relevoMapa, superficieCarta, cardBack, cardFace, leftPage, rightPage, mapTexture, diceAtlas, diceAtlasTema, glowSprite, chama, pena, moeda, sombraSuave, pinFace, pageEdge, CARD_W, CARD_H };
 }

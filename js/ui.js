@@ -534,6 +534,10 @@ async function main() {
   $('ajuda').addEventListener('click', () => abrirLore('Como se joga', COMO_JOGAR));
   $('abrir-painel').addEventListener('click', () => $('painel').classList.toggle('on'));
   $('fechar-painel').addEventListener('click', () => $('painel').classList.remove('on'));
+  const rotuloImagem = nome => { $('imagem-btn').textContent = `Imagem: ${nome}`; };
+  rotuloImagem(world.qualidade);
+  world.aoMudarQualidade = rotuloImagem;
+  $('imagem-btn').addEventListener('click', () => world.proximaQualidade());
   $('musica-btn').addEventListener('click', e => {
     e.target.textContent = musica.alternar() ? 'Música: sim' : 'Música: não';
   });
