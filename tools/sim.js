@@ -7,7 +7,7 @@ const vm = require('vm');
 
 const raiz = path.join(__dirname, '..', 'js');
 const ctx = vm.createContext({ console, Math, setTimeout });
-['data.js', 'historia.js', 'daraan.js', 'regras.js', 'partida.js'].forEach(f => vm.runInContext(fs.readFileSync(path.join(raiz, f), 'utf8'), ctx, { filename: f }));
+['data.js', 'historia.js', 'daraan.js', 'madeira.js', 'regras.js', 'partida.js'].forEach(f => vm.runInContext(fs.readFileSync(path.join(raiz, f), 'utf8'), ctx, { filename: f }));
 vm.runInContext('globalThis.__api = { partida, vidaMax, get G() { return G; }, CLASSES, RACAS, ANTECEDENTES, ITENS, TIPOS };', ctx);
 const api = ctx.__api;
 

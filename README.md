@@ -42,6 +42,7 @@ Faça duplo clique em `index.html`. É preciso Internet para descarregar o motor
 | `js/data.js` | Catálogo: classes, raças, antecedentes, objetos, talentos, aliados, lugares e estradas |
 | `js/historia.js` | Histórias: objetivos, vilões, reviravoltas, encontros, surpresas, cartas raras e textos dos nomes clicáveis |
 | `js/daraan.js` | O mundo de Daraan e as classes novas. No fim, `MUNDOS` junta os mundos e `ativarMundo` troca-os |
+| `js/madeira.js` | O mundo da Madeira Negra, acrescentado a `MUNDOS` |
 | `js/regras.js` | Regras puras: testes, chances, opções de cada cena |
 | `js/partida.js` | Ordem da partida, sem nada de 3D |
 | `js/ui.js` | Liga a partida à mesa e desenha o painel |

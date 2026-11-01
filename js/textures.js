@@ -1037,6 +1037,34 @@ function textures(renderer) {
       }
     });
 
+    // Uma árvore enorme, quando o mundo a tem: Madeira Negra deve-lhe o nome.
+    if (MAPA.arvore) {
+      const ax = W * MAPA.arvore.x, ay = H * MAPA.arvore.y;
+      const brilho = x.createRadialGradient(ax, ay - 90, 20, ax, ay - 90, 300);
+      brilho.addColorStop(0, 'rgba(238,214,120,.55)'); brilho.addColorStop(1, 'rgba(238,214,120,0)');
+      x.fillStyle = brilho; x.beginPath(); x.arc(ax, ay - 90, 300, 0, 7); x.fill();
+      x.fillStyle = 'rgba(25,14,6,.3)'; x.beginPath(); x.ellipse(ax + 26, ay + 8, 150, 26, 0, 0, 7); x.fill();
+      x.strokeStyle = '#17100a'; x.lineCap = 'round'; x.lineJoin = 'round';
+      const pontas = [];
+      const galho = (px, py, ang, comp, grossura, n) => {
+        const fx = px + Math.cos(ang) * comp, fy = py + Math.sin(ang) * comp;
+        x.lineWidth = grossura;
+        x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo((px + fx) / 2 + (Math.random() - .5) * comp * .3, (py + fy) / 2, fx, fy); x.stroke();
+        if (n <= 0) { pontas.push([fx, fy]); return; }
+        const filhos = 2 + (Math.random() < .35 ? 1 : 0);
+        for (let i = 0; i < filhos; i++) galho(fx, fy, ang + (i - (filhos - 1) / 2) * .62 + (Math.random() - .5) * .2, comp * (.68 + Math.random() * .1), grossura * .62, n - 1);
+      };
+      [[-1.2, 18], [1.1, -14], [-.5, 8], [.6, -6]].forEach(([d, k]) => {
+        x.lineWidth = 12;
+        x.beginPath(); x.moveTo(ax + k, ay - 40); x.quadraticCurveTo(ax + k * 2, ay - 2, ax + k + d * 56, ay + 8); x.stroke();
+      });
+      galho(ax, ay + 6, -Math.PI / 2, 92, 36, 5);
+      pontas.forEach(([a, b]) => {
+        x.fillStyle = ['rgba(23,16,10,.92)', 'rgba(36,28,14,.88)', 'rgba(14,10,6,.95)'][Math.floor(Math.random() * 3)];
+        x.beginPath(); x.ellipse(a, b, 17 + Math.random() * 15, 12 + Math.random() * 11, Math.random() * 3, 0, 7); x.fill();
+      });
+    }
+
     // Estradas, com um fio claro por baixo para se destacarem do fundo.
     x.lineCap = 'round';
     for (const [a, b] of ESTRADAS) {
