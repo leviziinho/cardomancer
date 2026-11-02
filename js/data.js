@@ -90,7 +90,7 @@ const DESCONTO_SECRETO = .7;
 
 // Combate: à vez. O seu d20 contra a CA dele, e o d20 dele contra a sua CA.
 // CA do herói: base + metade da Agilidade + armadura. Ataque do inimigo: CA dele - ataqueMenos.
-const COMBATE = { escalaPv: 1, caBase: 10, ataqueMenos: 10, danoMenos: 0, xpVitoria: 3, vilao: { ca: 12, ataque: 3, dado: 'd6', pvBase: 6, pvNivel: 2, folego: .5 } };
+const COMBATE = { escalaPv: 1, caBase: 10, ataqueMenos: 10, danoMenos: 0, xpVitoria: 3, vilao: { ca: 12, ataque: 3, dado: 'd6', pvBase: 6, pvNivel: 3, folego: .5 } };
 // A cada nível o mundo aperta: mais PV nos inimigos e, a cada três níveis, +1 nos testes, na CA, no ataque e no dano.
 const SUBIDA = { pvPorNivel: 0.1, niveisPorPonto: 3 };
 

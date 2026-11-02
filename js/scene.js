@@ -93,6 +93,9 @@ const ZOOM = { d: 9.5, s: .85 };
 // As cartas viradas para os olhos, para não ficarem achatadas.
 const DE_FRENTE = -Math.atan2(VISTA.pos[1] - VISTA.look[1], VISTA.pos[2] - VISTA.look[2]);
 const BARALHO = [CX + 11.4, 0, 4.7];
+// Num ecrã baixo o livro e a mão ficam lado a lado, porque um por cima do outro não se liam.
+const ecraPequeno = () => innerHeight < 500 && innerWidth > innerHeight;
+const eTelemovel = () => matchMedia('(pointer: coarse)').matches && Math.min(innerWidth, innerHeight) < 500;
 
 // O tabuleiro da personagem, à esquerda do mapa.
 const TABULEIRO = { x: CX - 11, z: -.7, w: 6.3, h: 11.2 };
@@ -825,7 +828,9 @@ function createWorld(canvasEl) {
       const axis = new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize();
       const spin = (5 + i) * Math.PI * 2;
       const q = new THREE.Quaternion();
-      const tx = CX + (i - (n - 1) / 2) * 3, tz = (onde === 'mapa' ? 1.4 : 6.8) + (i % 2) * .35;
+      // No ecrã pequeno o livro ocupa o meio da mesa, e os dados caem ao lado dele.
+      const aoLado = ecraPequeno() && onde !== 'mapa' && book.aberto ? naVista(.66, -.1, 0).pos : null;
+      const tx = (aoLado ? aoLado[0] : CX) + (i - (n - 1) / 2) * 3, tz = (aoLado ? aoLado[2] : onde === 'mapa' ? 1.4 : 6.8) + (i % 2) * .35;
       if (i === 0) ultimoDado.set(tx, 1.2, tz);
       m.visible = true;
       m.scale.setScalar(escala);
@@ -979,20 +984,28 @@ function createWorld(canvasEl) {
 
   // Dispõe n cartas numa zona do ecrã. Crescem até encher a altura, ou até se tocarem.
   // Ficam acima da chama das velas, para o brilho não lhes passar por cima.
-  function fileira(n, { topo, base, esq = -.98, dir = .98, y = 4, perto = false }) {
+  // Com grelha, podem ocupar até três filas.
+  function fileira(n, { topo, base, esq = -.98, dir = .98, y = 4, perto = false, grelha = false }) {
     posicaoCamera();
     if (perto) y = camera.position.y - 9.5;
     const altura0 = naVista(0, (topo + base) / 2, y).altura;
     const larguraEcra = altura0 * camera.aspect;
     const vao = .05;
-    const k = Math.min((topo - base) / 2 * altura0 / CARD.h, (dir - esq) / 2 * larguraEcra / (CARD.w * (n + (n - 1) * vao)));
-    const meioY = base + k * CARD.h / altura0;
-    const passo = k * CARD.w * (1 + vao) / (larguraEcra / 2);
+    const medida = l => {
+      const c = Math.ceil(n / l);
+      return Math.min((topo - base) / 2 * altura0 / (CARD.h * (l + (l - 1) * vao)), (dir - esq) / 2 * larguraEcra / (CARD.w * (c + (c - 1) * vao)));
+    };
+    let linhas = 1;
+    if (grelha) for (let l = 2; l <= 3; l++) if (medida(l) > medida(linhas)) linhas = l;
+    const k = medida(linhas), colunas = Math.ceil(n / linhas);
+    const passoX = k * CARD.w * (1 + vao) / (larguraEcra / 2), passoY = k * CARD.h * (1 + vao) / (altura0 / 2);
     // O mais perto do centro que os avisos dos cantos deixarem.
-    const metade = (n * passo - k * CARD.w * vao / (larguraEcra / 2)) / 2;
-    const meioX = Math.max(esq + metade, Math.min(dir - metade, 0));
+    const metade = (colunas * passoX - k * CARD.w * vao / (larguraEcra / 2)) / 2;
+    const meioX = Math.max(esq + metade, Math.min(dir - metade, grelha ? (esq + dir) / 2 : 0));
+    const primeiroY = grelha ? (topo + base) / 2 + (linhas - 1) * passoY / 2 : base + k * CARD.h / altura0;
     return Array.from({ length: n }, (_, i) => {
-      const { pos, altura } = naVista(meioX + (i - (n - 1) / 2) * passo, meioY, y);
+      const l = Math.floor(i / colunas), naLinha = l < linhas - 1 ? colunas : n - l * colunas;
+      const { pos, altura } = naVista(meioX + (i - l * colunas - (naLinha - 1) / 2) * passoX, primeiroY - l * passoY, y);
       return { pos, rot: [DE_FRENTE, 0, 0], scale: k * altura / altura0 };
     });
   }
@@ -1028,6 +1041,15 @@ function createWorld(canvasEl) {
   // ---- Interação ----
   const ray = new THREE.Raycaster();
   let choice = null, hovered = null;
+  // Sem rato não há passar por cima: o primeiro toque aproxima a carta, e o segundo joga-a.
+  let armada = null, tipoPonteiro = 'mouse';
+  function armar(card) {
+    armada = card;
+    const dica = document.getElementById('dica-toque');
+    dica.textContent = card && card.enabled && !card.spec.locked ? 'Toque de novo na carta para a jogar. Toque fora para fechar.' : 'Toque fora para fechar.';
+    dica.classList.toggle('on', !!card);
+    document.body.classList.toggle('carta-perto', !!card);
+  }
 
   // A área fixa decide quem é apanhado. Uma carta já levantada continua apanhada
   // enquanto o rato estiver sobre ela ou sobre o sítio de onde saiu.
@@ -1035,6 +1057,7 @@ function createWorld(canvasEl) {
     ray.setFromCamera(mouse.ndc, camera);
     const live = [...cards].filter(c => c.enabled || c.inspectable);
     const targets = live.map(c => c.hit);
+    if (armada && live.includes(armada)) targets.push(armada.group);
     if (hovered && live.includes(hovered) && !hovered.zoom) targets.push(hovered.group);
     const hits = ray.intersectObjects(targets, true);
     if (!hits.length) return null;
@@ -1065,6 +1088,7 @@ function createWorld(canvasEl) {
     if (card.spec.locked) { card.shake = 1; sfx.hit(); return; }
     const { list, resolve } = choice;
     choice = null;
+    armar(null);
     list.forEach(c => { c.enabled = false; c.hoverTarget = 0; });
     sfx.card();
     resolve(list.indexOf(card));
@@ -1078,9 +1102,17 @@ function createWorld(canvasEl) {
   window.addEventListener('pointermove', trackMouse);
   canvasEl.addEventListener('pointerleave', () => mouse.ndc.set(-5, -5));
   const handlers = { link: null, carta: null };
+  canvasEl.addEventListener('pointerdown', e => { tipoPonteiro = e.pointerType; });
   canvasEl.addEventListener('click', e => {
     trackMouse(e);
     const c = pickCardAtMouse();
+    if (tipoPonteiro === 'touch') {
+      mouse.ndc.set(-5, -5);
+      const tinha = armada;
+      if (c && c.zoom && c !== armada) { armar(c); return; }
+      if (tinha && c !== tinha) { armar(null); return; }
+      if (tinha && !tinha.enabled) armar(null);
+    }
     if (c && !(choice && choice.list.includes(c)) && handlers.carta) handlers.carta(c);
     if (c) { select(c); return; }
     const link = bookLinkAtMouse();
@@ -1099,7 +1131,7 @@ function createWorld(canvasEl) {
     if (QUALIDADES[url]) return url;
     try { const g = localStorage.getItem('cardomancer-imagem'); return QUALIDADES[g] ? g : null; } catch (e) { return null; }
   };
-  let escolhida = lerEscolha(), qualidade = escolhida || 'alto';
+  let escolhida = lerEscolha(), qualidade = escolhida || (eTelemovel() ? 'baixo' : 'alto');
   let nitidez = QUALIDADES[qualidade].folga, acabamento = false, ultimoTamanho = '', aoMudar = null;
   function aplicarQualidade(nome) {
     qualidade = nome;
@@ -1114,6 +1146,22 @@ function createWorld(canvasEl) {
     ultimoTamanho = '';
     resize();
     if (aoMudar) aoMudar(q.nome);
+  }
+  function ajustarLivro() {
+    const pequeno = ecraPequeno();
+    const alto = 2 * LIVRO.d * Math.tan(camera.fov * Math.PI / 360), largo = alto * camera.aspect, inteiro = 12.96;
+    LIVRO.s = pequeno ? Math.min(.88, .62 * largo / inteiro) : .54;
+    LIVRO.y = pequeno ? .25 : 1.62;
+    LIVRO.x = pequeno ? -largo / 2 + inteiro * LIVRO.s / 2 + largo * .012 : 0;
+    ZOOM.s = pequeno ? 1.08 : .85;
+    book.group.position.set(LIVRO.x, LIVRO.y, -LIVRO.d);
+    book.luz.position.x = LIVRO.x;
+    if (book.aberto) book.group.scale.setScalar(LIVRO.s);
+  }
+  // A beira direita do livro, de -1 a 1 no ecrã.
+  function livroDireita() {
+    const largo = 2 * LIVRO.d * Math.tan(camera.fov * Math.PI / 360) * camera.aspect;
+    return (LIVRO.x + 12.96 * LIVRO.s / 2) / (largo / 2);
   }
   function resize() {
     const rail = document.getElementById('rail');
@@ -1130,6 +1178,7 @@ function createWorld(canvasEl) {
     if (acabamento) imagem.tamanho(Math.floor(w * densidade), Math.floor(h * densidade), densidade);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    ajustarLivro();
   }
   window.addEventListener('resize', resize);
   aplicarQualidade(qualidade);
@@ -1207,7 +1256,8 @@ function createWorld(canvasEl) {
       g.updateMatrixWorld(true);
     }
 
-    const over = pickCardAtMouse();
+    if (armada && !cards.has(armada)) armar(null);
+    const over = armada || pickCardAtMouse();
     if (over !== hovered) {
       hovered && (hovered.hoverTarget = 0);
       hovered = over;
@@ -1224,7 +1274,7 @@ function createWorld(canvasEl) {
   }
   loop();
 
-  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, hideDice, efeitoCritico, cards, resize, handlers, fileira, veu, halo,
+  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, hideDice, efeitoCritico, cards, resize, handlers, fileira, veu, halo, livroDireita,
     get qualidade() { return QUALIDADES[qualidade].nome; },
     set aoMudarQualidade(f) { aoMudar = f; },
     proximaQualidade() {

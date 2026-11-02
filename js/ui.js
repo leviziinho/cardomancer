@@ -29,7 +29,7 @@ const lugarPista = i => ({ pos: [CX + 9.5 + i * 2.15, .05 + i * .002, -2.05], ro
 const lugarExtra = (i, n) => ({ pos: [CX + 9.5 + i * Math.min(2.15, 4.3 / Math.max(1, n - 1)), .05 + i * .004, .8], rot: [FACE_UP, 0, (i % 2 ? -1 : 1) * .02], scale: SLOT_SCALE });
 const AO_BARALHO = () => [BARALHO[0], .7, BARALHO[2]];
 
-const COMO_JOGAR = `Passe o rato por cima de uma carta para a ler de perto, e clique para a jogar. As cartas da mesa, à esquerda e à direita, também se podem ler assim. Clique numa poção da mochila para a beber: depois de usada, fica virada.
+const COMO_JOGAR = `Passe o rato por cima de uma carta para a ler de perto, e clique para a jogar. Num ecrã de toque, toque na carta para a ler, e toque de novo para a jogar. As cartas da mesa, à esquerda e à direita, também se podem ler assim. Clique numa poção da mochila para a beber: depois de usada, fica virada.
 
 Testes: o d20 mais o atributo tem de chegar ao número indicado na carta. Um 20 é sempre acerto crítico, e um 1 é sempre falha crítica.
 
@@ -190,10 +190,25 @@ function posicaoAviso() {
 function zonaDaMao() {
   const c = $('view').getBoundingClientRect(), emEcra = px => (px - c.left) / c.width * 2 - 1;
   const aberto = world.book.aberto;
+  if (ecraPequeno()) {
+    const emAltura = py => 1 - (py - c.top) / c.height * 2;
+    const aviso = $('prompt').classList.contains('on') ? emAltura($('prompt').getBoundingClientRect().bottom + 4) : .96;
+    const faixa = $('objetivo').classList.contains('on') ? emAltura($('objetivo').getBoundingClientRect().top - 3) : -.97;
+    return { topo: aviso, base: faixa, esq: aberto ? world.livroDireita() + .02 : .56, dir: .98, grelha: true };
+  }
   let esq = -.98, dir = .98;
   if ($('objetivo').classList.contains('on')) esq = emEcra($('objetivo').getBoundingClientRect().right + 8);
   if (!aberto && $('prompt').classList.contains('on') && $('prompt').classList.contains('lado')) dir = emEcra($('prompt').getBoundingClientRect().left - 8);
   return { topo: aberto ? -.19 : -.3, base: -.985, esq, dir };
+}
+
+// No telemóvel, ganha a altura das barras do navegador e fica deitado, onde o sistema o permitir.
+function pedirEcraInteiro() {
+  if (!eTelemovel()) return;
+  const raiz = document.documentElement;
+  try {
+    if (raiz.requestFullscreen) raiz.requestFullscreen().then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape')).catch(() => {});
+  } catch (e) { /* há sistemas que não deixam, e o aviso de virar chega */ }
 }
 
 function atualizaBotaoMapa() {
@@ -622,6 +637,7 @@ async function main() {
   });
 
   await new Promise(resolve => $('start').addEventListener('click', resolve, { once: true }));
+  pedirEcraInteiro();
   sfx.card();
   musica.ligar();
   $('title').classList.remove('on');

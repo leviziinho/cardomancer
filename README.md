@@ -34,6 +34,7 @@ Faça duplo clique em `index.html`. É preciso Internet para descarregar o motor
 - **Melhorias:** o ferreiro do mercado aprimora o que traz no corpo, com um máximo de duas melhorias por objeto. O mercador secreto da estrada cobra menos 30%.
 - **Estrada:** os encontros nem sempre são maus. Um d10 decide: 1 é um mestre raríssimo que oferece a evolução da classe (uma vez por partida), 2 e 3 são o mercador secreto, 4 e 5 são boa sorte, e o resto é perigo. Também há contratempos que custam um dia ou ouro.
 - **Experiência:** os testes dão XP, mesmo fora do combate. Ao subir de nível, escolhe um talento quando sai da cena.
+- **Telemóvel:** joga-se deitado. O livro fica à esquerda e as cartas à direita. Toque numa carta para a ler, e toque de novo para a jogar.
 - **Aliados e reviravoltas:** os aliados ajudam nos testes do seu campo. Depois da segunda etapa, a história pode mudar.
 - **Vida 0:** a partida acaba, e a carta selada revela o que estava em jogo.
 
