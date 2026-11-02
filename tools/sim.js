@@ -7,7 +7,7 @@ const vm = require('vm');
 
 const raiz = path.join(__dirname, '..', 'js');
 const ctx = vm.createContext({ console, Math, setTimeout });
-['data.js', 'historia.js', 'daraan.js', 'madeira.js', 'regras.js', 'partida.js'].forEach(f => vm.runInContext(fs.readFileSync(path.join(raiz, f), 'utf8'), ctx, { filename: f }));
+['data.js', 'historia.js', 'daraan.js', 'madeira.js', 'etapas.js', 'regras.js', 'partida.js'].forEach(f => vm.runInContext(fs.readFileSync(path.join(raiz, f), 'utf8'), ctx, { filename: f }));
 vm.runInContext('globalThis.__api = { partida, vidaMax, get G() { return G; }, CLASSES, RACAS, ANTECEDENTES, ITENS, TIPOS };', ctx);
 const api = ctx.__api;
 
@@ -29,6 +29,12 @@ const aoAcaso = specs => {
 // Estilos de jogo: "ao acaso" e "sensato", que segue o rasto e escolhe o que tem mais hipóteses.
 const ESTILOS = {
   acaso: specs => aoAcaso(specs),
+  // Só vai ao fim depois de ter as três pistas, ou quando o tempo aperta.
+  cacador: (specs, c) => {
+    const G = api.G;
+    if (c === 'destino' && G.pistas < 3 && G.dia < G.prazo - 3) return melhor(specs, s => (s.acampar ? (G.vida / api.vidaMax() < .4 ? 7 : 0) : s.procurar ? 6 : s.viaPista ? 5 : s.final ? 0 : s.missao ? 3 : 1));
+    return ESTILOS.sensato(specs, c);
+  },
   guerreiro: (specs, c) => {
     if (c === 'cena') {
       const i = specs.findIndex(s => s.entraCombate && !s.locked);
@@ -38,7 +44,7 @@ const ESTILOS = {
   },
   sensato: (specs, c) => {
     const G = api.G;
-    if (c === 'destino') return melhor(specs, s => (s.acampar ? (G.vida / api.vidaMax() < .4 ? 5 : 0) : s.procurar ? 4 : s.final ? 3 : s.rasto ? 2 : 1));
+    if (c === 'destino') return melhor(specs, s => (s.acampar ? (G.vida / api.vidaMax() < .4 ? 5 : 0) : s.final ? 4 : s.missao ? 3 : s.procurar ? 2 : s.rasto ? 1.5 : 1));
     if (c === 'postura') return G.dia < G.prazo - 4 ? 1 : 0;
     if (c === 'cidade') {
       const vidaBaixa = G.vida < 7;
@@ -93,13 +99,15 @@ const p = (a, b) => `${Math.round(a / Math.max(1, b) * 100)}%`.padStart(4);
 const m = (a, b) => (a / Math.max(1, b)).toFixed(1).padStart(4);
 
 async function correr(estilo, N) {
-  const total = nova(), por = { mundo: {}, classe: {}, raca: {}, antecedente: {}, arma: {}, vilao: {}, reviravolta: {} };
+  const total = nova(), por = { pistasFeitas: {}, mundo: {}, classe: {}, raca: {}, antecedente: {}, arma: {}, vilao: {}, reviravolta: {} };
   const reg = (grupo, chave, r, G) => { somar(por[grupo][chave] = por[grupo][chave] || nova(), r, G); };
   for (let i = 0; i < N; i++) {
     aprimorou = 0;
     const r = await api.partida(uiFalso(estilo));
     const G = api.G;
     somar(total, r, G);
+    reg('pistasFeitas', String(G.pistas), r, G);
+    por.pistasFeitas[String(G.pistas)].chefes += 0;
     reg('mundo', G.mundo, r, G);
     reg('classe', api.CLASSES[G.cls].nome, r, G);
     reg('raca', api.RACAS[G.raca].nome, r, G);
@@ -116,7 +124,7 @@ async function correr(estilo, N) {
   Object.keys(por).forEach(g => {
     const linhas = Object.keys(por[g]).sort();
     if (!linhas.length) return;
-    console.log(`  ${g}: ${linhas.map(k => `${k} ${p(por[g][k].v, por[g][k].n).trim()}`).join('  ')}`);
+    console.log(`  ${g}: ${linhas.map(k => `${k} ${p(por[g][k].v, por[g][k].n).trim()}${g === 'pistasFeitas' ? ` (${p(por[g][k].ganhos, por[g][k].chefes).trim()} do chefe, n=${por[g][k].n})` : ''}`).join('  ')}`);
   });
 }
 
@@ -124,5 +132,6 @@ async function correr(estilo, N) {
   const N = parseInt(process.argv[2], 10) || 3000;
   await correr('acaso', N);
   await correr('sensato', N);
+  await correr('cacador', N);
   await correr('guerreiro', N);
 })().catch(e => { console.error(e); process.exit(1); });

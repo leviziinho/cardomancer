@@ -33,9 +33,9 @@ function novoEstado() {
     talentos: [], aliados: [], marcas: new Set(),
     vida: 0, ouro: 6, xp: 0, nivel: 1, pistas: 0,
     dia: 1, prazo: PRAZO_DIAS, avisos: 0,
-    visitados: [], vistos: new Set(), tokens: {},
-    trama: null, rastro: null, destinoRevelado: false, reviravoltaPendente: false,
-    diario: [], melhorias: {}, gastos: [], evolucao: null, mentorVisto: false, rastroLimite: 0, rastroTotal: 0, emCombate: false,
+    visitados: [], vistos: new Set(), unicas: [],
+    trama: null, rumo: null, fio: 0, dicas: 0, rastro: null, fragmentos: 0, fraquezas: [], destinoRevelado: false, reviravoltaPendente: false,
+    diario: [], melhorias: {}, gastos: [], evolucao: null, mentorVisto: false, emCombate: false,
     log: { testes: 0, sucessos: 0, cartasRaras: 0, comprados: 0, dano: 0, noites: 0, pocoes: 0, combates: 0, criticos: 0 },
   };
   return G;
@@ -160,7 +160,8 @@ function preencher(texto) {
     .replace(/\{refem\}/g, t.refem)
     .replace(/\{motivo\}/g, t.motivo)
     .replace(/\{destino\}/g, LUGARES[v.destino].nome)
-    .replace(/\{proximo\}/g, G.rastro ? LUGARES[G.rastro].nome : LUGARES[v.destino].nome)
+    .replace(/\{proximo\}/g, G.rumo ? LUGARES[G.rumo].nome : LUGARES[v.destino].nome)
+    .replace(/\{pista\}/g, G.rastro ? LUGARES[G.rastro].nome : '')
     .replace(/^(\w)/, m => m.toUpperCase())
     .replace(/([.!?"] )(o|a) (?=[A-ZÀ-Ú])/g, (m, p, art) => `${p}${art.toUpperCase()} `);
 }
@@ -202,55 +203,94 @@ function caminho(de, para) {
   return c;
 }
 
-// Caminho até um sítio sem passar por onde já esteve, nem pelo destino final ainda secreto.
-function caminhoNovo(de, para) {
+// O caminho mais curto, sem passar pelo destino final enquanto for segredo.
+function rota(de, para) {
   const destino = VILOES[G.trama.vilao].destino;
   const prev = { [de]: null }, fila = [de];
   while (fila.length) {
     const atual = fila.shift();
     if (atual === para) break;
     vizinhos(atual).forEach(n => {
-      if (n in prev) return;
-      if (n !== para && (G.visitados.includes(n) || (n === destino && !G.destinoRevelado))) return;
+      if (n in prev || (n === destino && n !== para && !G.destinoRevelado)) return;
       prev[n] = atual; fila.push(n);
     });
   }
-  if (!(para in prev)) return null;
+  if (!(para in prev)) return caminho(de, para);
   const c = [];
   for (let k = para; k; k = prev[k]) c.unshift(k);
   return c;
 }
+const estradasAte = k => rota(G.lugar, k).length - 1;
+const passoPara = k => (k && k !== G.lugar ? rota(G.lugar, k)[1] : null);
 
-// O próximo sítio com rasto fica para a frente: nunca obriga a voltar atrás, se houver alternativa.
-function escolherRasto() {
+// Um sítio perto daqui, de preferência onde ainda não esteve.
+function sitioPerto(evitar, alcance) {
   const destino = VILOES[G.trama.vilao].destino;
-  const livres = Object.keys(LUGARES).filter(k => k !== destino && k !== G.lugar && !G.visitados.includes(k));
-  const comCaminho = livres.map(k => ({ k, c: caminhoNovo(G.lugar, k) })).filter(x => x.c);
-  // Nunca no sítio onde está: a seguir à pista há sempre uma viagem, de uma a três estradas.
-  const perto = comCaminho.filter(x => x.c.length <= 4).map(x => x.k);
-  const longe = comCaminho.map(x => x.k);
-  G.rastro = umDe(perto.length ? perto : longe.length ? longe : livres.length ? livres : Object.keys(LUGARES).filter(k => k !== destino && k !== G.lugar));
-  const c = caminhoNovo(G.lugar, G.rastro) || caminho(G.lugar, G.rastro);
-  G.rastroTotal = c.length - 1 + RASTO_FOLGA;
-  G.rastroLimite = G.dia + G.rastroTotal;
+  const todos = Object.keys(LUGARES).filter(k => k !== destino && k !== G.lugar && k !== evitar);
+  const novos = todos.filter(k => !G.visitados.includes(k));
+  const perto = l => l.filter(k => estradasAte(k) <= alcance);
+  return umDe([perto(novos), perto(todos), novos, todos].find(l => l.length));
 }
 
-const diasDoRasto = () => (G.rastro ? Math.max(0, G.rastroLimite - G.dia) : 0);
+// ---------- O fio da história: três etapas, e depois o fim ----------
 
-// O rasto mudou de sítio se o jogador o deixou para trás, ou se já só se chega lá a voltar atrás.
-function rastoFicouParaTras() {
-  if (!G.rastro) return null;
-  if (G.dia > G.rastroLimite) return 'esfriou';
-  if (G.rastro === G.lugar) return G.dia >= G.rastroLimite ? 'esfriou' : null;
-  if (G.visitados.includes(G.rastro)) return 'esfriou';
-  if (caminhoNovo(G.lugar, G.rastro)) return null;
-  return Object.keys(LUGARES).some(k => k !== VILOES[G.trama.vilao].destino && !G.visitados.includes(k) && caminhoNovo(G.lugar, k)) ? 'mudou' : null;
+function avancarFio() {
+  G.fio++;
+  G.dicas = 0;
+  if (G.fio === 2) G.reviravoltaPendente = true;
+  if (G.fio >= ETAPAS_DA_MISSAO) {
+    G.destinoRevelado = true;
+    G.rumo = null;
+    return fmt(' Já não há dúvida: tudo acaba em {destino}.');
+  }
+  G.rumo = sitioPerto(G.rastro, 2);
+  return fmt(' Agora sabe para onde ir: {proximo}.');
 }
 
-function passoParaRasto() {
-  if (!G.rastro) return null;
-  const c = caminhoNovo(G.lugar, G.rastro) || caminho(G.lugar, G.rastro);
-  return c[1] || null;
+function objetivoAgora() {
+  if (!G.trama) return '';
+  if (G.destinoRevelado) return fmt('Marchar para {destino}, onde tudo acaba');
+  const n = estradasAte(G.rumo);
+  return fmt(`${ETAPA_AGORA[G.fio]} em {proximo}, a ${n} ${n === 1 ? 'estrada' : 'estradas'}`);
+}
+function pistaAgora() {
+  if (!G.trama || !G.rastro) return '';
+  if (G.rastro === G.lugar) return `Pista ${G.pistas + 1} aqui, com ${G.fragmentos} de ${FRAGMENTOS_POR_PISTA} fragmentos`;
+  const n = estradasAte(G.rastro);
+  return fmt(`Pista ${G.pistas + 1} em {pista}, a ${n} ${n === 1 ? 'estrada' : 'estradas'}, com ${G.fragmentos} de ${FRAGMENTOS_POR_PISTA} fragmentos`);
+}
+
+// ---------- As pistas: três fragmentos cada uma ----------
+
+function escolherPista() {
+  G.rastro = G.pistas < PISTAS_PRECISAS ? sitioPerto(G.rumo, 2) : null;
+}
+
+// A pista lê-se aos poucos: cada fragmento mostra mais um pedaço da frase.
+function pedacoDaPista() {
+  const palavras = fmt(VILOES[G.trama.vilao].pistas[G.pistas]).split(' ');
+  return `${palavras.slice(0, Math.ceil(palavras.length * G.fragmentos / FRAGMENTOS_POR_PISTA)).join(' ')}...`;
+}
+
+function ganharFragmento() {
+  G.fragmentos++;
+  if (G.fragmentos < FRAGMENTOS_POR_PISTA) return { texto: `Encontra um fragmento da pista (${G.fragmentos} de ${FRAGMENTOS_POR_PISTA}): "${pedacoDaPista()}"` };
+  const completa = fmt(VILOES[G.trama.vilao].pistas[G.pistas]);
+  const f = FRAQUEZAS[G.fraquezas[G.pistas]];
+  G.diario.push({ lugar: LUGARES[G.lugar].nome, texto: completa, fraqueza: G.fraquezas[G.pistas] });
+  G.pistas++;
+  G.fragmentos = 0;
+  escolherPista();
+  let texto = `A pista fica completa: "${completa}" Agora conhece ${f.nome}. ${f.desc}`;
+  if (!G.destinoRevelado) texto += ` Poupa-lhe também uma etapa da missão.${avancarFio()}`;
+  if (G.rastro) texto += fmt(' Há outra pista em {pista}.');
+  return { texto, completa: true };
+}
+
+// Quem falha assusta quem sabia: a pista muda de sítio, mas o que já se descobriu fica.
+function migrarPista() {
+  G.rastro = sitioPerto(G.rumo, 2);
+  return fmt(` O rasto muda-se para {pista}. O que já descobriu continua consigo.`);
 }
 
 function montarTrama() {
@@ -263,22 +303,10 @@ function montarTrama() {
     reliquia: umDe(RELIQUIAS),
     refem: umDe(REFENS),
   };
-  escolherRasto();
-}
-
-// Distribui as cartas raras do jogador pelo mapa. Só as encontra quem passar pelo sítio certo.
-function sortearCartasRaras() {
-  const nos = baralhar(Object.keys(LUGARES));
-  const pedidos = [];
-  for (let i = 0; i < 2; i++) pedidos.push({ cls: G.cls });
-  pedidos.push({ raca: G.raca });
-  if (Math.random() < .5) pedidos.push({ raca: G.raca });
-  pedidos.push({ bg: G.bg });
-  if (Math.random() < .5) pedidos.push({ bg: G.bg });
-  pedidos.forEach((req, i) => {
-    const no = nos[i % nos.length];
-    (G.tokens[no] = G.tokens[no] || []).push(req);
-  });
+  G.fraquezas = tirar(FRAQUEZAS, PISTAS_PRECISAS);
+  G.rumo = sitioPerto(null, 2);
+  escolherPista();
+  G.unicas = [{ cls: G.cls }, { raca: G.raca }, { bg: G.bg }];
 }
 
 function reqCumprido(req) {
@@ -312,8 +340,25 @@ const subidaNivel = () => Math.floor((G.nivel - 1) / SUBIDA.niveisPorPonto);
 const pvDoInimigo = o => Math.ceil(o.roll.pv * COMBATE.escalaPv * (1 + SUBIDA.pvPorNivel * (G.nivel - 1)));
 
 function opcoesDaCena(cena) {
-  const sobe = o => (o.roll ? { ...o, dcExtra: (o.dcExtra || 0) + subidaNivel() } : o);
+  // As dicas que ouviu pelo caminho facilitam a etapa seguinte.
+  const dica = cena.etapa ? Math.min(G.dicas, 3) : 0;
+  const sobe = o => (o.roll ? { ...o, dcExtra: (o.dcExtra || 0) + subidaNivel() - dica } : o);
   return maoDaCena(cena).map(sobe);
+}
+
+// Tira uma carta única do baralho da aventura. Se não for jogada, volta para lá.
+function tirarUnica(especiais) {
+  if (!G.unicas.length) return null;
+  const nestaCena = G.unicas.find(r => especiais.some(o => mesmaReq(o.req, r)));
+  if (nestaCena && Math.random() < UNICA_NA_CENA) return nestaCena;
+  return Math.random() < UNICA_CHANCE ? umDe(G.unicas) : null;
+}
+
+// Nesta cena, as cartas com teste levam o olho: dão um fragmento da pista a quem as fizer bem.
+function marcarFragmentos(mao) {
+  const comTeste = baralhar(mao.filter(o => o.roll && podeUsar(o) && !o.fugir));
+  const marcadas = new Set(comTeste.slice(0, 2));
+  return mao.map(o => (marcadas.has(o) || (o.rara && o.tokenReq) ? { ...o, rasto: true } : o));
 }
 
 function maoDaCena(cena) {
@@ -322,20 +367,18 @@ function maoDaCena(cena) {
   const especiais = cena.opcoes.filter(o => o.req);
 
   const raras = [];
-  // A meio da viagem ainda não se chegou: nem a pista nem as cartas raras do lugar estão aqui.
-  (G.naEstrada ? [] : G.tokens[G.lugar] || []).forEach(req => {
+  const req = cena.prologo ? null : tirarUnica(especiais);
+  if (req) {
     const escrita = especiais.find(o => mesmaReq(o.req, req));
     raras.push({ ...(escrita || cartaRara(req)), req, tokenReq: req, rara: true });
-  });
+  }
 
   const porItem = especiais.filter(o => o.req.item && temItem(o.req.item)).map(o => ({ ...o, rara: true }));
 
-  const rasto = !G.naEstrada && G.rastro === G.lugar && G.pistas < PISTAS_PRECISAS && G.dia <= G.rastroLimite ? [cartaDeRasto()] : [];
-
   // Por vezes, a classe tem uma magia ou técnica própria para a situação.
-  const taticas = Math.random() < .5 && TATICAS[G.cls] ? [umDe(TATICAS[G.cls])] : [];
+  const taticas = Math.random() < .5 && TATICAS[G.cls] && !cena.etapa ? [umDe(TATICAS[G.cls])] : [];
 
-  const fixas = [...rasto, ...raras, ...porItem, ...taticas];
+  const fixas = [...raras, ...porItem, ...taticas];
   const lugares = Math.max(1, 4 - fixas.length);
   const usaveis = baralhar(base.filter(podeUsar));
   const escolhidas = usaveis.slice(0, lugares);
@@ -347,43 +390,7 @@ function maoDaCena(cena) {
     const fora = especiais.filter(o => !reqCumprido(o.req) && !o.req.item);
     if (fora.length) mao.push(umDe(fora));
   }
-  return mao;
-}
-
-function cartaDeRasto() {
-  // Cada personagem investiga à sua maneira, com o atributo em que é melhor.
-  const formas = [
-    { a: 'mente', t: 'Examinar os sinais', tipo: 'investigacao' },
-    { a: 'carisma', t: 'Perguntar aos locais', tipo: 'social' },
-    { a: 'agilidade', t: 'Seguir o rasto', tipo: 'habilidade' },
-    { a: 'forca', t: 'Arrancar a verdade a alguém', tipo: 'social' },
-  ];
-  const f = formas.reduce((m, x) => (attr(x.a) > attr(m.a) ? x : m));
-  return {
-    t: f.t,
-    d: 'Esta é a carta que encontra a pista. Qualquer outra deixa-a para depois.',
-    tipo: f.tipo, tema: 'pista', etiqueta: 'A Pista', glyph: 'eye',
-    roll: { a: f.a, dc: 11 },
-    rasto: true,
-    ok: { txt: '', fx: { xp: 1 } },
-    ko: { txt: 'Não encontra aqui nada que sirva, e sai de lá mais magoado do que entrou.', fx: { vida: -2 } },
-  };
-}
-
-// Devolve o texto da pista que acabou de ser encontrada e guarda-a no diário.
-function encontrarPista() {
-  const v = VILOES[G.trama.vilao];
-  const texto = v.pistas[Math.min(G.pistas, v.pistas.length - 1)];
-  G.pistas++;
-  G.diario.push({ lugar: LUGARES[G.lugar].nome, texto });
-  if (G.pistas === 2) G.reviravoltaPendente = true;
-  if (G.pistas >= PISTAS_PRECISAS) {
-    G.destinoRevelado = true;
-    G.rastro = null;
-    return fmt(`${texto} Já não há dúvida: tudo aponta para {destino}.`);
-  }
-  escolherRasto();
-  return fmt(`${texto} Os sinais seguintes apontam para {proximo}.`);
+  return !G.naEstrada && G.rastro === G.lugar && !cena.prologo ? marcarFragmentos(mao) : mao;
 }
 
 function resolverTeste(o) {
@@ -426,14 +433,18 @@ function inimigoDe(o, cena) {
 function chefeFinal() {
   const v = VILOES[G.trama.vilao];
   const trunfos = ['enganou', 'traidorvirado', 'ajudado', 'sangue'].filter(m => G.marcas.has(m)).length;
-  const pv = COMBATE.vilao.pvBase + COMBATE.vilao.pvNivel * G.nivel;
-  const ca = Math.max(9, COMBATE.vilao.ca + subidaNivel() - trunfos);
+  // Cada pista completa é uma fraqueza que se leva para a última porta.
+  const sabe = G.diario.map(d => FRAQUEZAS[d.fraqueza]);
+  const soma = campo => sabe.reduce((t, f) => t + (f[campo] || 0), 0);
+  const pv = Math.ceil((COMBATE.vilao.pvBase + COMBATE.vilao.pvNivel * G.nivel) * (1 - soma('pv')));
+  const ca = Math.max(7, COMBATE.vilao.ca + subidaNivel() - trunfos - soma('ca'));
   return {
     nome: fmt('{vilao}').replace(/^./, m => m.toUpperCase()),
     pv, pvMax: pv, defesa: ca, caBase: ca,
-    ataque: COMBATE.vilao.ataque + subidaNivel(),
+    ataque: COMBATE.vilao.ataque + subidaNivel() - soma('ataque'),
     dado: COMBATE.vilao.dado, agi: 3,
-    chefe: true, efeitos: v.efeitos, frases: v.ronda, fraqueza: v.fraqueza.includes(G.cls),
+    primeiro: sabe.some(f => f.calado) ? 'jogador' : null, calado: sabe.some(f => f.calado), sabe: sabe.map(f => f.nome).join('  ·  '),
+    chefe: true, efeitos: sabe.some(f => f.semEfeito) ? null : v.efeitos, frases: v.ronda, fraqueza: v.fraqueza.includes(G.cls),
     capitulo: 'Capítulo Final', abertura: `${v.finalTexto} ${G.trama.motivo}`,
   };
 }
@@ -493,7 +504,6 @@ function cartasDoChefe(ini, usadas) {
     carta('f_passar', 'Passar à frente', 'Chegar onde ninguém o espera.', 'habilidade', 'agilidade', { dado: 'd10' }),
     carta('f_falar', 'Falar-lhe ao que resta', 'Toda a gente tem uma fenda.', 'social', 'carisma', { calar: true }),
   ];
-  if (G.pistas) lista.push(carta('f_pistas', 'Usar o que descobriu', 'As pistas tinham um propósito.', 'investigacao', 'mente', { dado: 'd10' }));
   const base = baralhar(lista);
   if (ini.fraqueza) {
     base.unshift({ ...carta('f_classe', `Golpe de ${nomeClasse()}`, 'Foi para isto que treinou. Mais fácil de acertar.', 'combate', melhor, { dado: 'd12', facil: true }), rara: true, req: { cls: G.cls } });

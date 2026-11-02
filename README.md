@@ -21,10 +21,12 @@ Faça duplo clique em `index.html`. É preciso Internet para descarregar o motor
 - **Magias e técnicas:** cada classe tem as suas, usadas uma vez por combate. Fora de combate, algumas aparecem como opção de cena.
 - **Sorte da estrada:** dois d10 dão um número de 1 a 100, que cai em cima do mapa. Com a percentagem da carta ou menos, há encontro, e um d10 decide de que tipo é.
 - **Tipos de carta:** Combate, Social, Habilidade, Investigação, Magia e Técnica, cada um com a sua cor.
-- **Cartas raras:** cada partida esconde cartas de classe, raça e antecedente em pontos do mapa. Têm sucesso garantido, por isso vale a pena procurar o caminho certo.
+- **Classes em tarô:** cada classe é um arcano maior, desenhado como uma carta de tarô.
+- **Cartas raras:** as cartas amarelas são a sua classe, a sua raça, o seu antecedente, a classe aprimorada e os itens raros. No baralho de aventura há só uma de cada, e têm sucesso garantido. Se não a jogar, ela volta ao baralho e pode aparecer noutra cena.
 - **Tempo:** a missão tem um prazo em dias, e cada viagem e cada noite gastam tempo. Nos últimos dias, os testes ficam mais difíceis. Quatro dias depois do prazo, a partida está perdida.
 - **Vida:** a pressa e os falhanços gastam Vida, e recuperá-la gasta tempo. Durma numa estalagem, acampe na estrada (+35% de Vida, 1 dia e algum risco) ou guarde uma poção.
-- **Pistas:** 3 revelam o caminho até ao chefe final. O olho vermelho no mapa marca a pista seguinte, sempre a 1 ou mais estradas. Cada ponto à volta do olho é um dia antes de ela esfriar. Lá chegado, é a carta vermelha A PISTA que a procura. Se escolher outra carta ou falhar, pode procurar outra vez por 1 dia, enquanto houver pontos. Se esfriar, a pista muda de sítio. Cada pista encontrada fica numa carta na mesa e na Ficha.
+- **Missão:** a estrela dourada no mapa e o aviso "Agora" dizem sempre para onde ir. A história avança por três etapas, e os diálogos, os combates ganhos e os interrogatórios dão dicas do caminho.
+- **Pistas:** são opcionais. O olho vermelho no mapa marca a próxima. Cada pista tem 3 fragmentos: ganha-se um com uma carta com olho, no sítio da pista. Até um combate pode ter o olho, por isso também se consegue uma pista à força. Se falhar a carta com olho, a pista muda de sítio mas o progresso fica. Cada pista completa enfraquece o chefe final no combate.
 - **Mundos:** cada partida começa pela escolha do mundo. As Terras de Vésper e Daraan, o Império da Espada, têm mapa, missões, vilões e encontros próprios. Guerreiro, Feiticeiro, Monge e Druida existem nos dois, e Daraan tem ainda raça, antecedentes e objetos só seus.
 - **Viagem:** o pino para a meio da estrada, e é aí que escolhe a postura e resolve o que aparecer. A Marcha Forçada gasta 1 dia e 2 de Vida, e pode ser apanhado de surpresa. Pelos Trilhos gasta 2 dias e pode ser você a surpreender. Só depois de resolver o encontro é que chega ao destino, por isso a carta da pista nunca aparece na estrada.
 - **Tabuleiro:** cada carta do herói tem o seu lugar marcado, e os lugares vazios mostram o que falta.
@@ -32,7 +34,7 @@ Faça duplo clique em `index.html`. É preciso Internet para descarregar o motor
 - **Melhorias:** o ferreiro do mercado aprimora o que traz no corpo, com um máximo de duas melhorias por objeto. O mercador secreto da estrada cobra menos 30%.
 - **Estrada:** os encontros nem sempre são maus. Um d10 decide: 1 é um mestre raríssimo que oferece a evolução da classe (uma vez por partida), 2 e 3 são o mercador secreto, 4 e 5 são boa sorte, e o resto é perigo. Também há contratempos que custam um dia ou ouro.
 - **Experiência:** os testes dão XP, mesmo fora do combate. Ao subir de nível, escolhe um talento quando sai da cena.
-- **Aliados e reviravoltas:** os aliados ajudam nos testes do seu campo. Depois da segunda pista, a história pode mudar.
+- **Aliados e reviravoltas:** os aliados ajudam nos testes do seu campo. Depois da segunda etapa, a história pode mudar.
 - **Vida 0:** a partida acaba, e a carta selada revela o que estava em jogo.
 
 ## Onde mexer
@@ -43,9 +45,11 @@ Faça duplo clique em `index.html`. É preciso Internet para descarregar o motor
 | `js/historia.js` | Histórias: objetivos, vilões, reviravoltas, encontros, surpresas, cartas raras e textos dos nomes clicáveis |
 | `js/daraan.js` | O mundo de Daraan e as classes novas. No fim, `MUNDOS` junta os mundos e `ativarMundo` troca-os |
 | `js/madeira.js` | O mundo da Madeira Negra, acrescentado a `MUNDOS` |
+| `js/etapas.js` | O fio da história: as três etapas da missão e as dicas |
 | `js/regras.js` | Regras puras: testes, chances, opções de cada cena |
 | `js/partida.js` | Ordem da partida, sem nada de 3D |
 | `js/ui.js` | Liga a partida à mesa e desenha o painel |
+| `js/tarot.js` | As classes desenhadas como arcanos do tarô |
 | `js/textures.js` | Desenho das cartas, páginas, mapa e dados |
 | `js/imagem.js` | Acabamento da imagem (brilho das luzes, tons de filme) e níveis de qualidade |
 | `js/scene.js` | Mesa 3D, luz, câmara, dados e animações |

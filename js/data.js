@@ -311,11 +311,28 @@ let MAPA = {
 };
 
 // O relógio da missão, em dias.
-const PRAZO_DIAS = 20;
+const PRAZO_DIAS = 24;
 const PISTAS_PRECISAS = 3;
+const FRAGMENTOS_POR_PISTA = 3;
+const ETAPAS_DA_MISSAO = 3;
+// O baralho da aventura guarda uma única carta de classe, de raça e de antecedente.
+const UNICA_CHANCE = .22, UNICA_NA_CENA = .7;
+
+// O que cada pista completa ensina sobre o inimigo. Em cada partida saem três, e pesam no combate final.
+const FRAQUEZAS = {
+  guarda: { nome: 'A Falha na Guarda', desc: 'No combate final, a CA dele desce 3.', ca: 3 },
+  ferida: { nome: 'A Ferida Antiga', desc: 'No combate final, ele começa com menos 35% dos PV.', pv: .35 },
+  poder: { nome: 'O Poder Exposto', desc: 'No combate final, ele perde o efeito de cada ronda, e só ataca.', semEfeito: true },
+  medo: { nome: 'O Medo Dele', desc: 'No combate final, joga primeiro, e ele perde a primeira ronda.', calado: true },
+  ritmo: { nome: 'O Ritmo Dele', desc: 'No combate final, o ataque dele desce 3.', ataque: 3 },
+};
+
+// Cada classe é um arcano do tarô.
+const ARCANOS = {
+  bardo: '0 · O Louco', mago: 'I · O Mago', druida: 'III · A Imperatriz', clerigo: 'V · O Hierofante', guerreiro: 'VII · O Carro',
+  barbaro: 'VIII · A Força', monge: 'XIV · A Temperança', feiticeiro: 'XVI · A Torre', patrulheiro: 'XVII · A Estrela', ladino: 'XVIII · A Lua',
+};
 const SURPRESA_CHANCE = 30;
-// Uma pista dá para lá chegar pela estrada mais curta, e mais estes dias de folga.
-const RASTO_FOLGA = 2;
 const ATRASO_CHANCE = .15;
 
 // O d20 de quem chega a uma classe aprimorada: fundo perolado e números acesos.

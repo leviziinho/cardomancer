@@ -51,7 +51,7 @@ const CARD_THEMES = {
   habilidade: { band: '#2f5a33', accent: '#c9a24a', label: 'Habilidade' },
   investigacao: { band: '#4f2f73', accent: '#c9a24a', label: 'Investigação' },
   talento: { band: '#14535a', accent: '#d8b45e', label: 'Talento' },
-  rara: { band: '#8a6414', accent: '#f4d675', label: 'Rara' },
+  rara: { band: '#e0ae1c', accent: '#fff0a8', label: 'Rara', texto: '#2a1a0d', tinta: '#7a5508' },
   pista: { band: '#a3201a', accent: '#ffd76a', label: 'A Pista' },
   magia: { band: '#7a2a78', accent: '#e8c4f0', label: 'Magia' },
   tecnica: { band: '#a2481a', accent: '#f0c98a', label: 'Técnica' },
@@ -192,6 +192,8 @@ function fitText(ctx, text, x, y, maxW, maxH, size, minSize, family, color, alig
 
 function textures(renderer) {
   const CARD_W = 1024, CARD_H = 1434;
+  // O medalhão é pequeno para a letra poder ser grande: as cartas têm de se ler sem as aproximar.
+  const MEDALHAO = { y: 355, r: 170 };
 
   function wood() {
     const S = 2048;
@@ -346,9 +348,10 @@ function textures(renderer) {
   }
 
   // Superfície das cartas: onde há folha de ouro a luz reflete, e o papel fica mate.
-  let cartaBase = null;
-  function superficieCarta() {
-    if (cartaBase) return cartaBase;
+  // No tarô não há medalhão, por isso também não há anel de ouro.
+  const cartaBase = {};
+  function superficieCarta(semAnel = false) {
+    if (cartaBase[semAnel]) return cartaBase[semAnel];
     const W = 512, H = 717, k = 512 / CARD_W;
     const [a, ax] = canvas(W, H);
     const [o, ox] = canvas(W, H);
@@ -361,11 +364,12 @@ function textures(renderer) {
     ox.fillStyle = 'rgb(0,240,0)'; ox.fillRect(0, 0, W, H);
     const traco = (ctx, cor, l, f) => { ctx.strokeStyle = cor; ctx.lineWidth = l * k; f(ctx); };
     const moldura = ctx => { ctx.strokeRect(50 * k, 50 * k, (CARD_W - 100) * k, (CARD_H - 100) * k); };
-    const anel = ctx => { ctx.beginPath(); ctx.arc(CARD_W / 2 * k, 450 * k, 262 * k, 0, 7); ctx.stroke(); };
-    traco(ax, '#f0f0f0', 12, moldura); traco(ax, '#f0f0f0', 22, anel);
-    traco(ox, 'rgb(0,115,255)', 9, moldura); traco(ox, 'rgb(0,115,255)', 18, anel);
-    cartaBase = { normal: normaisDe(a, renderer, 1.8), brilho: toTexture(o, renderer, { linear: true }) };
-    return cartaBase;
+    const anel = ctx => { ctx.beginPath(); ctx.arc(CARD_W / 2 * k, MEDALHAO.y * k, MEDALHAO.r * k, 0, 7); ctx.stroke(); };
+    traco(ax, '#f0f0f0', 12, moldura);
+    traco(ox, 'rgb(0,115,255)', 9, moldura);
+    if (!semAnel) { traco(ax, '#f0f0f0', 22, anel); traco(ox, 'rgb(0,115,255)', 18, anel); }
+    cartaBase[semAnel] = { normal: normaisDe(a, renderer, 1.8), brilho: toTexture(o, renderer, { linear: true }) };
+    return cartaBase[semAnel];
   }
 
   function cardBack(band = '#3a1414') {
@@ -442,20 +446,24 @@ function textures(renderer) {
     });
 
     // faixa do tipo
-    const pista = spec.tema === 'pista', alturaFaixa = pista ? 124 : 96;
+    const pista = spec.tema === 'pista', alturaFaixa = pista ? 124 : 104;
     const faixa = x.createLinearGradient(0, 50, 0, 50 + alturaFaixa);
     faixa.addColorStop(0, th.band); faixa.addColorStop(1, 'rgba(10,5,2,.5)');
     x.fillStyle = th.band; x.fillRect(53, 53, CARD_W - 106, alturaFaixa);
     x.fillStyle = faixa; x.fillRect(53, 53, CARD_W - 106, alturaFaixa);
     x.fillStyle = ouro; x.fillRect(53, 53 + alturaFaixa, CARD_W - 106, 6);
     x.textAlign = 'center';
-    x.font = `${pista ? 700 : 600} ${pista ? 92 : 44}px ${FONT_TITLE}`;
     const label = (spec.etiqueta || th.label).toUpperCase();
-    x.fillStyle = 'rgba(0,0,0,.5)'; x.fillText(label, CARD_W / 2, (pista ? 145 : 114) + 3);
-    x.fillStyle = '#fbeec8'; x.fillText(label, CARD_W / 2, pista ? 145 : 114);
+    let tamanhoFaixa = pista ? 92 : 64;
+    do { x.font = `${pista ? 700 : 600} ${tamanhoFaixa}px ${FONT_TITLE}`; tamanhoFaixa -= 2; } while (x.measureText(label).width > CARD_W - 170 && tamanhoFaixa > 34);
+    const yFaixa = pista ? 145 : 127;
+    x.fillStyle = th.texto ? 'rgba(255,245,200,.5)' : 'rgba(0,0,0,.5)'; x.fillText(label, CARD_W / 2, yFaixa + 3);
+    x.fillStyle = th.texto || '#fbeec8'; x.fillText(label, CARD_W / 2, yFaixa);
 
     // medalhão com o símbolo
-    const cx0 = CARD_W / 2, my = 450, mr = 262;
+    const cx0 = CARD_W / 2, my = MEDALHAO.y, mr = MEDALHAO.r;
+    if (spec.tarot) desenharArcano(x, spec.tarot, 92, 176, CARD_W - 184, 700, ouro);
+    else {
     x.save();
     x.shadowColor = 'rgba(40,20,5,.55)'; x.shadowBlur = 26; x.shadowOffsetY = 8;
     x.fillStyle = th.band; x.beginPath(); x.arc(cx0, my, mr, 0, 7); x.fill();
@@ -485,26 +493,40 @@ function textures(renderer) {
     x.strokeStyle = ouroEm(x, cx0 - mr, my - mr, cx0 + mr, my + mr);
     x.lineWidth = 14; x.beginPath(); x.arc(cx0, my, mr - 2, 0, 7); x.stroke();
     x.lineWidth = 6; x.beginPath(); x.arc(cx0, my, mr - 34, 0, 7); x.stroke();
-    drawGlyphRico(x, spec.glyph, cx0, my, 280, th.band, '#d9b878');
+    drawGlyphRico(x, spec.glyph, cx0, my, 185, th.tinta || th.band, '#d9b878');
+    }
+
+    // O olho vermelho: esta carta rende um fragmento de pista.
+    if (spec.fragmento) {
+      x.save();
+      x.shadowColor = 'rgba(40,10,5,.7)'; x.shadowBlur = 18;
+      x.fillStyle = '#8f1610'; x.beginPath(); x.arc(cx0 + 252, my - 92, 80, 0, 7); x.fill();
+      x.restore();
+      x.strokeStyle = ouro; x.lineWidth = 9; x.beginPath(); x.arc(cx0 + 252, my - 92, 80, 0, 7); x.stroke();
+      drawGlyph(x, 'eye', cx0 + 252, my - 92, 108, '#ffe3a0');
+    }
 
     // título
     x.save();
     x.shadowColor = 'rgba(255,245,215,.85)'; x.shadowBlur = 0; x.shadowOffsetY = 2;
-    fitText(x, spec.titulo, CARD_W / 2, 722, CARD_W - 150, 150, 74, 44, FONT_TITLE, '#2a1a0d');
+    // No tarô, a gravura ocupa mais da carta, e o texto fica por baixo.
+    const yTitulo = spec.tarot ? 882 : 535, yFilete = spec.tarot ? 980 : 668;
+    fitText(x, spec.titulo, CARD_W / 2, yTitulo, CARD_W - 150, spec.tarot ? 92 : 128, spec.tarot ? 76 : 86, 48, FONT_TITLE, '#2a1a0d');
     x.restore();
     const filete = x.createLinearGradient(150, 0, CARD_W - 150, 0);
     filete.addColorStop(0, 'rgba(150,110,40,0)'); filete.addColorStop(.25, '#a87c2a'); filete.addColorStop(.5, '#f4d986'); filete.addColorStop(.75, '#a87c2a'); filete.addColorStop(1, 'rgba(150,110,40,0)');
-    x.fillStyle = filete; x.fillRect(150, 876, CARD_W - 300, 4);
-    x.fillStyle = ouro; losango(x, CARD_W / 2, 878, 15);
-    x.fillStyle = th.band; losango(x, CARD_W / 2, 878, 7);
+    x.fillStyle = filete; x.fillRect(150, yFilete, CARD_W - 300, 4);
+    x.fillStyle = ouro; losango(x, CARD_W / 2, yFilete + 2, 15);
+    x.fillStyle = th.band; losango(x, CARD_W / 2, yFilete + 2, 7);
 
     // brilho dourado das cartas raras
     if (spec.tema === 'rara' || spec.tema === 'pista') {
       x.save();
+      const estrelas = spec.tarot ? 0 : 40;
       x.strokeStyle = ouroEm(x, 0, CARD_H, CARD_W, 0); x.lineWidth = 12; x.strokeRect(24, 24, CARD_W - 48, CARD_H - 48);
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < estrelas; i++) {
         const a = Math.random() * 6.28, d = mr + 18 + Math.random() * 110;
-        drawGlyph(x, 'star', cx0 + Math.cos(a) * d, my + Math.sin(a) * d * .8, 10 + Math.random() * 18, 'rgba(216,160,50,.7)');
+        drawGlyph(x, 'star', cx0 + Math.cos(a) * d, my + Math.sin(a) * d * .55, 10 + Math.random() * 18, 'rgba(216,160,50,.7)');
       }
       const foil = x.createLinearGradient(0, 0, CARD_W, CARD_H);
       foil.addColorStop(0, 'rgba(255,225,130,.2)');
@@ -515,12 +537,13 @@ function textures(renderer) {
     }
 
     // descrição
-    fitText(x, spec.desc || '', CARD_W / 2, 898, CARD_W - 170, spec.ganho ? 250 : 330, 56, 32, FONT_BODY, '#33230f');
+    if (spec.tarot) fitText(x, spec.desc || '', CARD_W / 2, 994, CARD_W - 150, spec.rodape ? 250 : 350, 72, 44, FONT_BODY, '#33230f');
+    else fitText(x, spec.desc || '', CARD_W / 2, 684, CARD_W - 170, spec.ganho ? 500 : spec.rodape ? 560 : 660, 96, 56, FONT_BODY, '#33230f');
 
     // o que a escolha pode render
     if (spec.ganho) {
-      x.textAlign = 'center'; x.fillStyle = th.band;
-      x.font = `italic 42px ${FONT_BODY}`;
+      x.textAlign = 'center'; x.fillStyle = '#5b2410';
+      x.font = `italic 58px ${FONT_BODY}`;
       x.fillText(spec.ganho, CARD_W / 2, CARD_H - 192);
     }
 
@@ -531,16 +554,16 @@ function textures(renderer) {
       x.fillStyle = th.band; x.fillRect(53, CARD_H - 170, CARD_W - 106, 117);
       x.fillStyle = pe; x.fillRect(53, CARD_H - 170, CARD_W - 106, 117);
       x.fillStyle = ouro; x.fillRect(53, CARD_H - 176, CARD_W - 106, 6);
-      if (spec.rodapeGlyph) drawGlyph(x, spec.rodapeGlyph, 122, CARD_H - 110, 72, '#f6dc8c');
-      fitText(x, spec.rodape, CARD_W / 2 + (spec.rodapeGlyph ? 36 : 0), CARD_H - 160, CARD_W - 240, 104, 46, 28, FONT_TITLE, '#f2e3bd');
+      if (spec.rodapeGlyph) drawGlyph(x, spec.rodapeGlyph, 118, CARD_H - 110, 80, th.texto || '#f6dc8c');
+      fitText(x, spec.rodape, CARD_W / 2 + (spec.rodapeGlyph ? 36 : 0), CARD_H - 156, CARD_W - 226, 104, 66, 38, FONT_TITLE, th.texto || '#f2e3bd');
     }
 
     // carta bloqueada: escurece e carimba o símbolo de quem a pode usar
     if (spec.locked) {
       x.fillStyle = 'rgba(16,10,6,.68)';
       x.fillRect(0, 0, CARD_W, CARD_H);
-      drawGlyph(x, 'lock', CARD_W / 2, 450, 180, 'rgba(240,215,160,.95)');
-      fitText(x, spec.lockText || 'Bloqueada', CARD_W / 2, 590, CARD_W - 200, 110, 54, 34, FONT_TITLE, '#f0d7a0');
+      drawGlyph(x, 'lock', CARD_W / 2, MEDALHAO.y - 75, 150, 'rgba(240,215,160,.95)');
+      fitText(x, spec.lockText || 'Bloqueada', CARD_W / 2, MEDALHAO.y, CARD_W - 180, 170, 72, 40, FONT_TITLE, '#f0d7a0');
     }
     return toTexture(c, renderer);
   }
@@ -661,7 +684,7 @@ function textures(renderer) {
     gutter(x, PAGE_W, PAGE_H, 'right');
     x.textAlign = 'center';
     x.fillStyle = '#6d1f1a';
-    x.font = `600 40px ${FONT_TITLE}`;
+    x.font = `600 46px ${FONT_TITLE}`;
     x.fillText((p.capitulo || '').toUpperCase(), PAGE_W / 2 - 20, 130);
     fitText(x, p.titulo || '', PAGE_W / 2 - 20, 160, PAGE_W - 200, 240, 80, 48, FONT_TITLE, '#2a1a0d');
     const risco = x.createLinearGradient(190, 0, PAGE_W - 230, 0);
@@ -741,11 +764,11 @@ function textures(renderer) {
       barra(`PV do inimigo`, c.pv, c.pvMax, '#7c1f1f', y);
       barra('A sua Vida', c.vida, c.vidaMax, '#2f5a33', y + 96);
       x.textAlign = 'left'; x.fillStyle = '#6d1f1a';
-      x.font = `italic 44px ${FONT_BODY}`;
+      x.font = `italic 52px ${FONT_BODY}`;
       x.fillText(`Ele: CA ${c.defesa}  ·  Ataca ${c.ataque >= 0 ? '+' : ''}${c.ataque}  ·  Dano ${c.dado}`, marginL, y + 192);
       x.fillStyle = '#2f5a33';
-      x.fillText(`Você: CA ${c.ca}${c.escudo ? '  ·  Com escudo' : ''}`, marginL, y + 244);
-      y += 274;
+      x.fillText(`Você: CA ${c.ca}${c.escudo ? '  ·  Com escudo' : ''}`, marginL, y + 254);
+      y += 286;
     }
     for (; size >= 34; size -= 2) {
       x.font = `${size}px ${FONT_BODY}`;
@@ -783,7 +806,7 @@ function textures(renderer) {
 
     if (p.fundo) {
       const label = 'Ler mais sobre esta cena';
-      x.font = `italic 44px ${FONT_BODY}`;
+      x.font = `italic 50px ${FONT_BODY}`;
       x.textAlign = 'left';
       const w = x.measureText(label).width, lx = marginL, ly = PAGE_H - 70 - alturaFichas - 30;
       x.fillStyle = '#8a1d16';
@@ -1148,7 +1171,7 @@ function textures(renderer) {
   }
 
   // visitados: lista ordenada de chaves de LUGARES; destaque: chaves a realçar.
-  function mapTexture(tex, visitados = [], destaque = [], suspeitos = [], rasto = null) {
+  function mapTexture(tex, visitados = [], destaque = [], suspeitos = [], rasto = null, rumo = null) {
     if (!mapBases[MAPA.titulo]) buildMapBase();
     const [c, x] = tex ? [tex.image, tex.image.getContext('2d')] : canvas(MAP_W, MAP_H);
     x.clearRect(0, 0, MAP_W, MAP_H);
@@ -1180,19 +1203,25 @@ function textures(renderer) {
         x.strokeStyle = '#e9dbb8'; x.lineWidth = 5; x.stroke();
       }
       if (rasto && rasto.key === key) {
-        // Cada ponto é um dia: os cheios ainda faltam, os vazios já passaram.
-        const n = Math.max(rasto.total, rasto.dias), raio = 118;
-        for (let i = 0; i < n; i++) {
-          const a = -Math.PI / 2 + i * 2 * Math.PI / n, cheio = i < rasto.dias;
+        // Cada ponto é um fragmento: os cheios já são seus.
+        const raio = 118;
+        for (let i = 0; i < FRAGMENTOS_POR_PISTA; i++) {
+          const a = -Math.PI / 2 + i * 2 * Math.PI / FRAGMENTOS_POR_PISTA, cheio = i < rasto.fragmentos;
           x.beginPath(); x.arc(px + Math.cos(a) * raio, py + Math.sin(a) * raio, 26, 0, 7);
           x.fillStyle = cheio ? '#a4161a' : 'rgba(233,219,184,.75)'; x.fill();
           x.strokeStyle = cheio ? '#f2e3bd' : '#a4161a'; x.lineWidth = 5; x.stroke();
         }
         drawGlyph(x, 'eye', px, py - 196, 104, '#a4161a');
-      } else if (suspeitos.includes(key)) {
-        x.strokeStyle = '#a4161a'; x.lineWidth = 9;
+      }
+      // A estrela dourada: é para aqui que a missão manda.
+      if (rumo === key) {
+        const brilho = x.createRadialGradient(px, py - 130, 6, px, py - 130, 120);
+        brilho.addColorStop(0, 'rgba(255,214,90,.9)'); brilho.addColorStop(1, 'rgba(255,214,90,0)');
+        x.fillStyle = brilho; x.beginPath(); x.arc(px, py - 130, 120, 0, 7); x.fill();
+        drawGlyph(x, 'star', px, py - 130, 132, '#7a4a06');
+        drawGlyph(x, 'star', px, py - 130, 102, '#ffd34d');
+        x.strokeStyle = '#b07a12'; x.lineWidth = 9;
         x.beginPath(); x.arc(px, py, 58, 0, 7); x.stroke();
-        drawGlyph(x, 'eye', px, py - 96, 64, '#a4161a');
       }
       x.font = `700 ${p.cidade ? 58 : 48}px ${FONT_TITLE}`;
       x.textAlign = 'center';

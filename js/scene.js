@@ -88,8 +88,10 @@ const AREA = {
 };
 const VISTA = { pos: [CX, 25, 11.5], look: [CX, 0, 2.2] };
 // O livro flutua à frente da câmara, e as cartas aproximam-se ainda mais para se lerem.
-const LIVRO = { d: 14, y: .86, s: .5 };
-const ZOOM = { d: 9.5, s: .68 };
+const LIVRO = { d: 14, y: 1.62, s: .54 };
+const ZOOM = { d: 9.5, s: .85 };
+// As cartas viradas para os olhos, para não ficarem achatadas.
+const DE_FRENTE = -Math.atan2(VISTA.pos[1] - VISTA.look[1], VISTA.pos[2] - VISTA.look[2]);
 const BARALHO = [CX + 11.4, 0, 4.7];
 
 // O tabuleiro da personagem, à esquerda do mapa.
@@ -279,8 +281,8 @@ function createWorld(canvasEl) {
     g.add(flip);
 
     // Fita a marcar a página, a sair por baixo do livro.
-    const fita = new THREE.Mesh(new THREE.BoxGeometry(.3, .02, 1.3), new THREE.MeshStandardMaterial({ color: 0x8f1d1a, roughness: .55 }));
-    fita.position.set(.5, .2, H / 2 + .55);
+    const fita = new THREE.Mesh(new THREE.BoxGeometry(.3, .02, .7), new THREE.MeshStandardMaterial({ color: 0x8f1d1a, roughness: .55 }));
+    fita.position.set(.5, .2, H / 2 + .3);
     g.add(fita);
 
     g.rotation.x = Math.PI / 2;
@@ -344,7 +346,7 @@ function createWorld(canvasEl) {
       oldL && oldL.dispose(); oldR && oldR.dispose();
     }
     return {
-      group: g, linkAt, rightSurface: right, luzDasPaginas,
+      group: g, linkAt, rightSurface: right, luzDasPaginas, luz,
       turn: pages => emFila(() => vira(pages)),
       fechar: () => emFila(fechar),
       abrir: () => emFila(abrir),
@@ -381,7 +383,7 @@ function createWorld(canvasEl) {
   })();
   const pontoNoMapa = p => new THREE.Vector3(AREA.map.x + (p.x - .5) * AREA.map.w, 0.05, AREA.map.z + (p.y - .5) * AREA.map.h);
   const mapToWorld = key => pontoNoMapa(LUGARES[key]);
-  const updateMap = (visitados, destaque, suspeitos, rasto) => tex.mapTexture(mapPlane.material.map, visitados, destaque, suspeitos, rasto);
+  const updateMap = (visitados, destaque, suspeitos, rasto, rumo) => tex.mapTexture(mapPlane.material.map, visitados, destaque, suspeitos, rasto, rumo);
 
   // ---- Tabuleiro da personagem ----
   (function tabuleiro() {
@@ -630,7 +632,7 @@ function createWorld(canvasEl) {
   const bodyGeo = new THREE.ExtrudeGeometry(cardShape, { depth: .01, bevelEnabled: false, curveSegments: 8 });
   bodyGeo.translate(0, 0, -.005);
   const bodyMat = new THREE.MeshStandardMaterial({ color: 0xcdbb92, roughness: .8 });
-  const superficie = tex.superficieCarta();
+  const superficieNormal = tex.superficieCarta(), superficieTarot = tex.superficieCarta(true);
   const backTex = tex.cardBack();
   const backMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: .5, envMapIntensity: .6 });
 
@@ -641,6 +643,7 @@ function createWorld(canvasEl) {
     const g = new THREE.Group();
     const map = tex.cardFace(spec);
     // Onde há folha de ouro a luz reflete, e as cartas raras mudam de cor conforme o ângulo.
+    const superficie = spec.tarot ? superficieTarot : superficieNormal;
     const base = { map, normalMap: superficie.normal, normalScale: new THREE.Vector2(.35, .35), roughnessMap: superficie.brilho, metalnessMap: superficie.brilho, roughness: 1, metalness: 1, envMapIntensity: .85 };
     const frontMat = spec.tema === 'pista' || spec.tema === 'rara'
       ? new THREE.MeshPhysicalMaterial({ ...base, iridescence: .55, iridescenceIOR: 1.4, iridescenceThicknessRange: [180, 420] })
@@ -940,19 +943,86 @@ function createWorld(canvasEl) {
   // ---- Câmara: fixa, para a mesa não se mexer enquanto se escolhe ----
   const cam = { pos: new THREE.Vector3(...VISTA.pos), look: new THREE.Vector3(...VISTA.look), shake: 0 };
   const mouse = { x: 0, y: 0, ndc: new THREE.Vector2(-5, -5) };
+  const alvoCamera = new THREE.Vector3(), pontoEcra = new THREE.Vector2(), frenteCamera = new THREE.Vector3();
+
+  function posicaoCamera() {
+    // Em janelas estreitas a câmara recua, para caberem as cartas dos lados da mesa.
+    // A mesa fica encostada ao topo, e o que sobra fica em baixo para a mão.
+    const widen = Math.max(1, 1.95 / camera.aspect);
+    camera.position.copy(cam.pos).sub(cam.look).multiplyScalar(widen).add(cam.look);
+    alvoCamera.copy(cam.look);
+    const desce = 9.1 * (widen - 1);
+    camera.position.z += desce; alvoCamera.z += desce;
+    camera.lookAt(alvoCamera);
+    camera.updateMatrixWorld();
+  }
 
   function applyCamera(dt) {
-    // Em janelas estreitas a câmara recua, para caberem as cartas dos lados da mesa.
-    const aspect = camera.aspect, widen = Math.max(1, 1.95 / aspect);
-    const dir = cam.pos.clone().sub(cam.look).multiplyScalar(widen);
-    camera.position.copy(cam.look).add(dir);
+    posicaoCamera();
     if (cam.shake > 0) {
       camera.position.x += (Math.random() - .5) * cam.shake;
       camera.position.y += (Math.random() - .5) * cam.shake;
       cam.shake = Math.max(0, cam.shake - dt * .9);
     }
-    camera.lookAt(cam.look);
+    camera.lookAt(alvoCamera);
     camera.updateMatrixWorld();
+  }
+
+  // Um ponto do ecrã (de -1 a 1) à altura y da mesa, e quanto mundo cabe na vertical a essa distância.
+  function naVista(nx, ny, y) {
+    ray.setFromCamera(pontoEcra.set(nx, ny), camera);
+    const { origin: o, direction: d } = ray.ray;
+    const p = o.clone().addScaledVector(d, (y - o.y) / d.y);
+    const altura = 2 * p.clone().sub(o).dot(camera.getWorldDirection(frenteCamera)) * Math.tan(camera.fov * Math.PI / 360);
+    return { pos: [p.x, p.y, p.z], altura };
+  }
+
+  // Dispõe n cartas numa zona do ecrã. Crescem até encher a altura, ou até se tocarem.
+  // Ficam acima da chama das velas, para o brilho não lhes passar por cima.
+  function fileira(n, { topo, base, esq = -.98, dir = .98, y = 4, perto = false }) {
+    posicaoCamera();
+    if (perto) y = camera.position.y - 9.5;
+    const altura0 = naVista(0, (topo + base) / 2, y).altura;
+    const larguraEcra = altura0 * camera.aspect;
+    const vao = .05;
+    const k = Math.min((topo - base) / 2 * altura0 / CARD.h, (dir - esq) / 2 * larguraEcra / (CARD.w * (n + (n - 1) * vao)));
+    const meioY = base + k * CARD.h / altura0;
+    const passo = k * CARD.w * (1 + vao) / (larguraEcra / 2);
+    // O mais perto do centro que os avisos dos cantos deixarem.
+    const metade = (n * passo - k * CARD.w * vao / (larguraEcra / 2)) / 2;
+    const meioX = Math.max(esq + metade, Math.min(dir - metade, 0));
+    return Array.from({ length: n }, (_, i) => {
+      const { pos, altura } = naVista(meioX + (i - (n - 1) / 2) * passo, meioY, y);
+      return { pos, rot: [DE_FRENTE, 0, 0], scale: k * altura / altura0 };
+    });
+  }
+
+  // O véu escurece tudo o que está atrás das cartas em destaque.
+  const veuMesh = new THREE.Mesh(new THREE.PlaneGeometry(90, 60), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
+  veuMesh.position.z = -13;
+  veuMesh.visible = false;
+  camera.add(veuMesh);
+  function veu(ligado) {
+    veuMesh.visible = true;
+    // A luz do livro fica mesmo ao pé das cartas em destaque, e queimava-as.
+    const de = veuMesh.material.opacity, para = ligado ? .82 : 0, luzDe = book.luz.intensity, luzPara = ligado ? 0 : 30;
+    return tween(.4, e => {
+      veuMesh.material.opacity = de + (para - de) * e;
+      book.luz.intensity = luzDe + (luzPara - luzDe) * e;
+    }).then(() => { veuMesh.visible = ligado; });
+  }
+
+  const brilho = (() => {
+    const [c, x] = canvas(256, 340);
+    x.shadowColor = '#ffc95e'; x.shadowBlur = 44;
+    x.fillStyle = '#ffd98a'; x.fillRect(48, 48, 160, 244);
+    x.fillRect(48, 48, 160, 244);
+    return new THREE.CanvasTexture(c);
+  })();
+  function halo(card) {
+    card.halo = new THREE.Mesh(new THREE.PlaneGeometry(CARD.w * 1.28, CARD.h * 1.22), new THREE.MeshBasicMaterial({ map: brilho, transparent: true, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }));
+    card.halo.position.z = -.05;
+    card.group.add(card.halo);
   }
 
   // ---- Interação ----
@@ -1105,6 +1175,7 @@ function createWorld(canvasEl) {
       c.hover += (c.hoverTarget - c.hover) * Math.min(1, dt * 11);
       c.shake = Math.max(0, c.shake - dt * 2.6);
       const g = c.group;
+      if (c.halo) c.halo.material.opacity = .34 + Math.sin(t * 2.6) * .12;
       g.position.copy(c.pos);
       g.rotation.copy(c.rot);
       g.position.x += Math.sin(c.shake * 26) * c.shake * .18;
@@ -1153,7 +1224,7 @@ function createWorld(canvasEl) {
   }
   loop();
 
-  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, hideDice, efeitoCritico, cards, resize, handlers,
+  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, hideDice, efeitoCritico, cards, resize, handlers, fileira, veu, halo,
     get qualidade() { return QUALIDADES[qualidade].nome; },
     set aoMudarQualidade(f) { aoMudar = f; },
     proximaQualidade() {

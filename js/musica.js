@@ -1,88 +1,260 @@
-// Trilha sonora feita em tempo real, sem ficheiros: um bordão baixo, uma corda dedilhada e tambores.
-// Cada momento do jogo tem o seu modo, com outro compasso e outra escala.
+// Trilha sonora composta, feita em tempo real e sem ficheiros: harpa e alaúde de cordas beliscadas,
+// flauta com sopro, cordas graves e tambor de pele, tudo dentro de uma sala com eco natural.
+// As melodias estão escritas à mão. Só a ordem das frases e a interpretação mudam em cada partida.
 
 const musica = (() => {
+  // Uma nota é [semitons a partir da raiz, duração em colcheias]. null é silêncio.
   const MODOS = {
-    calma: { bpm: 58, raiz: 50, escala: [0, 2, 3, 5, 7, 9, 10], acordes: [0, -2, 3, -2], tambor: [], silencio: .55, volume: .9 },
-    combate: { bpm: 104, raiz: 45, escala: [0, 1, 3, 5, 7, 8, 10], acordes: [0, 0, 1, 0], tambor: [1, 0, 0, 1, 0, 0, 1, 0], silencio: .6, volume: .85 },
-    chefe: { bpm: 82, raiz: 43, escala: [0, 1, 3, 4, 7, 8, 10], acordes: [0, 1, 0, -1], tambor: [1, 0, 1, 0, 1, 0, 0, 1], silencio: .4, volume: 1 },
+    // Uma balada em ré dórico, a seis por oito, para a estrada.
+    calma: {
+      bpm: 84, compasso: 6, raiz: 50, volume: .95,
+      acordes: {
+        A: [[0, 7, 12, 15], [10, 17, 22, 26], [5, 12, 17, 21], [0, 7, 12, 15], [3, 10, 15, 19], [10, 17, 22, 26], [5, 12, 17, 21], [7, 14, 19, 24]],
+        B: [[3, 10, 15, 19], [10, 17, 22, 26], [0, 7, 12, 15], [5, 12, 17, 21], [3, 10, 15, 19], [5, 12, 17, 21], [7, 14, 19, 22], [0, 7, 12, 15]],
+      },
+      arpejo: [0, 2, 1, 3, 2, 1],
+      frases: {
+        A: [[[12, 3], [15, 2], [17, 1], [19, 4], [17, 2], [15, 3], [14, 1], [12, 2], [10, 3], [12, 3], [null, 6]], [[17, 3], [19, 2], [22, 1], [24, 4], [22, 2], [19, 3], [17, 2], [15, 1], [14, 3], [12, 3], [null, 6]]],
+        B: [[[19, 2], [22, 1], [24, 3], [26, 2], [24, 1], [22, 3], [19, 3], [17, 2], [19, 1], [15, 6], [null, 6]], [[24, 4], [22, 2], [19, 3], [17, 3], [15, 2], [17, 1], [19, 3], [14, 3], [12, 6], [null, 6]]],
+      },
+      forma: ['A', 'A', 'B', 'A', null], tambor: null, cordasGraves: true, flauta: true, harpa: 1,
+    },
+    // Um combate em lá menor: ostinato de cordas, tambor a cavalgar e uma flauta aflita por cima.
+    combate: {
+      bpm: 132, compasso: 8, raiz: 45, volume: .9,
+      acordes: {
+        A: [[0, 7, 12, 15], [0, 7, 12, 15], [-4, 3, 8, 12], [-2, 5, 10, 14]],
+        B: [[5, 12, 17, 20], [3, 10, 15, 19], [-2, 5, 10, 14], [-5, 2, 7, 10]],
+      },
+      arpejo: [0, 0, 2, 0, 1, 0, 3, 2],
+      frases: {
+        A: [[[12, 2], [15, 1], [17, 1], [19, 3], [15, 1], [20, 2], [19, 1], [17, 1], [15, 2], [14, 2], [12, 4], [null, 4]], [[24, 2], [22, 1], [20, 1], [19, 2], [15, 2], [17, 2], [19, 2], [20, 2], [17, 2], [15, 4], [null, 4]]],
+        B: [[[17, 2], [20, 2], [24, 3], [22, 1], [19, 2], [22, 2], [24, 2], [26, 2], [22, 4], [19, 4]], [[24, 1], [24, 1], [22, 1], [24, 1], [26, 4], [24, 2], [22, 2], [19, 4], [14, 4]]],
+      },
+      forma: ['A', 'A', 'B', 'A'], tambor: [1, 0, 0, .5, 1, 0, .6, .4], cordasGraves: true, flauta: true, harpa: .75,
+    },
+    // O chefe: lento e pesado, em sol menor, com um coro de vozes por baixo.
+    chefe: {
+      bpm: 72, compasso: 8, raiz: 43, volume: 1,
+      acordes: {
+        A: [[0, 7, 12, 15], [1, 8, 13, 17], [0, 7, 12, 15], [-2, 5, 10, 13]],
+        B: [[3, 10, 15, 19], [1, 8, 13, 17], [-4, 3, 8, 12], [-5, 2, 7, 11]],
+      },
+      arpejo: [0, 1, 0, 2, 0, 1, 0, 3],
+      frases: {
+        A: [[[12, 4], [13, 2], [15, 2], [12, 4], [null, 4], [19, 3], [18, 1], [15, 2], [13, 2], [12, 4], [null, 4]]],
+        B: [[[24, 4], [25, 2], [24, 2], [20, 4], [19, 4], [22, 3], [20, 1], [19, 2], [15, 2], [18, 4], [19, 4]]],
+      },
+      forma: ['A', 'B', 'A', 'B'], tambor: [1, 0, 0, 0, .7, 0, .35, .35], cordasGraves: true, flauta: false, harpa: .7, coro: true,
+    },
   };
-  let ac = null, saida = null, medidor = null, relogio = null, bordao = [];
-  let atual = 'calma', ligada = true, proxima = 0, passo = 0, grau = 4;
+
+  let ac = null, saida = null, sala = null, medidor = null, relogio = null, grupos = {};
+  let atual = 'calma', ligada = true, proxima = 0, passo = 0, seccao = 0;
+  const notasCordas = new Map();
 
   const hertz = n => 440 * Math.pow(2, (n - 69) / 12);
+  const quase = v => v * (1 + (Math.random() - .5) * .16);
 
-  function corda(n, t, dur, vol) {
-    [[1, 'triangle', 1], [2, 'sine', .22]].forEach(([mult, tipo, peso]) => {
-      const o = ac.createOscillator(), g = ac.createGain();
-      o.type = tipo;
-      o.frequency.value = hertz(n) * mult;
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(vol * peso, t + .012);
-      g.gain.exponentialRampToValueAtTime(.0008, t + dur);
-      o.connect(g); g.connect(saida);
-      o.start(t); o.stop(t + dur + .05);
-    });
+  // Uma sala de pedra: um rasto de ruído que vai escurecendo e morrendo devagar.
+  function criarSala(segundos = 3.4) {
+    const n = Math.floor(ac.sampleRate * segundos), buf = ac.createBuffer(2, n, ac.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = buf.getChannelData(c);
+      let baixo = 0;
+      for (let i = 0; i < n; i++) {
+        const t = i / n, escuro = .08 + .55 * Math.pow(1 - t, 2);
+        baixo += (Math.random() * 2 - 1 - baixo) * escuro;
+        d[i] = baixo * Math.pow(1 - t, 2.6) * (i < 400 ? i / 400 : 1);
+      }
+    }
+    const conv = ac.createConvolver();
+    conv.buffer = buf;
+    return conv;
   }
 
-  function tambor(t, vol) {
+  // Uma corda beliscada a sério (Karplus-Strong): um sopro de ruído a circular numa linha, a perder brilho.
+  function amostraCorda(nota, brilho) {
+    const chave = `${nota}|${brilho}`;
+    if (notasCordas.has(chave)) return notasCordas.get(chave);
+    const sr = ac.sampleRate, f = hertz(nota), dur = Math.min(4.2, 1.2 + 260 / f), n = Math.floor(sr * dur);
+    const buf = ac.createBuffer(1, n, sr), d = buf.getChannelData(0);
+    const P = Math.max(2, Math.round(sr / f)), linha = new Float32Array(P);
+    let ultimo = 0;
+    for (let i = 0; i < P; i++) {
+      // Belisca a corda perto da ponta: o som ganha corpo e perde o ar de campainha.
+      ultimo += (Math.random() * 2 - 1 - ultimo) * brilho;
+      linha[i] = ultimo;
+    }
+    const perda = Math.min(.9985, .9925 + f / 90000);
+    let i0 = 0, ant = 0;
+    for (let i = 0; i < n; i++) {
+      const v = linha[i0];
+      linha[i0] = perda * .5 * (v + ant);
+      ant = v;
+      d[i] = v;
+      i0 = (i0 + 1) % P;
+    }
+    let pico = 0;
+    for (let i = 0; i < n; i++) pico = Math.max(pico, Math.abs(d[i]));
+    for (let i = 0; i < n; i++) d[i] /= pico || 1;
+    notasCordas.set(chave, buf);
+    return buf;
+  }
+
+  function corda(nota, t, vol, destino, { brilho = .6, tom = 2600, pan = 0 } = {}) {
+    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), caixa = ac.createBiquadFilter(), g = ac.createGain(), p = ac.createStereoPanner();
+    s.buffer = amostraCorda(nota, brilho);
+    f.type = 'lowpass'; f.frequency.value = tom;
+    // O corpo de madeira do instrumento.
+    caixa.type = 'peaking'; caixa.frequency.value = 280; caixa.Q.value = 1; caixa.gain.value = 5;
+    g.gain.value = vol;
+    p.pan.value = pan;
+    s.connect(f); f.connect(caixa); caixa.connect(g); g.connect(p); p.connect(destino);
+    s.start(t);
+  }
+
+  // Flauta de madeira: nasce devagar, treme um pouco, e leva o ar do sopro consigo.
+  function flauta(nota, t, dur, vol, destino) {
+    const fim = t + dur;
+    const o = ac.createOscillator(), o2 = ac.createOscillator(), g2 = ac.createGain(), g = ac.createGain(), f = ac.createBiquadFilter();
+    const trem = ac.createOscillator(), tremG = ac.createGain();
+    o.type = 'sine'; o2.type = 'triangle';
+    o.frequency.setValueAtTime(hertz(nota) * .992, t);
+    o.frequency.linearRampToValueAtTime(hertz(nota), t + .07);
+    o2.frequency.value = hertz(nota) * 2; g2.gain.value = .1;
+    trem.frequency.value = 4.6 + Math.random();
+    tremG.gain.setValueAtTime(0, t);
+    tremG.gain.linearRampToValueAtTime(hertz(nota) * .006, t + Math.min(.6, dur * .6));
+    trem.connect(tremG); tremG.connect(o.frequency);
+    f.type = 'lowpass'; f.frequency.value = 3200;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + .09);
+    g.gain.setValueAtTime(vol, Math.max(t + .1, fim - .14));
+    g.gain.linearRampToValueAtTime(0, fim);
+    o.connect(f); o2.connect(g2); g2.connect(f); f.connect(g); g.connect(destino);
+    [o, o2, trem].forEach(x => { x.start(t); x.stop(fim + .05); });
+    // O ar.
+    const ar = ac.createBufferSource(), arF = ac.createBiquadFilter(), arG = ac.createGain();
+    ar.buffer = ruido(); ar.loop = true;
+    arF.type = 'bandpass'; arF.frequency.value = hertz(nota) * 2; arF.Q.value = 3;
+    arG.gain.setValueAtTime(0, t);
+    arG.gain.linearRampToValueAtTime(vol * .35, t + .05);
+    arG.gain.linearRampToValueAtTime(vol * .12, t + .22);
+    arG.gain.linearRampToValueAtTime(0, fim);
+    ar.connect(arF); arF.connect(arG); arG.connect(destino);
+    ar.start(t, Math.random()); ar.stop(fim + .05);
+  }
+
+  let ruidoBuf = null;
+  function ruido() {
+    if (ruidoBuf) return ruidoBuf;
+    ruidoBuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+    const d = ruidoBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    return ruidoBuf;
+  }
+
+  // Um tambor de pele: pancada grave, com a palma da mão por cima.
+  function tambor(t, vol, destino) {
     const o = ac.createOscillator(), g = ac.createGain();
-    o.frequency.setValueAtTime(95, t);
-    o.frequency.exponentialRampToValueAtTime(42, t + .2);
+    o.frequency.setValueAtTime(128, t);
+    o.frequency.exponentialRampToValueAtTime(58, t + .13);
     g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(.001, t + .32);
-    o.connect(g); g.connect(saida);
-    o.start(t); o.stop(t + .36);
+    g.gain.exponentialRampToValueAtTime(.001, t + .42);
+    o.connect(g); g.connect(destino);
+    o.start(t); o.stop(t + .46);
+    const n = ac.createBufferSource(), f = ac.createBiquadFilter(), gn = ac.createGain();
+    n.buffer = ruido();
+    f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = .8;
+    gn.gain.setValueAtTime(vol * .32, t);
+    gn.gain.exponentialRampToValueAtTime(.001, t + .07);
+    n.connect(f); f.connect(gn); gn.connect(destino);
+    n.start(t, Math.random()); n.stop(t + .1);
   }
 
-  function pararBordao(fade = 1.2) {
-    const t = ac.currentTime;
-    bordao.forEach(({ o, g }) => {
-      g.gain.cancelScheduledValues(t);
-      g.gain.setValueAtTime(g.gain.value, t);
-      g.gain.linearRampToValueAtTime(0, t + fade);
-      o.stop(t + fade + .05);
+  // Violoncelos e coro: várias vozes quase iguais, que respiram devagar, e mudam com o acorde.
+  function acordeLongo(notas, t, dur, vol, destino, coro) {
+    notas.forEach((n, i) => {
+      [-7, 6].forEach(desvio => {
+        const o = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain();
+        o.type = coro ? 'triangle' : 'sawtooth';
+        o.frequency.value = hertz(n);
+        o.detune.value = desvio + Math.random() * 3;
+        f.type = coro ? 'bandpass' : 'lowpass';
+        f.frequency.setValueAtTime(coro ? 720 : 420, t);
+        f.frequency.linearRampToValueAtTime(coro ? 880 : 760, t + dur * .55);
+        f.frequency.linearRampToValueAtTime(coro ? 720 : 400, t + dur);
+        if (coro) f.Q.value = 1.4;
+        const v = vol / notas.length / (i ? 1.5 : 1);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(v, t + dur * .32);
+        g.gain.setValueAtTime(v, t + dur * .7);
+        g.gain.linearRampToValueAtTime(0, t + dur * 1.06);
+        o.connect(f); f.connect(g); g.connect(destino);
+        o.start(t); o.stop(t + dur * 1.1);
+      });
     });
-    bordao = [];
   }
 
-  function comecarBordao() {
-    const m = MODOS[atual], t = ac.currentTime;
-    pararBordao();
-    [m.raiz - 12, m.raiz - 5].forEach(n => {
-      const o = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain();
-      o.type = 'sawtooth';
-      o.frequency.value = hertz(n);
-      f.type = 'lowpass'; f.frequency.value = 340;
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(.055 * m.volume, t + 2);
-      o.connect(f); f.connect(g); g.connect(saida);
-      o.start(t);
-      bordao.push({ o, g });
-    });
+  // A forma da peça: cada letra é uma estrofe, e null é um compasso só de acorde, para respirar.
+  let letra = null, frase = [], fraseI = 0, resto = 0, acordeI = 0;
+  function novaSeccao(m) {
+    letra = m.forma[seccao % m.forma.length];
+    seccao++;
+    acordeI = 0; fraseI = 0; resto = 0;
+    const frases = letra ? m.frases[letra] : [];
+    frase = frases.length ? frases[Math.floor(Math.random() * frases.length)] : [];
   }
 
-  // Um compasso são oito passos. A melodia anda aos poucos pela escala, e muitas vezes cala-se.
-  function tocarPasso(t, dur) {
-    const m = MODOS[atual], p = passo % 8, compasso = Math.floor(passo / 8);
-    const acorde = m.raiz + m.acordes[compasso % m.acordes.length];
-    if (p === 0) corda(acorde, t, dur * 7, .17 * m.volume);
-    if (p === 4) corda(acorde + 7, t, dur * 5, .1 * m.volume);
-    if (m.tambor[p]) tambor(t, (p === 0 ? .42 : .28) * m.volume);
-    if (Math.random() < m.silencio) return;
-    grau = Math.max(0, Math.min(m.escala.length * 2 - 1, grau + [-2, -1, -1, 1, 1, 2][Math.floor(Math.random() * 6)]));
-    const oitava = Math.floor(grau / m.escala.length);
-    corda(m.raiz + 12 + m.escala[grau % m.escala.length] + oitava * 12, t, dur * 5, .1 * m.volume);
+  function tocarColcheia(t, colcheia) {
+    const m = MODOS[atual], g = grupos[atual];
+    const p = passo % m.compasso;
+    if (p === 0 && (!letra || acordeI >= m.acordes[letra].length)) novaSeccao(m);
+    if (!letra) {
+      if (p === 0) {
+        acordeLongo([m.raiz - 12, m.raiz - 5, m.raiz], t, colcheia * m.compasso * 2, .1 * m.volume, g.seco, false);
+        corda(m.raiz + 12, t, .22 * m.volume, g.harpa, { brilho: .45, tom: 2000 });
+      }
+      passo++;
+      return;
+    }
+
+    const lista = m.acordes[letra];
+    const ac0 = lista[acordeI % lista.length];
+    if (p === 0) {
+      if (m.cordasGraves) acordeLongo([m.raiz + ac0[0] - 12, m.raiz + ac0[1] - 12, m.raiz + ac0[2]], t, colcheia * m.compasso, .17 * m.volume, g.seco, !!m.coro);
+      if (m.coro) acordeLongo([m.raiz + ac0[0] + 12, m.raiz + ac0[1] + 12, m.raiz + ac0[3] + 12], t, colcheia * m.compasso, .09 * m.volume, g.seco, true);
+    }
+    // O arpejo, com o dedo nunca exatamente no mesmo sítio.
+    const graus = ac0, idx = m.arpejo[p % m.arpejo.length];
+    const folga = (Math.random() - .5) * .018;
+    corda(m.raiz + graus[idx], t + Math.max(0, folga), quase((p === 0 ? .4 : .27) * m.harpa * m.volume), g.harpa, { brilho: .55, tom: p === 0 ? 3000 : 2300, pan: (idx - 1.5) * .22 });
+    if (m.tambor && m.tambor[p]) tambor(t + Math.max(0, folga * .5), quase(.5 * m.tambor[p] * m.volume), g.seco);
+
+    // A melodia corre ao seu próprio ritmo, independentemente do compasso.
+    if (resto <= 0 && fraseI < frase.length) {
+      const [nota, dur] = frase[fraseI];
+      fraseI++;
+      resto = dur;
+      if (nota !== null) {
+        const n = m.raiz + nota + 12;
+        if (m.flauta) flauta(n, t + Math.max(0, folga), colcheia * dur * .96, quase(.16 * m.volume), g.flauta);
+        else corda(n, t, quase(.42 * m.volume), g.harpa, { brilho: .75, tom: 3600, pan: .1 });
+      }
+    }
+    resto--;
+    if (p === m.compasso - 1) acordeI++;
+    passo++;
   }
 
   function agendar() {
     if (!ligada || !ac) return;
-    const dur = 60 / MODOS[atual].bpm / 2;
+    const colcheia = 60 / MODOS[atual].bpm / 2;
     if (proxima < ac.currentTime) proxima = ac.currentTime + .05;
-    while (proxima < ac.currentTime + .5) {
-      tocarPasso(proxima, dur);
-      proxima += dur;
-      passo++;
+    while (proxima < ac.currentTime + .6) {
+      tocarColcheia(proxima, colcheia);
+      proxima += colcheia;
     }
   }
 
@@ -90,18 +262,37 @@ const musica = (() => {
     if (ac) return;
     try {
       ac = new (window.AudioContext || window.webkitAudioContext)();
-      const filtro = ac.createBiquadFilter(), eco = ac.createDelay(1), volta = ac.createGain();
       saida = ac.createGain();
+      saida.gain.value = .5;
       medidor = ac.createAnalyser();
       medidor.fftSize = 2048;
-      filtro.type = 'lowpass'; filtro.frequency.value = 2400;
-      eco.delayTime.value = .34; volta.gain.value = .26;
-      saida.gain.value = .42;
-      saida.connect(filtro);
-      filtro.connect(medidor);
-      filtro.connect(eco); eco.connect(volta); volta.connect(eco); volta.connect(medidor);
+      const compressor = ac.createDynamicsCompressor();
+      compressor.threshold.value = -16; compressor.ratio.value = 3; compressor.attack.value = .01; compressor.release.value = .3;
+      sala = criarSala();
+      const molhado = ac.createGain();
+      molhado.gain.value = .9;
+      sala.connect(molhado); molhado.connect(compressor);
+      saida.connect(compressor);
+      compressor.connect(medidor);
       medidor.connect(ac.destination);
+      Object.keys(MODOS).forEach(k => {
+        const mestre = ac.createGain();
+        mestre.gain.value = k === atual ? 1 : 0;
+        mestre.connect(saida);
+        // Cada instrumento vai à sala em quantidade diferente: a flauta fica longe, o tambor fica perto.
+        const via = envio => {
+          const g = ac.createGain(), e = ac.createGain();
+          e.gain.value = envio;
+          g.connect(mestre); g.connect(e); e.connect(sala);
+          return g;
+        };
+        grupos[k] = { mestre, harpa: via(.3), flauta: via(.55), seco: via(.18) };
+      });
     } catch (e) { ac = null; }
+  }
+
+  function recomecar() {
+    passo = 0; seccao = 0; letra = null; acordeI = 0; frase = []; fraseI = 0; resto = 0;
   }
 
   return {
@@ -110,19 +301,28 @@ const musica = (() => {
       iniciar();
       if (!ac) return;
       ac.resume();
-      if (ligada && !relogio) { comecarBordao(); relogio = setInterval(agendar, 120); }
+      if (ligada && !relogio) relogio = setInterval(agendar, 120);
     },
+    // Ao mudar de momento, a música anterior desvanece enquanto a nova entra.
     modo(nome) {
       if (nome === atual) return;
+      const antes = atual;
       atual = nome;
-      passo = 0;
-      if (ac && ligada) comecarBordao();
+      recomecar();
+      if (!ac) return;
+      const t = ac.currentTime;
+      grupos[antes].mestre.gain.cancelScheduledValues(t);
+      grupos[antes].mestre.gain.setTargetAtTime(0, t, .5);
+      grupos[nome].mestre.gain.cancelScheduledValues(t);
+      grupos[nome].mestre.gain.setTargetAtTime(1, t, .25);
+      proxima = t + .1;
     },
     alternar() {
       ligada = !ligada;
       if (ac) {
-        if (ligada) { comecarBordao(); if (!relogio) relogio = setInterval(agendar, 120); }
-        else { pararBordao(.4); clearInterval(relogio); relogio = null; }
+        saida.gain.setTargetAtTime(ligada ? .5 : 0, ac.currentTime, .15);
+        if (ligada) { proxima = 0; if (!relogio) relogio = setInterval(agendar, 120); }
+        else { clearInterval(relogio); relogio = null; }
       }
       return ligada;
     },

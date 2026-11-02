@@ -1,5 +1,5 @@
 // A história do jogo. Este é o ficheiro onde entra o conteúdo criativo: nomes, lugares e cenas.
-// {cidade}, {vilao}, {reliquia}, {refem}, {motivo}, {proximo} e {destino} são preenchidos em cada partida.
+// {cidade}, {vilao}, {reliquia}, {refem}, {motivo}, {proximo}, {pista} e {destino} são preenchidos em cada partida.
 //
 // Cada opção: t (título), d (descrição), tipo (combate, social, habilidade, investigacao),
 // req (cls, raca, bg, item), roll { a: atributo, dc, pv: resistência do inimigo }, ok e ko { txt, fx }.
@@ -222,14 +222,6 @@ let GANCHOS = {
 };
 
 // Procurar outra vez, antes de partir.
-const CENA_PISTA = {
-  titulo: 'Ao Encalço',
-  texto: 'Mais um dia neste lugar, a voltar aos mesmos sítios e às mesmas perguntas. O rasto ainda aqui está, mas cada hora o deixa mais frio.',
-  opcoes: [
-    { t: 'Desistir por agora', d: 'Há outras estradas, e o tempo não volta.', ok: { txt: 'Arruma as coisas. O dia não foi de todo perdido.', fx: {} } },
-  ],
-};
-
 // ---------- Encontros por terreno ----------
 
 let ENCONTROS = [
