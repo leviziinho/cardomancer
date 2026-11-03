@@ -90,9 +90,23 @@ const DESCONTO_SECRETO = .7;
 
 // Combate: à vez. O seu d20 contra a CA dele, e o d20 dele contra a sua CA.
 // CA do herói: base + metade da Agilidade + armadura. Ataque do inimigo: CA dele - ataqueMenos.
-const COMBATE = { escalaPv: 1, caBase: 10, ataqueMenos: 10, danoMenos: 0, xpVitoria: 3, vilao: { ca: 12, ataque: 3, dado: 'd8', pvBase: 10, pvNivel: 4, folego: .5 } };
-// A cada nível o mundo aperta: mais PV nos inimigos e, a cada três níveis, +1 nos testes, na CA, no ataque e no dano.
-const SUBIDA = { pvPorNivel: 0.1, niveisPorPonto: 3 };
+const COMBATE = { escalaPv: 1, caBase: 10, ataqueMenos: 10, danoMenos: 0, xpVitoria: 3, vilao: { ca: 12, ataque: 3, dado: 'd8', pv: 22, folego: .5 } };
+// O jeito de lutar de cada inimigo comum. Sai do nome dele: o primeiro jeito cuja busca servir é o que conta
+// (uma opção de combate pode escolher outro com roll.jeito). Quem não servir em nenhum luta sem truques.
+const JEITOS = {
+  fera: { nome: 'Fera', curto: 'recua ao acertar', d: 'ataca e recua: depois de acertar, tem CA +2 até à vez seguinte dele', busca: /lob|pantera|urso|javali|fera/i },
+  bruto: { nome: 'Bruto', curto: 'golpe a dobrar', d: 'prepara o golpe uma ronda antes, e esse golpe fere a dobrar', busca: /ogro|brutamontes|krusk|grumm|gigante|troll/i },
+  morto: { nome: 'Morto-vivo', curto: 'levanta-se uma vez', d: 'a primeira vez que cai, levanta-se com um quarto dos PV', busca: /mort|esquelet|cripta|demónio/i },
+  bruxa: { nome: 'Feitiço', curto: 'amaldiçoa', d: 'ronda sim, ronda não, amaldiçoa em vez de atacar: -2 Vida e -2 no seu próximo teste', busca: /velha|bruxa|feiticeir|profet/i },
+  ladrao: { nome: 'Ladrão', curto: 'rouba Ouro', d: 'quando acerta, rouba 2 de Ouro', busca: /goblin|bandid|capanga|ladr|cicatriz/i },
+  duelista: { nome: 'Duelista', curto: 'castiga as falhas', d: 'quando o seu ataque falha, responde logo com um golpe rápido (-2 no ataque)', busca: /simony|desertor|duel|espadachim/i },
+  soldado: { nome: 'Soldado', curto: 'apara o 1.º golpe', d: 'escudo erguido: o primeiro golpe seu que acertar tira só metade', busca: /soldad|patrulha|vigia|guarda|imperia/i },
+  bando: { nome: 'Bando', curto: 'ataca duas vezes', d: 'são muitos: atacam duas vezes por ronda até perderem metade dos PV', busca: /^(os|as) /i },
+};
+
+// O mundo aperta a cada etapa da história, não a cada nível do herói: assim, subir de nível sente-se.
+// Por etapa (0 a 3, a última é a do chefe): PV a mais nos inimigos, e +1 nos testes, na CA, no ataque e no dano.
+const SUBIDA = { pvPorEtapa: [0, .1, .2, .3], maisPorEtapa: [0, 0, 0, 1] };
 
 // A Vida é o outro relógio do jogo: poupar tempo gasta Vida, e recuperar Vida gasta tempo.
 const VIDA = { falha: 1.5, marcha: 2, acampar: .35, emboscadaAcampar: 20 };

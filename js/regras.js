@@ -378,8 +378,9 @@ function cartaRara(req) {
 
 // Monta a mão de cartas de uma cena.
 // Quanto o mundo apertou com o nível do herói.
-const subidaNivel = () => Math.floor((G.nivel - 1) / SUBIDA.niveisPorPonto);
-const pvDoInimigo = o => Math.ceil(o.roll.pv * COMBATE.escalaPv * (1 + SUBIDA.pvPorNivel * (G.nivel - 1)));
+const etapaDoMundo = () => Math.min(G.fio, SUBIDA.maisPorEtapa.length - 1);
+const subidaNivel = () => SUBIDA.maisPorEtapa[etapaDoMundo()];
+const pvDoInimigo = o => Math.ceil(o.roll.pv * COMBATE.escalaPv * (1 + SUBIDA.pvPorEtapa[etapaDoMundo()]));
 
 function opcoesDaCena(cena) {
   // As dicas que ouviu pelo caminho facilitam a etapa seguinte.
@@ -457,6 +458,8 @@ function resolverTeste(o) {
 
 // ---------- Combate ----------
 
+const jeitoDe = nome => Object.keys(JEITOS).find(k => JEITOS[k].busca.test(nome)) || null;
+
 // O inimigo que uma opção de combate põe à frente do jogador.
 function inimigoDe(o, cena) {
   const golpeBase = o.ko && o.ko.fx && o.ko.fx.vida ? -o.ko.fx.vida : 3;
@@ -470,6 +473,7 @@ function inimigoDe(o, cena) {
     mais: subidaNivel(),
     agi: dc - 11,
     primeiro: o.roll.primeiro || null,
+    jeito: o.roll.jeito || jeitoDe(fmt(o.roll.ini || cena.titulo)),
   };
 }
 
@@ -480,7 +484,7 @@ function chefeFinal() {
   // Cada pista completa é uma fraqueza que se leva para a última porta.
   const sabe = G.diario.map(d => FRAQUEZAS[d.fraqueza]);
   const soma = campo => sabe.reduce((t, f) => t + (f[campo] || 0), 0);
-  const pv = Math.ceil((COMBATE.vilao.pvBase + COMBATE.vilao.pvNivel * G.nivel) * (1 - soma('pv')));
+  const pv = Math.ceil(COMBATE.vilao.pv * (1 - soma('pv')));
   const ca = Math.max(7, COMBATE.vilao.ca + subidaNivel() - trunfos - soma('ca'));
   return {
     nome: fmt('{vilao}').replace(/^./, m => m.toUpperCase()),

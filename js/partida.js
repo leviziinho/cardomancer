@@ -294,11 +294,14 @@ async function ataqueInimigo(ui, ini, est) {
     return `${ini.nome} recua e fecha-se na defesa.`;
   }
   // Com aliados ao lado, nem sempre é o herói o alvo.
+  // O golpe preparado do bruto vai sempre para o herói.
   const lado = vivos(est);
-  if (golpe.id !== 'certeiro' && lado.length && Math.random() < .35) return feridoAliado(ui, ini, est, umDe(lado));
+  if (golpe.id !== 'certeiro' && !est.preparado && lado.length && Math.random() < .35) return feridoAliado(ui, ini, est, umDe(lado));
   if (est.escudo) {
     est.escudo = false;
-    return fmt(`O escudo aguenta o golpe de ${ini.nome}.`);
+    const eraPreparado = est.preparado;
+    est.preparado = false;
+    return fmt(eraPreparado ? `O escudo aguenta o golpe terrível de ${ini.nome}.` : `O escudo aguenta o golpe de ${ini.nome}.`);
   }
   if (golpe.id === 'certeiro') {
     const dano = Math.max(1, Math.ceil(dado(parseInt(ini.dado.slice(1), 10)) / 2) + (ini.mais || 0));
@@ -309,20 +312,31 @@ async function ataqueInimigo(ui, ini, est) {
     return `${ini.nome} atinge-o sem falhar, e tira-lhe ${dano} de Vida.`;
   }
   const r = ataqueDoInimigo(ini, est.exposto, caEmCombate(est));
+  const pesado = est.preparado;
+  est.preparado = false;
+  if (pesado && r.acerta) r.dano *= 2;
   est.guarda = false;
   const estava = est.exposto;
   est.exposto = false;
   const lista = [{ tipo: 'd20i', face: r.d20 - 1 }];
   if (r.rolado) lista.push({ tipo: ini.dado, face: r.rolado - 1 });
   await ui.dados(lista);
-  await ui.resultado(`${ini.nome}${golpe.nota ? ` ${golpe.t}` : ''}: d20 ${r.d20} ${sinal(ini.ataque)} = ${r.total}, contra a sua CA ${r.ca}: ${r.acerta ? `acerta, -${r.dano} Vida` : 'falha'}`, !r.acerta);
-  if (!r.acerta) return `${ini.nome} ataca, e falha.`;
+  await ui.resultado(`${ini.nome}${golpe.nota ? ` ${golpe.t}` : pesado ? ', golpe a dobrar' : ''}: d20 ${r.d20} ${sinal(ini.ataque)} = ${r.total}, contra a sua CA ${r.ca}: ${r.acerta ? `acerta, -${r.dano} Vida` : 'falha'}`, !r.acerta);
+  if (!r.acerta) return pesado ? `${ini.nome} descarrega o golpe preparado, e falha.` : `${ini.nome} ataca, e falha.`;
   await aplicar(ui, { vida: -r.dano });
   ui.som('golpe');
   est.rodape = [est.rodape, `-${r.dano} Vida`].filter(Boolean).join('  ·  ');
   let extra = '';
   if (golpe.id === 'quebra') { est.caMenos = Math.min(4, est.caMenos + 2); extra = ` A sua guarda abre-se: CA ${caEmCombate(est)}.`; }
   if (golpe.id === 'corta') { est.danoMenos = 2; extra = ' O braço da arma fica dormente: o seu dano desce 2 por duas rondas.'; }
+  if (ini.jeito === 'fera' && !est.recuo) { est.recuo = 2; ini.defesa += 2; extra += ` Recua logo, fora de alcance: CA ${ini.defesa}.`; }
+  if (ini.jeito === 'ladrao' && G.ouro > 0) {
+    const leva = Math.min(2, G.ouro);
+    G.ouro -= leva;
+    ui.sync();
+    est.rodape = [est.rodape, `-${leva} Ouro`].filter(Boolean).join('  ·  ');
+    extra += ` E leva-lhe ${leva} de Ouro da bolsa.`;
+  }
   return `${r.critico ? 'Um golpe terrível! ' : estava ? 'Apanha-o exposto. ' : ''}${ini.nome} acerta-lhe, e tira-lhe ${r.dano} de Vida.${extra}`;
 }
 
@@ -343,10 +357,33 @@ async function efeitoDoChefe(ui, ini, est) {
 // A vez do inimigo. O chefe tem duas ações: primeiro o efeito, depois o ataque.
 async function turnoInimigo(ui, ini, est) {
   if (est.guardaChefe) { ini.defesa -= est.guardaChefe; est.guardaChefe = 0; }
+  if (est.recuo) { ini.defesa -= est.recuo; est.recuo = 0; }
   if (est.calado) { est.calado = false; return `${ini.nome} hesita, e perde a vez.`; }
+  est.vez = (est.vez || 0) + 1;
+  // O bruto prepara o golpe na primeira vez dele, e depois a cada três.
+  if (ini.jeito === 'bruto' && est.vez % 3 === 1) {
+    est.preparado = true;
+    await ui.resultado(`${ini.nome} ergue a arma devagar: o próximo golpe dele fere a dobrar`, false);
+    est.rodape = [est.rodape, 'Golpe a dobrar na vez seguinte'].filter(Boolean).join('  ·  ');
+    return `${ini.nome} ergue a arma devagar, e prepara um golpe terrível. É agora ou nunca para se proteger.`;
+  }
+  // A bruxa amaldiçoa ronda sim, ronda não.
+  if (ini.jeito === 'bruxa' && est.vez % 2 === 0) {
+    est.fraco = 2;
+    await ui.resultado(`${ini.nome} amaldiçoa-o: -2 Vida e -2 no seu próximo teste`, false);
+    await aplicar(ui, { vida: -2 });
+    est.rodape = [est.rodape, '-2 Vida', '-2 no próximo teste'].filter(Boolean).join('  ·  ');
+    return `${ini.nome} murmura uma maldição, e o seu braço fica pesado.`;
+  }
   const frases = [];
   if (ini.efeitos) frases.push(await efeitoDoChefe(ui, ini, est));
   if (G.vida > 0) frases.push(await ataqueInimigo(ui, ini, est));
+  // O bando ataca outra vez, mais fraco, enquanto tiver mais de metade dos PV.
+  if (ini.jeito === 'bando' && ini.pv > ini.pvMax / 2 && G.vida > 0) {
+    ini.ataque -= 2;
+    frases.push(`E outro, ao lado: ${await ataqueInimigo(ui, ini, est)}`);
+    ini.ataque += 2;
+  }
   return frases.join(' ');
 }
 
@@ -380,7 +417,9 @@ async function turnoAliados(ui, ini, est) {
 
 // Combate à vez, com um d20 para cada lado. Devolve 'vitoria', 'fuga' ou 'morte'.
 async function combate(ui, ini, arte) {
-  const usadas = new Set(), est = { escudo: false, exposto: false, rodape: ini.sabe || '', fraco: 0, calado: !!ini.calado, caMenos: 0, danoMenos: 0, guarda: false, guardaChefe: 0 };
+  const usadas = new Set(), est = { escudo: false, exposto: false, rodape: ini.sabe || '', fraco: 0, calado: !!ini.calado, caMenos: 0, danoMenos: 0, guarda: false, guardaChefe: 0,
+    recuo: 0, preparado: false, escudoIni: ini.jeito === 'soldado', levantou: false };
+  const jeito = ini.jeito ? JEITOS[ini.jeito] : null;
   // Os aliados entram de Vida cheia em cada combate.
   est.aliados = G.aliados.map(id => ({ ...fichaAliado(id), pvMax: fichaAliado(id).pv }));
   let ronda = 1;
@@ -402,8 +441,18 @@ async function combate(ui, ini, arte) {
   const plural = /^(Os|As) /.test(ini.nome);
   const quemComeca = primeiro ? 'É mais rápido, e joga primeiro.' : `É mais lento, e ${plural ? 'eles jogam' : 'ele joga'} primeiro.`;
   let texto = ini.abertura ? fmt(`${ini.abertura} ${quemComeca}`) : `${ini.nome} não o ${plural ? 'deixam' : 'deixa'} passar. Joga-se à vez: cada um rola o d20 contra a armadura do outro. ${quemComeca}`;
+  if (jeito) texto += ` ${jeito.nome}: ${jeito.d}.`;
+  // Um morto-vivo cai a primeira vez, e levanta-se.
+  const levanta = () => {
+    if (ini.jeito !== 'morto' || est.levantou) return false;
+    est.levantou = true;
+    ini.pv = Math.ceil(ini.pvMax / 4);
+    texto += ` ${ini.nome} cai, mas volta a levantar-se com ${ini.pv} PV.`;
+    return true;
+  };
   const pagina = () => ui.livro({
-    capitulo: `${ini.capitulo || 'Combate'}  ·  Ronda ${ronda}`, titulo: ini.nome, arte, texto, rodape: [est.rodape, notaAliados(est)].filter(Boolean).join('  ·  '),
+    capitulo: `${ini.capitulo || 'Combate'}  ·  Ronda ${ronda}`, titulo: ini.nome, arte, texto,
+    rodape: [jeito ? `${jeito.nome}: ${jeito.curto}` : '', est.rodape, notaAliados(est)].filter(Boolean).join('  ·  '),
     combate: { nome: ini.nome, pv: Math.max(0, ini.pv), pvMax: ini.pvMax, ataque: ini.ataque, dado: dadoDoInimigo(ini), defesa: ini.defesa, vida: G.vida, vidaMax: vidaMax(), ca: caEmCombate(est), escudo: est.escudo },
   });
   if (!primeiro) {
@@ -451,9 +500,12 @@ async function combate(ui, ini, arte) {
           ini.defesa = Math.max(6, ini.defesa - m.enfraquece);
           texto = `${o.t}: a CA de ${ini.nome} desce para ${ini.defesa}.`;
         } else {
-          ini.pv -= r.dano;
+          let dano = r.dano, aparou = '';
+          if (est.escudoIni) { est.escudoIni = false; dano = Math.ceil(dano / 2); aparou = ' O escudo dele apara metade.'; }
+          ini.pv -= dano;
           const frase = ini.frases && m.id && m.id.startsWith('f_') ? `${fmt(ini.frases[o.tipo])} ` : '';
-          texto = `${r.critico ? 'Um golpe perfeito! ' : ''}${frase}${o.t}: tira ${r.dano} de PV.${ini.pv > 0 ? '' : ' Não volta a levantar-se.'}`;
+          const vaiLevantar = ini.jeito === 'morto' && !est.levantou;
+          texto = `${r.critico ? 'Um golpe perfeito! ' : ''}${frase}${o.t}: tira ${dano} de PV.${aparou}${ini.pv > 0 || vaiLevantar ? '' : ' Não volta a levantar-se.'}`;
           if (m.enfraqueceJunto) ini.defesa = Math.max(6, ini.defesa - m.enfraqueceJunto);
           const cura = (m.curaJunto || 0) + (o.usaArma ? somaMelhorias('sede') : 0);
           if (cura) {
@@ -464,13 +516,20 @@ async function combate(ui, ini, arte) {
       } else {
         est.exposto = !!r.falhaCritica;
         texto = o.fugir || m.fuga ? 'Tenta fugir, e não consegue.' : r.falhaCritica ? 'Um erro terrível, e fica exposto: o próximo ataque dele acerta de certeza.' : `${o.t}: falha.`;
+        // O duelista castiga um ataque falhado com um golpe logo a seguir.
+        if (ini.jeito === 'duelista' && o.roll && !o.fugir && !m.fuga) {
+          ini.ataque -= 2;
+          texto += ` ${ini.nome} vê a abertura e responde logo: ${await ataqueInimigo(ui, ini, est)}`;
+          ini.ataque += 2;
+          if (G.vida <= 0) return fim('morte');
+        }
       }
     }
     // Quem cai não responde, e o golpe final conta-se na página do resultado.
-    if (ini.pv <= 0) { ini.ultimoGolpe = texto; return fim('vitoria'); }
+    if (ini.pv <= 0 && !levanta()) { ini.ultimoGolpe = texto; return fim('vitoria'); }
     if (vivos(est).length) {
       texto = `${texto} ${await turnoAliados(ui, ini, est)}`;
-      if (ini.pv <= 0) { ini.ultimoGolpe = texto; return fim('vitoria'); }
+      if (ini.pv <= 0 && !levanta()) { ini.ultimoGolpe = texto; return fim('vitoria'); }
     }
     {
       const resposta = await turnoInimigo(ui, ini, est);
