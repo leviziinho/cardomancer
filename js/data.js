@@ -49,13 +49,13 @@ const RACAS = {
 const ITENS = {
   adaga: { nome: 'Adaga Curva', slot: 'arma', preco: 8, dado: 'd6', a: 'agilidade', attrs: { agilidade: 1 }, glyph: 'dagger', desc: 'Ataca com Agilidade. Dado d6, +1 Agilidade.' },
   cajado: { nome: 'Cajado de Freixo', slot: 'arma', preco: 8, dado: 'd6', a: 'mente', attrs: { mente: 1 }, glyph: 'star', desc: 'Ataca com Mente. Dado d6, +1 Mente.' },
-  espada: { nome: 'Espada de Família', slot: 'arma', preco: 12, dado: 'd8', a: 'forca', glyph: 'sword', desc: 'Ataca com Força. Velha, mas de confiança. Dado d8.' },
-  rapieira: { nome: 'Rapieira de Duelo', slot: 'arma', preco: 16, dado: 'd8', a: 'agilidade', attrs: { carisma: 1 }, glyph: 'sword', desc: 'Ataca com Agilidade. Dado d8, +1 Carisma.' },
-  arco: { nome: 'Arco de Teixo', slot: 'arma', preco: 16, dado: 'd8', a: 'agilidade', attrs: { agilidade: 1 }, glyph: 'bow', desc: 'Ataca com Agilidade. Dado d8, +1 Agilidade.' },
-  machado: { nome: 'Machado de Guerra', slot: 'arma', preco: 18, dado: 'd10', a: 'forca', glyph: 'axe', desc: 'Ataca com Força. Pesado e pouco diplomático. Dado d10.' },
-  montante: { nome: 'Montante', slot: 'arma', preco: 26, dado: 'd12', a: 'forca', attrs: { agilidade: -1 }, glyph: 'sword', desc: 'Ataca com Força. Dado d12, -1 Agilidade.' },
-  gibao: { nome: 'Gibão de Couro', slot: 'armadura', preco: 8, ca: 2, glyph: 'shield', desc: 'Protege o suficiente. +2 CA.' },
-  cota: { nome: 'Cota de Malha', slot: 'armadura', preco: 18, ca: 4, attrs: { agilidade: -1 }, glyph: 'shield', desc: 'Pesa, mas segura. +4 CA, -1 Agilidade.' },
+  espada: { nome: 'Espada de Família', slot: 'arma', perfil: 'marcial', preco: 12, dado: 'd8', a: 'forca', glyph: 'sword', desc: 'Ataca com Força. Velha, mas de confiança. Dado d8.' },
+  rapieira: { nome: 'Rapieira de Duelo', slot: 'arma', perfil: 'fina', preco: 16, dado: 'd8', a: 'agilidade', attrs: { carisma: 1 }, glyph: 'sword', desc: 'Ataca com Agilidade. Dado d8, +1 Carisma.' },
+  arco: { nome: 'Arco de Teixo', slot: 'arma', perfil: 'arco', preco: 16, dado: 'd8', a: 'agilidade', attrs: { agilidade: 1 }, glyph: 'bow', desc: 'Ataca com Agilidade. Dado d8, +1 Agilidade.' },
+  machado: { nome: 'Machado de Guerra', slot: 'arma', perfil: 'pesada', preco: 18, dado: 'd10', a: 'forca', glyph: 'axe', desc: 'Ataca com Força. Pesado e pouco diplomático. Dado d10.' },
+  montante: { nome: 'Montante', slot: 'arma', perfil: 'pesada', preco: 26, dado: 'd12', a: 'forca', attrs: { agilidade: -1 }, glyph: 'sword', desc: 'Ataca com Força. Dado d12, -1 Agilidade.' },
+  gibao: { nome: 'Gibão de Couro', slot: 'armadura', perfil: 'couro', preco: 8, ca: 2, glyph: 'shield', desc: 'Protege o suficiente. +2 CA.' },
+  cota: { nome: 'Cota de Malha', slot: 'armadura', perfil: 'malha', preco: 18, ca: 4, attrs: { agilidade: -1 }, glyph: 'shield', desc: 'Pesa, mas segura. +4 CA, -1 Agilidade.' },
   capa: { nome: 'Capa Cinzenta', slot: 'armadura', preco: 12, ca: 1, attrs: { agilidade: 1 }, glyph: 'feather', desc: 'Confunde-se com a noite. +1 CA, +1 Agilidade.' },
   manto: { nome: 'Manto do Escriba', slot: 'armadura', preco: 12, ca: 1, attrs: { mente: 1 }, glyph: 'scroll', desc: 'Bolsos para tudo e cheiro a tinta. +1 CA, +1 Mente.' },
   amuleto: { nome: 'Amuleto de Prata', slot: 'acessorio', preco: 10, glyph: 'seal', desc: 'Os mortos-vivos hesitam diante dele.' },
@@ -67,6 +67,20 @@ const ITENS = {
   lanterna: { nome: 'Lanterna Furta-Fogo', slot: 'mochila', preco: 5, glyph: 'flame', desc: 'Luz que só aponta para onde você quer.' },
 };
 const MOCHILA_MAX = 3;
+// Que armas e armaduras cada classe sabe usar. O que não tem 'perfil' (adaga, cajado, capas, mantos, acessórios) serve a todos.
+const PERFIS = {
+  barbaro: ['marcial', 'pesada', 'couro', 'malha'],
+  guerreiro: ['marcial', 'fina', 'arco', 'pesada', 'couro', 'malha', 'placas'],
+  patrulheiro: ['marcial', 'fina', 'arco', 'couro', 'malha'],
+  ladino: ['fina', 'arco', 'couro'],
+  bardo: ['fina', 'magica', 'couro'],
+  clerigo: ['marcial', 'magica', 'couro', 'malha', 'placas'],
+  druida: ['magica', 'couro'],
+  mago: ['magica'],
+  feiticeiro: ['magica'],
+  monge: [],
+};
+
 const ARMA_NUA = { nome: 'Punhos', dado: 'd6', a: 'forca' };
 
 // Melhorias que o ferreiro ou o mercador secreto fazem. Cada objeto leva duas, no máximo.

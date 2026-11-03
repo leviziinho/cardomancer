@@ -354,9 +354,17 @@ function createWorld(canvasEl) {
       flip.visible = false;
       oldL && oldL.dispose(); oldR && oldR.dispose();
     }
+    // A mesma página com outros números: sem virar a folha.
+    async function refaz(pages) {
+      if (!aberto) return vira(pages);
+      const oldL = left.material.map, oldR = right.material.map;
+      poe(left, tex.leftPage(pages)); poe(right, tex.rightPage(pages));
+      oldL && oldL.dispose(); oldR && oldR.dispose();
+    }
     return {
       group: g, linkAt, rightSurface: right, luzDasPaginas, luz,
       turn: pages => emFila(() => vira(pages)),
+      refaz: pages => emFila(() => refaz(pages)),
       fechar: () => emFila(fechar),
       abrir: () => emFila(abrir),
       get aberto() { return aberto; },

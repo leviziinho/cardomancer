@@ -24,10 +24,10 @@ Object.assign(CARTAS_UNICAS.bg, {
 });
 
 Object.assign(ITENS, {
-  mn_machado: { nome: 'Machado de Trunfisk', mundo: 'madeira', slot: 'arma', preco: 20, dado: 'd10', a: 'forca', attrs: { agilidade: -1 }, glyph: 'axe', desc: 'Ataca com Força. Foi feito para um braço maior do que o seu. Dado d10, -1 Agilidade.' },
-  mn_arco: { nome: 'Arco de Karpulsa', mundo: 'madeira', slot: 'arma', preco: 18, dado: 'd8', a: 'agilidade', attrs: { mente: 1 }, glyph: 'bow', desc: 'Ataca com Agilidade. Madeira que ainda cresce quando chove. Dado d8, +1 Mente.' },
+  mn_machado: { nome: 'Machado de Trunfisk', mundo: 'madeira', slot: 'arma', perfil: 'pesada', preco: 20, dado: 'd10', a: 'forca', attrs: { agilidade: -1 }, glyph: 'axe', desc: 'Ataca com Força. Foi feito para um braço maior do que o seu. Dado d10, -1 Agilidade.' },
+  mn_arco: { nome: 'Arco de Karpulsa', mundo: 'madeira', slot: 'arma', perfil: 'arco', preco: 18, dado: 'd8', a: 'agilidade', attrs: { mente: 1 }, glyph: 'bow', desc: 'Ataca com Agilidade. Madeira que ainda cresce quando chove. Dado d8, +1 Mente.' },
   mn_faixa: { nome: 'Faixa dos Punhos', mundo: 'madeira', slot: 'armadura', preco: 15, ca: 1, attrs: { agilidade: 1, forca: 1 }, glyph: 'fist', desc: 'Vermelha, e dada só a quem passou o Santuário. +1 CA, +1 Agilidade, +1 Força.' },
-  mn_peitoral: { nome: 'Peitoral de Agalor', mundo: 'madeira', slot: 'armadura', preco: 24, ca: 4, attrs: { agilidade: -1 }, glyph: 'shield', desc: 'Com o sol dos Raizobak gravado no peito. +4 CA, -1 Agilidade.' },
+  mn_peitoral: { nome: 'Peitoral de Agalor', mundo: 'madeira', slot: 'armadura', perfil: 'malha', preco: 24, ca: 4, attrs: { agilidade: -1 }, glyph: 'shield', desc: 'Com o sol dos Raizobak gravado no peito. +4 CA, -1 Agilidade.' },
   mn_folha: { nome: 'Folha da Uillyh', mundo: 'madeira', slot: 'acessorio', preco: 15, attrs: { mente: 1, carisma: 1 }, glyph: 'leaf', desc: 'Negra, e nunca seca. Os halflings dão-nas a quem nasce. +1 Mente, +1 Carisma.' },
 });
 

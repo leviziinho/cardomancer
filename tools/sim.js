@@ -75,7 +75,7 @@ function uiFalso(estilo) {
   };
   let visitasCidade = 0;
   return {
-    som() {}, prompt() {}, async aviso() {}, async anuncio() {}, async resultado() {}, async dados() {}, async critico() {}, async pista() {}, pino() {}, async fecharLivro() {}, async evoluir() {}, mundo() {}, async meioCaminho() {}, async chegar() {},
+    som() {}, prompt() {}, async aviso() {}, async anuncio() {}, async refrescar() {}, async resultado() {}, async dados() {}, async critico() {}, async pista() {}, pino() {}, async fecharLivro() {}, async evoluir() {}, mundo() {}, async meioCaminho() {}, async chegar() {},
     async livro() {}, mapa() {}, async andar() {}, sync() {}, async seguir() {}, async missao() {}, async revelar() {}, async fim() {}, musica() {},
     async draft(t, s, specs) { return Math.floor(Math.random() * specs.length); },
     async escolha(specs, { ctx: c } = {}) {

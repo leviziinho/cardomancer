@@ -126,6 +126,13 @@ async function aplicar(ui, fx = {}) {
 
 async function receberItem(ui, id) {
   const it = ITENS[id];
+  if (!podeEquipar(id)) {
+    const vale = Math.ceil(it.preco / 2);
+    G.ouro += vale;
+    ui.sync();
+    await ui.aviso(`${it.nome}: um ${CLASSES[G.cls].nome} não sabe usar isto. Vende-o por ${vale} de Ouro.`);
+    return;
+  }
   if (temItem(id)) {
     G.ouro += precoVenda(id);
     ui.sync();
@@ -164,7 +171,7 @@ async function receberItem(ui, id) {
 }
 
 async function mercado(ui, titulo = 'O Mercado') {
-  let stock = baralhar(Object.keys(doMundo(ITENS)).filter(k => !temItem(k))).slice(0, 3);
+  let stock = baralhar(Object.keys(doMundo(ITENS)).filter(k => !temItem(k) && podeEquipar(k))).slice(0, 3);
   for (;;) {
     ui.prompt(titulo, `Tem ${G.ouro} de Ouro. Só leva um objeto de cada slot.`);
     const specs = stock.map(k => especItem(k, {
@@ -276,6 +283,7 @@ async function feridoAliado(ui, ini, est, a) {
   await ui.resultado(`${ini.nome} vira-se para ${a.nome}: ${r.total} contra CA ${a.ca}: ${r.acerta ? `acerta, -${r.dano} PV` : 'falha'}`, !r.acerta);
   if (!r.acerta) return `${ini.nome} tenta atingir ${a.nome}, e falha.`;
   a.pv -= r.dano;
+  est.mostra && await est.mostra();
   ui.som('golpe');
   if (a.pv > 0) return `${ini.nome} fere ${a.nome}, que perde ${r.dano} PV.`;
   G.aliados = G.aliados.filter(id => id !== a.id);
@@ -308,6 +316,7 @@ async function ataqueInimigo(ui, ini, est) {
     const dano = Math.max(1, Math.ceil(dado(parseInt(ini.dado.slice(1), 10)) / 2) + (ini.mais || 0));
     await ui.resultado(`${ini.nome} ${golpe.t}: -${dano} Vida`, false);
     await aplicar(ui, { vida: -dano });
+    est.mostra && await est.mostra();
     ui.som('golpe');
     est.rodape = [est.rodape, `-${dano} Vida`].filter(Boolean).join('  ·  ');
     return `${ini.nome} atinge-o sem falhar, e tira-lhe ${dano} de Vida.`;
@@ -327,6 +336,7 @@ async function ataqueInimigo(ui, ini, est) {
   if (!r.acerta) return pesado ? `${ini.nome} descarrega o golpe preparado, e falha.` : `${ini.nome} ataca, e falha.`;
   await aplicar(ui, { vida: -r.dano });
   ui.som('golpe');
+  est.mostra && await est.mostra();
   est.rodape = [est.rodape, `-${r.dano} Vida`].filter(Boolean).join('  ·  ');
   let extra = '';
   if (golpe.id === 'quebra') { est.caMenos = Math.min(4, est.caMenos + 2); extra = ` A sua guarda abre-se: CA ${caEmCombate(est)}.`; }
@@ -351,6 +361,7 @@ async function efeitoDoChefe(ui, ini, est) {
   if (e.tipo === 'ouro') { G.ouro = Math.max(0, G.ouro - e.v); ui.sync(); }
   await ui.resultado(`${ini.nome}: ${e.t}`, false);
   if (e.tipo === 'dreno') await aplicar(ui, { vida: -e.v });
+  est.mostra && await est.mostra();
   const efeito = { cura: `+${e.v} PV para ele`, ca: `CA dele ${ini.defesa}`, fraco: `-${e.v} no seu próximo teste`, ouro: `-${e.v} Ouro`, dreno: `-${e.v} Vida` }[e.tipo];
   est.rodape = [est.rodape, efeito].filter(Boolean).join('  ·  ');
   return e.t;
@@ -374,6 +385,7 @@ async function turnoInimigo(ui, ini, est) {
     est.fraco = 2;
     await ui.resultado(`${ini.nome} amaldiçoa-o: -2 Vida e -2 no seu próximo teste`, false);
     await aplicar(ui, { vida: -2 });
+    est.mostra && await est.mostra();
     est.rodape = [est.rodape, '-2 Vida', '-2 no próximo teste'].filter(Boolean).join('  ·  ');
     return `${ini.nome} murmura uma maldição, e o seu braço fica pesado.`;
   }
@@ -405,6 +417,7 @@ async function turnoGuardas(ui, est) {
     if (!r.acerta) { frases.push(`${g.nome} ataca, e falha.`); continue; }
     await aplicar(ui, { vida: -r.dano });
     ui.som('golpe');
+    est.mostra && await est.mostra();
     est.rodape = [est.rodape, `-${r.dano} Vida`].filter(Boolean).join('  ·  ');
     frases.push(`${g.nome} acerta-lhe, e tira-lhe ${r.dano} de Vida.`);
   }
@@ -437,6 +450,7 @@ async function turnoAliados(ui, ini, est) {
     await ui.dados([{ tipo: 'd20', face: d20 - 1 }, ...(acerta ? [{ tipo: a.dado, face: rolado - 1 }] : [])]);
     await ui.resultado(`${a.nome}: d20 ${d20} +${a.ataque} = ${d20 + a.ataque}, contra ${alvo.defesa}: ${acerta ? `acerta, ${dano} de dano` : 'falha'}`, acerta);
     alvo.pv -= dano;
+    if (acerta) est.mostra && await est.mostra();
     if (alvo === ini) frases.push(acerta ? `${a.nome} acerta, e tira-lhe ${dano} de PV.` : `${a.nome} ataca, e falha.`);
     else frases.push(!acerta ? `${a.nome} ataca ${alvo.nome}, e falha.` : alvo.pv > 0 ? `${a.nome} fere ${alvo.nome}.` : `${a.nome} derruba ${alvo.nome}.`);
   }
@@ -487,11 +501,14 @@ async function combate(ui, ini, arte) {
     texto += ` ${ini.nome} cai, mas volta a levantar-se com ${ini.pv} PV.`;
     return true;
   };
-  const pagina = () => ui.livro({
+  // Só a primeira página do combate vira. Depois, a página fica e os números mudam a cada golpe.
+  let virada = false;
+  const pagina = () => (virada ? ui.refrescar : (virada = true, ui.livro))({
     capitulo: `${ini.capitulo || 'Combate'}  ·  Ronda ${ronda}`, titulo: ini.nome, arte, texto,
     rodape: [jeito ? `${jeito.nome}: ${jeito.curto}` : '', est.rodape, notaGuardas(est), notaAliados(est)].filter(Boolean).join('  ·  '),
     combate: { nome: ini.nome, pv: Math.max(0, ini.pv), pvMax: ini.pvMax, ataque: ini.ataque, dado: dadoDoInimigo(ini), defesa: ini.defesa, vida: G.vida, vidaMax: vidaMax(), ca: caEmCombate(est), escudo: est.escudo },
   });
+  est.mostra = pagina;
   if (!primeiro) {
     await pagina();
     texto = await turnoInimigo(ui, ini, est);
@@ -566,6 +583,7 @@ async function combate(ui, ini, arte) {
     }
     // Quem cai não responde, e o golpe final conta-se na página do resultado.
     teto();
+    await pagina();
     if (ini.pv <= 0 && !levanta()) { ini.ultimoGolpe = texto; return fim('vitoria'); }
     if (vivos(est).length) {
       texto = `${texto} ${await turnoAliados(ui, ini, est)}`;
@@ -590,7 +608,8 @@ async function jogarCena(ui, cena, capitulo = null) {
   const cap = capitulo || `Dia ${G.dia}`;
   await ui.livro({ capitulo: cap, titulo: fmt(cena.titulo), arte, texto: fmt(cena.texto), fundo: fmt(cena.fundo) });
 
-  const mao = opcoesDaCena(cena);
+  // Uma cena direta (o perigo da estrada) joga a sua própria carta: as da classe e as raras não entram.
+  const mao = cena.direto ? cena.opcoes.slice(0, 1) : opcoesDaCena(cena);
   if (cena.etapa) ui.prompt(`Etapa ${G.fio + 1} de ${ETAPAS_DA_MISSAO} da missão`, `Mesmo falhando, fica a saber para onde ir, mas falhar custa caro.${G.dicas ? ` As dicas que ouviu tornam os testes ${Math.min(G.dicas, 3)} mais fáceis.` : ''}`);
   else if (mao.some(o => o.fragmento || o.rasto)) ui.prompt(cena.prologo ? 'O primeiro fragmento' : 'A pista está aqui!', cena.prologo ? 'As cartas com o olho vermelho dão um fragmento de pista.' : `As cartas com o olho vermelho dão um fragmento (tem ${G.fragmentos} de ${FRAGMENTOS_POR_PISTA}). Se falhar, a pista muda de sítio, mas nada se perde.`);
   else if (mao.some(o => o.rara && o.tokenReq)) ui.prompt('Uma carta rara!', 'Só há uma destas na aventura. Se não a usar agora, volta ao baralho.');
@@ -702,10 +721,14 @@ async function escolherDestino(ui) {
   const specs = opcoes.map(k => {
     const t = TERRENOS[LUGARES[k].terreno];
     const eMissao = k === passoMissao, ePista = k === passoPista;
-    const rodape = k === G.rumo || (G.destinoRevelado && k === destino) ? 'A missão está aqui' : k === G.rastro ? 'A pista está aqui' : eMissao ? 'Caminho da missão' : ePista ? 'Caminho da pista' : '';
+    // Se o mesmo caminho serve a missão e a pista, a carta diz as duas.
+    const missaoAqui = k === G.rumo || (G.destinoRevelado && k === destino), pistaAqui = k === G.rastro;
+    const daMissao = missaoAqui ? 'A missão está aqui' : eMissao ? 'Caminho da missão' : '';
+    const daPista = pistaAqui ? 'A pista está aqui' : ePista ? 'Caminho da pista' : '';
+    const rodape = daMissao && daPista ? `${missaoAqui ? 'Missão aqui' : 'Rumo da missão'}  ·  ${pistaAqui ? 'pista aqui' : 'e da pista'}` : daMissao || daPista;
     return {
       tema: 'cidade', etiqueta: t.nome, titulo: LUGARES[k].nome, glyph: t.glyph,
-      desc: t.desc, rodape, rodapeGlyph: rodape ? (eMissao ? 'star' : 'eye') : undefined,
+      desc: t.desc, rodape, rodapeGlyph: rodape ? (daMissao ? 'star' : 'eye') : undefined,
       rasto: eMissao || ePista, missao: eMissao, viaPista: ePista, lugar: k,
     };
   });
@@ -1010,12 +1033,12 @@ async function fazerDraft(ui) {
   G.vida = vidaMax();
   ui.sync();
 
-  const armas = baralhar(Object.keys(doMundo(ITENS)).filter(k => ITENS[k].slot === 'arma' && ITENS[k].preco <= 18)).slice(0, 3);
+  const armas = baralhar(Object.keys(doMundo(ITENS)).filter(k => ITENS[k].slot === 'arma' && ITENS[k].preco <= 18 && podeEquipar(k))).slice(0, 3);
   const a = armas[await ui.draft('Escolha a sua arma', 'O dado da arma decide a força de cada golpe.', armas.map(k => especItem(k)))];
   G.equip.arma = a;
   ui.sync();
 
-  const outros = baralhar(Object.keys(doMundo(ITENS)).filter(k => ITENS[k].slot !== 'arma' && ITENS[k].preco <= 12)).slice(0, 3);
+  const outros = baralhar(Object.keys(doMundo(ITENS)).filter(k => ITENS[k].slot !== 'arma' && ITENS[k].preco <= 12 && podeEquipar(k))).slice(0, 3);
   const b = outros[await ui.draft('Escolha o que levar', 'Só leva o que couber no corpo e na mochila.', outros.map(k => especItem(k)))];
   await receberItem(ui, b);
   G.vida = vidaMax();

@@ -145,6 +145,7 @@ function bonusTipo(tipo) {
   return v + somaMelhorias('tudo');
 }
 
+const podeEquipar = id => { const p = ITENS[id].perfil; return !p || !G.cls || (PERFIS[G.cls] || []).includes(p); };
 const arma = () => (G.equip.arma ? ITENS[G.equip.arma] : ARMA_NUA);
 const danoExtra = () => talentosAtivos().reduce((s, t) => s + (t.dano || 0), 0) + somaMelhorias('dano') + ((evolucao() || {}).dano || 0);
 const atributoArma = () => arma().a || 'forca';

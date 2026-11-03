@@ -136,6 +136,8 @@ Encontros na estrada: o pino para a meio do caminho, e só chega depois de resol
 
 Tempo e Vida: os falhanços gastam Vida, e recuperá-la gasta tempo. Os aliados lutam a seu lado, com CA e PV próprios. O inimigo também os ataca, e quem cai em combate perde-se. Durma numa estalagem, acampe na estrada ou guarde uma poção. A trilha em baixo mostra os dias, e o fim do prazo.
 
+Equipamento: cada classe só usa as armas e armaduras do seu tipo. O mercado só mostra o que a sua classe sabe usar. Adagas, cajados, capas, mantos e acessórios servem a todos.
+
 Missão: a estrela dourada no mapa e o aviso no canto dizem sempre para onde ir. São três etapas, e mesmo quem falha fica a saber a seguinte. Ganhar combates e ter êxito em testes também lhe dá dicas, que tornam a etapa seguinte mais fácil.
 
 Pistas: são opcionais, mas muito fortes. Siga o olho vermelho no mapa. Lá, as cartas com o olho dão um fragmento se correrem bem, e até um combate pode ter o olho: há quem saiba perguntar com o machado. Se falhar uma carta com o olho, a pista muda de sítio, mas nada se perde. Com três fragmentos, a pista fica completa: poupa-lhe uma etapa e revela uma fraqueza do inimigo, que conta muito no combate final.
@@ -412,6 +414,14 @@ const ui = {
     paginaAtual = p;
     desenharFolha(p);
     await world.book.turn({ ...p, termos: termosDe(p.texto || '') });
+    atualizaBotaoMapa();
+  },
+
+  // A página que está aberta, com os números de agora. Não vira a folha.
+  async refrescar(p) {
+    paginaAtual = p;
+    desenharFolha(p);
+    await world.book.refaz({ ...p, termos: termosDe(p.texto || '') });
     atualizaBotaoMapa();
   },
 
@@ -712,10 +722,26 @@ function desenharPainel() {
     <section><h3>Aliados</h3><ul>${aliados}</ul></section>`;
 }
 
+// A letra: a legível (Andika) é a de origem, a clássica fica para quem a preferir.
+const LETRAS = {
+  legivel: { titulo: '"Andika", Verdana, sans-serif', texto: '"Andika", Verdana, sans-serif', nome: 'legível' },
+  classica: { titulo: '"Cinzel", Georgia, serif', texto: '"EB Garamond", Georgia, serif', nome: 'clássica' },
+};
+function usarLetra(nome) {
+  const l = LETRAS[nome] || LETRAS.legivel;
+  FONT_TITLE = l.titulo;
+  FONT_BODY = l.texto;
+  document.body.classList.toggle('legivel', l === LETRAS.legivel);
+  $('letra-btn').textContent = `Letra: ${l.nome}`;
+}
+let letra = 'legivel';
+try { letra = localStorage.getItem('cardomancer-letra') || 'legivel'; } catch (e) { /* sem memória, fica a legível */ }
+
 async function main() {
   try {
-    await Promise.all(['40px "Cinzel"', '600 40px "Cinzel"', '700 40px "Cinzel"', '40px "EB Garamond"', 'italic 40px "EB Garamond"'].map(f => document.fonts.load(f, 'Áçã')));
+    await Promise.all(['40px "Cinzel"', '600 40px "Cinzel"', '700 40px "Cinzel"', '40px "EB Garamond"', 'italic 40px "EB Garamond"', '40px "Andika"', '700 40px "Andika"', 'italic 40px "Andika"'].map(f => document.fonts.load(f, 'Áçã')));
   } catch (e) { /* sem fontes, usa Georgia */ }
+  usarLetra(letra);
 
   if (typeof THREE === 'undefined') {
     $('title-sub').textContent = 'Não foi possível carregar o motor 3D. Verifique a ligação à Internet e abra de novo.';
@@ -781,6 +807,15 @@ async function main() {
   $('imagem-btn').addEventListener('click', () => world.proximaQualidade());
   $('musica-btn').addEventListener('click', e => {
     e.target.textContent = musica.alternar() ? 'Música: sim' : 'Música: não';
+  });
+  // Muda já o que está à vista: o livro e o mapa. As cartas novas saem com a letra nova.
+  $('letra-btn').addEventListener('click', async () => {
+    letra = letra === 'legivel' ? 'classica' : 'legivel';
+    try { localStorage.setItem('cardomancer-letra', letra); } catch (e) { /* fica só nesta visita */ }
+    usarLetra(letra);
+    mapaChave = '';
+    refazerMapa();
+    if (paginaAtual && world.book.aberto) await ui.refrescar(paginaAtual);
   });
   $('mute').addEventListener('click', e => {
     const m = sfx.toggle();
