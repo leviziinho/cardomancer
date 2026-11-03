@@ -470,7 +470,7 @@ function inimigoDe(o, cena) {
     defesa: dc,
     ataque: dc - COMBATE.ataqueMenos,
     dado: golpeBase >= 6 ? 'd10' : golpeBase >= 5 ? 'd8' : 'd6',
-    mais: subidaNivel(),
+    mais: subidaNivel() + (o.roll.mais || 0),
     agi: dc - 11,
     primeiro: o.roll.primeiro || null,
     jeito: o.roll.jeito || jeitoDe(fmt(o.roll.ini || cena.titulo)),
@@ -495,6 +495,13 @@ function chefeFinal() {
     chefe: true, efeitos: sabe.some(f => f.semEfeito) ? null : v.efeitos, frases: v.ronda, fraqueza: v.fraqueza.includes(G.cls),
     capitulo: 'Capítulo Final', abertura: `${v.finalTexto} ${G.trama.motivo}`,
   };
+}
+
+// Os guardas do chefe: os aliados têm de passar por eles antes de lhe chegar.
+function guardasDoChefe(aliados) {
+  const g = COMBATE.vilao.guarda, n = Math.min(COMBATE.vilao.guardasMax, aliados);
+  const pv = Math.ceil(g.pv * (1 + SUBIDA.pvPorEtapa[etapaDoMundo()]));
+  return Array.from({ length: n }, (_, i) => ({ nome: n > 1 ? `Guarda ${i + 1}` : 'O Guarda', pv, pvMax: pv, defesa: g.ca, ataque: g.ataque + subidaNivel(), dado: g.dado, mais: 0 }));
 }
 
 const dadoDoInimigo = ini => `${ini.dado}${ini.mais ? `+${ini.mais}` : ''}`;

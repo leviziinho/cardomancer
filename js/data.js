@@ -90,7 +90,9 @@ const DESCONTO_SECRETO = .7;
 
 // Combate: à vez. O seu d20 contra a CA dele, e o d20 dele contra a sua CA.
 // CA do herói: base + metade da Agilidade + armadura. Ataque do inimigo: CA dele - ataqueMenos.
-const COMBATE = { escalaPv: 1, caBase: 10, ataqueMenos: 10, danoMenos: 0, xpVitoria: 3, vilao: { ca: 12, ataque: 3, dado: 'd8', pv: 22, folego: .5 } };
+const COMBATE = { escalaPv: 1, caBase: 10, ataqueMenos: 10, danoMenos: 0, xpVitoria: 3, vilao: { ca: 12, ataque: 3, dado: 'd8', pv: 22, folego: .5,
+  // Nunca perde mais do que esta parte dos PV numa só ronda, e traz um guarda por cada aliado seu.
+  tetoRonda: .4, guarda: { pv: 5, ca: 11, ataque: 1, dado: 'd6' }, guardasMax: 3 } };
 // O jeito de lutar de cada inimigo comum. Sai do nome dele: o primeiro jeito cuja busca servir é o que conta
 // (uma opção de combate pode escolher outro com roll.jeito). Quem não servir em nenhum luta sem truques.
 const JEITOS = {

@@ -271,6 +271,7 @@ const GOLPES_DO_CHEFE = [
 // Um aliado atingido pode cair, e quem cai em combate não volta.
 async function feridoAliado(ui, ini, est, a) {
   const r = ataqueDoInimigo(ini, false, a.ca);
+  await ui.anuncio(`${ini.nome} ataca ${a.nome}`);
   await ui.dados([{ tipo: 'd20i', face: r.d20 - 1 }, ...(r.rolado ? [{ tipo: ini.dado, face: r.rolado - 1 }] : [])]);
   await ui.resultado(`${ini.nome} vira-se para ${a.nome}: ${r.total} contra CA ${a.ca}: ${r.acerta ? `acerta, -${r.dano} PV` : 'falha'}`, !r.acerta);
   if (!r.acerta) return `${ini.nome} tenta atingir ${a.nome}, e falha.`;
@@ -320,6 +321,7 @@ async function ataqueInimigo(ui, ini, est) {
   est.exposto = false;
   const lista = [{ tipo: 'd20i', face: r.d20 - 1 }];
   if (r.rolado) lista.push({ tipo: ini.dado, face: r.rolado - 1 });
+  await ui.anuncio(pesado ? `${ini.nome} descarrega o golpe a dobrar` : `${ini.nome} ${golpe.t}`);
   await ui.dados(lista);
   await ui.resultado(`${ini.nome}${golpe.nota ? ` ${golpe.t}` : pesado ? ', golpe a dobrar' : ''}: d20 ${r.d20} ${sinal(ini.ataque)} = ${r.total}, contra a sua CA ${r.ca}: ${r.acerta ? `acerta, -${r.dano} Vida` : 'falha'}`, !r.acerta);
   if (!r.acerta) return pesado ? `${ini.nome} descarrega o golpe preparado, e falha.` : `${ini.nome} ataca, e falha.`;
@@ -387,9 +389,32 @@ async function turnoInimigo(ui, ini, est) {
   return frases.join(' ');
 }
 
+const guardasDePe = est => (est.guardas || []).filter(g => g.pv > 0);
+const notaGuardas = est => guardasDePe(est).map(g => `${g.nome}: ${g.pv}/${g.pvMax} PV`).join('  ·  ');
+
+async function turnoGuardas(ui, est) {
+  const frases = [];
+  for (const g of guardasDePe(est)) {
+    if (G.vida <= 0) break;
+    const lado = vivos(est);
+    if (lado.length) { frases.push(await feridoAliado(ui, g, est, umDe(lado))); continue; }
+    const r = ataqueDoInimigo(g, false, caEmCombate(est));
+    await ui.anuncio(`${g.nome} ataca-o`);
+    await ui.dados([{ tipo: 'd20i', face: r.d20 - 1 }, ...(r.rolado ? [{ tipo: g.dado, face: r.rolado - 1 }] : [])]);
+    await ui.resultado(`${g.nome}: d20 ${r.d20} ${sinal(g.ataque)} = ${r.total}, contra a sua CA ${r.ca}: ${r.acerta ? `acerta, -${r.dano} Vida` : 'falha'}`, !r.acerta);
+    if (!r.acerta) { frases.push(`${g.nome} ataca, e falha.`); continue; }
+    await aplicar(ui, { vida: -r.dano });
+    ui.som('golpe');
+    est.rodape = [est.rodape, `-${r.dano} Vida`].filter(Boolean).join('  ·  ');
+    frases.push(`${g.nome} acerta-lhe, e tira-lhe ${r.dano} de Vida.`);
+  }
+  return frases.join(' ');
+}
+
 // Cada aliado de pé faz a sua parte, à vez, depois do herói.
 async function turnoAliados(ui, ini, est) {
   const frases = [];
+  await ui.anuncio(vivos(est).length > 1 ? 'Agora os seus aliados' : `Agora ${vivos(est)[0].nome}`);
   for (const a of vivos(est)) {
     if (ini.pv <= 0) break;
     if (a.acao === 'cura' && G.vida < vidaMax()) {
@@ -404,13 +429,16 @@ async function turnoAliados(ui, ini, est) {
       frases.push(`${a.nome} põe-se entre os dois.`);
       continue;
     }
-    const d20 = dado(20), acerta = d20 === 20 || (d20 !== 1 && d20 + a.ataque >= ini.defesa);
+    const alvo = guardasDePe(est)[0] || ini;
+    const d20 = dado(20), acerta = d20 === 20 || (d20 !== 1 && d20 + a.ataque >= alvo.defesa);
     const rolado = acerta ? dado(parseInt(a.dado.slice(1), 10)) : 0;
     const dano = acerta ? rolado * (d20 === 20 ? 2 : 1) : 0;
+    await ui.anuncio(`${a.nome} ataca ${alvo.nome}`);
     await ui.dados([{ tipo: 'd20', face: d20 - 1 }, ...(acerta ? [{ tipo: a.dado, face: rolado - 1 }] : [])]);
-    await ui.resultado(`${a.nome}: d20 ${d20} +${a.ataque} = ${d20 + a.ataque}, contra ${ini.defesa}: ${acerta ? `acerta, ${dano} de dano` : 'falha'}`, acerta);
-    ini.pv -= dano;
-    frases.push(acerta ? `${a.nome} acerta, e tira-lhe ${dano} de PV.` : `${a.nome} ataca, e falha.`);
+    await ui.resultado(`${a.nome}: d20 ${d20} +${a.ataque} = ${d20 + a.ataque}, contra ${alvo.defesa}: ${acerta ? `acerta, ${dano} de dano` : 'falha'}`, acerta);
+    alvo.pv -= dano;
+    if (alvo === ini) frases.push(acerta ? `${a.nome} acerta, e tira-lhe ${dano} de PV.` : `${a.nome} ataca, e falha.`);
+    else frases.push(!acerta ? `${a.nome} ataca ${alvo.nome}, e falha.` : alvo.pv > 0 ? `${a.nome} fere ${alvo.nome}.` : `${a.nome} derruba ${alvo.nome}.`);
   }
   return frases.join(' ');
 }
@@ -422,6 +450,7 @@ async function combate(ui, ini, arte) {
   const jeito = ini.jeito ? JEITOS[ini.jeito] : null;
   // Os aliados entram de Vida cheia em cada combate.
   est.aliados = G.aliados.map(id => ({ ...fichaAliado(id), pvMax: fichaAliado(id).pv }));
+  est.guardas = ini.chefe ? guardasDoChefe(est.aliados.length) : [];
   let ronda = 1;
   G.log.combates++;
   G.emCombate = true;
@@ -442,6 +471,14 @@ async function combate(ui, ini, arte) {
   const quemComeca = primeiro ? 'É mais rápido, e joga primeiro.' : `É mais lento, e ${plural ? 'eles jogam' : 'ele joga'} primeiro.`;
   let texto = ini.abertura ? fmt(`${ini.abertura} ${quemComeca}`) : `${ini.nome} não o ${plural ? 'deixam' : 'deixa'} passar. Joga-se à vez: cada um rola o d20 contra a armadura do outro. ${quemComeca}`;
   if (jeito) texto += ` ${jeito.nome}: ${jeito.d}.`;
+  if (est.guardas.length) texto += ` ${est.guardas.length > 1 ? `Traz ${est.guardas.length} guardas, um por cada aliado seu` : 'Traz um guarda para o seu aliado'}: só lhe chegam depois de passar por eles.`;
+  if (ini.chefe) texto += ' Nenhuma ronda chega para acabar com isto de uma vez.';
+  // O chefe nunca perde mais do que uma parte dos PV numa só ronda.
+  const teto = () => {
+    if (!ini.chefe) return;
+    const minimo = est.pvRonda - Math.ceil(ini.pvMax * COMBATE.vilao.tetoRonda);
+    if (minimo > 0 && ini.pv < minimo) { ini.pv = minimo; texto += ` ${ini.nome} aguenta o castigo: nesta ronda não perde mais PV.`; }
+  };
   // Um morto-vivo cai a primeira vez, e levanta-se.
   const levanta = () => {
     if (ini.jeito !== 'morto' || est.levantou) return false;
@@ -452,7 +489,7 @@ async function combate(ui, ini, arte) {
   };
   const pagina = () => ui.livro({
     capitulo: `${ini.capitulo || 'Combate'}  ·  Ronda ${ronda}`, titulo: ini.nome, arte, texto,
-    rodape: [jeito ? `${jeito.nome}: ${jeito.curto}` : '', est.rodape, notaAliados(est)].filter(Boolean).join('  ·  '),
+    rodape: [jeito ? `${jeito.nome}: ${jeito.curto}` : '', est.rodape, notaGuardas(est), notaAliados(est)].filter(Boolean).join('  ·  '),
     combate: { nome: ini.nome, pv: Math.max(0, ini.pv), pvMax: ini.pvMax, ataque: ini.ataque, dado: dadoDoInimigo(ini), defesa: ini.defesa, vida: G.vida, vidaMax: vidaMax(), ca: caEmCombate(est), escudo: est.escudo },
   });
   if (!primeiro) {
@@ -467,6 +504,7 @@ async function combate(ui, ini, arte) {
     if (o.m) usadas.add(o.m.id);
     est.rodape = '';
     est.fraco = 0;
+    est.pvRonda = ini.pv;
 
     if (o.pocao) {
       usarItem('pocao');
@@ -480,6 +518,7 @@ async function combate(ui, ini, arte) {
         est.rodape = `-${m.custo} Vida`;
         if (G.vida <= 0) return fim('morte');
       }
+      if (o.roll) await ui.anuncio(`Você: ${o.t}`);
       const r = o.roll ? await fazerTeste(ui, o) : { ok: true };
       if (r.ok && r.dano && est.danoMenos) r.dano = Math.max(1, r.dano - 2);
       if (est.danoMenos) est.danoMenos--;
@@ -526,14 +565,20 @@ async function combate(ui, ini, arte) {
       }
     }
     // Quem cai não responde, e o golpe final conta-se na página do resultado.
+    teto();
     if (ini.pv <= 0 && !levanta()) { ini.ultimoGolpe = texto; return fim('vitoria'); }
     if (vivos(est).length) {
       texto = `${texto} ${await turnoAliados(ui, ini, est)}`;
+      teto();
       if (ini.pv <= 0 && !levanta()) { ini.ultimoGolpe = texto; return fim('vitoria'); }
     }
     {
       const resposta = await turnoInimigo(ui, ini, est);
       texto = `${texto} ${resposta}`;
+      if (G.vida <= 0) return fim('morte');
+    }
+    if (guardasDePe(est).length) {
+      texto = `${texto} ${await turnoGuardas(ui, est)}`;
       if (G.vida <= 0) return fim('morte');
     }
     ronda++;
@@ -666,7 +711,7 @@ async function escolherDestino(ui) {
   });
   // Já aqui: pode ficar mais um dia atrás de outro fragmento.
   let procurarIdx = -1;
-  if (G.rastro === G.lugar) {
+  if (G.rastro === G.lugar && !LUGARES[G.lugar].cidade) {
     procurarIdx = specs.length;
     specs.push({ tema: 'investigacao', etiqueta: 'A Pista', titulo: 'Ficar e Procurar', glyph: 'eye', desc: 'Mais um dia aqui, atrás de outro fragmento. Se a cena correr mal, a pista muda de sítio.', rodape: `+1 dia  ·  ${G.fragmentos} de ${FRAGMENTOS_POR_PISTA}`, rodapeGlyph: 'eye', procurar: true });
   }
@@ -739,20 +784,34 @@ function cenaSurpresa(tipo) {
   };
 }
 
+// O 10 no d10: o bando de sempre, mas com o chefe deles à frente. Mais duro, e paga melhor.
+function cenaLendaria(tipo) {
+  const s = umDe(SURPRESAS), contra = tipo === 'contra';
+  const aviso = 'À frente deles vem alguém de quem se fala nas tabernas: maior, mais velho, e com as cicatrizes de quem já enterrou aventureiros.';
+  return {
+    titulo: `Lendário: ${s.inimigo}`, texto: `${contra ? s.contra : s.favor} ${aviso}`, direto: true, lendario: true,
+    opcoes: [{ t: contra ? 'Lutar pela vida' : 'Atacar primeiro', d: 'Este não se assusta com o primeiro golpe.', tipo: 'combate',
+      roll: { a: 'forca', dc: contra ? 15 : 14, pv: s.pv * 2, ini: `Lendário: ${s.inimigo}`, primeiro: contra ? 'inimigo' : 'jogador', mais: 1, jeito: s.jeito || null },
+      ok: { txt: 'Quando o chefe cai, os outros fogem. No cinto dele há uma bolsa pesada, e no seu nome passa a haver uma história.', fx: { ouro: s.saque * 2, xp: 6, item: 'pocao' } },
+      ko: { txt: 'Ele ri-se enquanto o deixa no chão, e leva o que quer.', fx: { vida: -6 } } }],
+  };
+}
+
 // O que há numa estrada: um d10 decide. O mestre só aparece uma vez em cada dez encontros.
 async function encontroDaEstrada(ui, postura) {
   const n = dado(10);
   await ui.dados([{ tipo: 'd10', face: n - 1 }], { onde: 'mapa' });
   const mestre = n === 1 && !G.mentorVisto;
   const secreto = n <= 3 && !mestre;
-  const bom = !mestre && !secreto && n <= 5;
-  await ui.resultado(`O que há na estrada: ${n}: ${mestre ? 'um encontro raríssimo' : secreto ? 'um mercador' : bom ? 'boa sorte' : 'perigo'}`, n <= 5);
+  const bom = !mestre && !secreto && n <= 5, lendario = n === 10;
+  await ui.resultado(`O que há na estrada: ${n}: ${mestre ? 'um encontro raríssimo' : secreto ? 'um mercador' : bom ? 'boa sorte' : lendario ? 'um inimigo lendário' : 'perigo'}`, n <= 5);
   if (mestre) { await encontroMestre(ui); return null; }
   if (secreto) return MERCADOR_SECRETO;
   if (bom) {
     const livres = BONS_ENCONTROS.filter(e => !G.vistos.has(e.id));
     if (livres.length) { const e = umDe(livres); G.vistos.add(e.id); return e; }
   }
+  if (lendario) return cenaLendaria(postura.tipo);
   return cenaSurpresa(postura.tipo);
 }
 
@@ -885,10 +944,12 @@ async function menuCidade(ui) {
       { tema: 'social', etiqueta: 'Estalagem', titulo: 'Passar a Noite', glyph: 'moon', desc: 'Uma cama e um banho. Paga com o tempo que não tem.', rodape: `3 Ouro  ·  +1 dia  ·  +${cura} Vida`, locked: G.ouro < 3, lockText: 'Ouro insuficiente', acao: 'dormir' },
       { tema: 'escolha', etiqueta: 'Seguir', titulo: 'Partir', glyph: 'sign', desc: 'Há estrada à espera.', acao: 'partir' },
     ];
-    const i = await ui.escolha(specs, { ctx: 'cidade' });
+    if (G.rastro === G.lugar) specs.splice(2, 0, { tema: 'investigacao', etiqueta: 'A Pista', titulo: 'Ficar e Procurar', glyph: 'eye', desc: 'A pista está nesta cidade. Mais um dia aqui, atrás de outro fragmento. Se a cena correr mal, a pista muda de sítio.', rodape: `+1 dia  ·  ${G.fragmentos} de ${FRAGMENTOS_POR_PISTA}`, rodapeGlyph: 'eye', acao: 'procurar' });
+    const acao = specs[await ui.escolha(specs, { ctx: 'cidade' })].acao;
     ui.prompt('');
-    if (i === 2) break;
-    if (i === 0) await mercado(ui, `Mercado de ${LUGARES[G.lugar].nome}`);
+    if (acao === 'partir') break;
+    if (acao === 'procurar') return 'procurar';
+    if (acao === 'mercado') await mercado(ui, `Mercado de ${LUGARES[G.lugar].nome}`);
     else {
       G.ouro -= 3;
       G.log.noites++;
@@ -995,7 +1056,7 @@ async function partida(ui) {
   await ui.seguir();
 
   for (;;) {
-    if (LUGARES[G.lugar].cidade) await menuCidade(ui);
+    const naCidade = LUGARES[G.lugar].cidade ? await menuCidade(ui) : null;
     if (G.vida <= 0) return fimDaPartida(ui, 'morte');
     if (G.dia >= G.prazo + 4) return fimDaPartida(ui, 'tarde');
 
@@ -1006,7 +1067,7 @@ async function partida(ui) {
       await ui.aviso(fmt('Já se vê a coluna de fumo no horizonte. Tudo acontece em {destino}.'));
     }
 
-    const rumo = await escolherDestino(ui);
+    const rumo = naCidade === 'procurar' ? { procurar: true } : await escolherDestino(ui);
     if (rumo.procurar) {
       await passarDias(ui, 1);
       if (G.vida <= 0) return fimDaPartida(ui, 'morte');

@@ -886,7 +886,8 @@ function createWorld(canvasEl) {
   limpaFundo.frustumCulled = false;
   limpaFundo.renderOrder = 9;
   limpaFundo.position.z = -1;
-  limpaFundo.onBeforeRender = r => r.clearDepth();
+  // O WebGL só apaga a profundidade se a escrita dela estiver ligada, e o objeto anterior pode tê-la desligado.
+  limpaFundo.onBeforeRender = r => { r.state.buffers.depth.setMask(true); r.clearDepth(); };
   limpaFundo.visible = false;
   camera.add(limpaFundo);
   // O latão é partilhado com o tabuleiro: a caixa leva cópias, para não mudar mais nada.

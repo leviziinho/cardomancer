@@ -48,7 +48,7 @@ const ESTILOS = {
     if (c === 'postura') return G.dia < G.prazo - 4 ? 1 : 0;
     if (c === 'cidade') {
       const vidaBaixa = G.vida < 7;
-      return melhor(specs, s => (s.acao === 'dormir' && vidaBaixa ? 3 : s.acao === 'mercado' && G.ouro >= 8 && !s.visitou ? 2 : s.acao === 'partir' ? 1 : 0));
+      return melhor(specs, s => (s.acao === 'dormir' && vidaBaixa ? 3 : s.acao === 'mercado' && G.ouro >= 8 && !s.visitou ? 2 : s.acao === 'procurar' ? 2 : s.acao === 'partir' ? 1 : 0));
     }
     if (c === 'mercado') return melhor(specs, s => (s.sair ? 1 : s.item === 'pocao' ? 3 : s.preco ? 2 : s.aprimorar ? (G.ouro >= 16 && !aprimorou++ ? 2.5 : 0) : 0));
     if (c === 'forja') return melhor(specs, s => (s.sair ? 1 : 2));
@@ -75,7 +75,7 @@ function uiFalso(estilo) {
   };
   let visitasCidade = 0;
   return {
-    som() {}, prompt() {}, async aviso() {}, async resultado() {}, async dados() {}, async critico() {}, async pista() {}, pino() {}, async fecharLivro() {}, async evoluir() {}, mundo() {}, async meioCaminho() {}, async chegar() {},
+    som() {}, prompt() {}, async aviso() {}, async anuncio() {}, async resultado() {}, async dados() {}, async critico() {}, async pista() {}, pino() {}, async fecharLivro() {}, async evoluir() {}, mundo() {}, async meioCaminho() {}, async chegar() {},
     async livro() {}, mapa() {}, async andar() {}, sync() {}, async seguir() {}, async missao() {}, async revelar() {}, async fim() {}, musica() {},
     async draft(t, s, specs) { return Math.floor(Math.random() * specs.length); },
     async escolha(specs, { ctx: c } = {}) {

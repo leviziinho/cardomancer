@@ -130,9 +130,9 @@ Combate: joga-se à vez, e quem tem mais Agilidade começa. O seu d20 tem de che
 
 Jeitos de lutar: cada inimigo tem o seu, dito no início do combate e no rodapé da página. A fera recua depois de acertar, o bruto prepara um golpe a dobrar (bom momento para o escudo), o morto-vivo levanta-se uma vez, a bruxa amaldiçoa, o ladrão rouba Ouro, o duelista castiga as falhas, o soldado apara o primeiro golpe e o bando ataca duas vezes.
 
-Chefe final: tem muitos PV e duas ações por ronda, um efeito e um golpe. Os golpes variam: há os que partem a sua guarda, os que lhe cansam o braço, os que acertam sem dado, e há rondas em que ele só se defende. Os inimigos ficam mais duros a cada etapa da história, não a cada nível que sobe: o que ganha a subir fica seu.
+Chefe final: tem muitos PV e duas ações por ronda, um efeito e um golpe. Os golpes variam: há os que partem a sua guarda, os que lhe cansam o braço, os que acertam sem dado, e há rondas em que ele só se defende. Os inimigos ficam mais duros a cada etapa da história, não a cada nível que sobe: o que ganha a subir fica seu. Nenhuma ronda o derruba de uma vez: perde no máximo 40% dos PV por ronda. E traz um guarda por cada aliado seu, que os aliados têm de derrubar antes de lhe chegar.
 
-Encontros na estrada: o pino para a meio do caminho, e só chega depois de resolver o que lá houver. A Marcha Forçada (1 dia) dá com um encontro metade das vezes. Pelos Trilhos (2 dias) só um quarto das vezes, e pode escolher passar ao lado. Explorar o Caminho (3 dias) tem sempre encontro. Os dois d10 dão um número de 1 a 100: com a percentagem da carta ou menos, há encontro, e um d10 diz qual. Um perigo começa logo em combate. Nos testes é ao contrário, porque se quer um número alto: o 11+ da carta é 11 ou mais.
+Encontros na estrada: o pino para a meio do caminho, e só chega depois de resolver o que lá houver. A Marcha Forçada (1 dia) dá com um encontro metade das vezes. Pelos Trilhos (2 dias) só um quarto das vezes, e pode escolher passar ao lado. Explorar o Caminho (3 dias) tem sempre encontro. Os dois d10 dão um número de 1 a 100: com a percentagem da carta ou menos, há encontro, e um d10 diz qual. O 10 é um inimigo lendário: mais duro, e paga muito melhor. Um perigo começa logo em combate. Nos testes é ao contrário, porque se quer um número alto: o 11+ da carta é 11 ou mais.
 
 Tempo e Vida: os falhanços gastam Vida, e recuperá-la gasta tempo. Os aliados lutam a seu lado, com CA e PV próprios. O inimigo também os ataca, e quem cai em combate perde-se. Durma numa estalagem, acampe na estrada ou guarde uma poção. A trilha em baixo mostra os dias, e o fim do prazo.
 
@@ -372,6 +372,14 @@ const ui = {
     await wait(3.4);
     t.classList.remove('on');
     await wait(.3);
+  },
+
+  // Quem vai agir, antes de os dados caírem. O resultado vem por cima, no mesmo sítio.
+  async anuncio(texto) {
+    const t = $('toast');
+    t.textContent = texto;
+    t.className = 'on';
+    await wait(1.1);
   },
 
   async resultado(texto, bom) {
