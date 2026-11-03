@@ -6,7 +6,7 @@
 <title>Cardomancer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Andika:ital,wght@0,400;0,700;1,400;1,700&family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -16,9 +16,19 @@
 <div id="loading" class="on">A baralhar as cartas...</div>
 
 <section id="title">
-  <h1>Cardomancer</h1>
-  <p id="title-sub">Uma aventura que nunca se escolhe por inteiro.</p>
-  <button id="start">Nova Partida</button>
+  <div class="t-caixa">
+    <h1>Cardomancer</h1>
+    <p id="title-sub">Uma aventura que nunca se escolhe por inteiro.</p>
+    <button id="start">Nova Partida</button>
+    <button id="title-config" class="t-menor" aria-expanded="false">Configurações</button>
+    <div id="title-opcoes" hidden>
+      <button data-alvo="imagem-btn"></button>
+      <button data-alvo="musica-btn"></button>
+      <button data-alvo="mute"></button>
+      <button data-alvo="letra-btn"></button>
+    </div>
+    <button id="title-ajuda" class="t-menor">Ajuda</button>
+  </div>
 </section>
 
 <div id="virar" aria-live="polite"><svg viewBox="0 0 100 100" width="96" height="96" aria-hidden="true"><rect x="32" y="12" width="36" height="76" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="50" cy="78" r="3.5" fill="currentColor"/></svg><p>Vire o telemóvel para jogar.</p><small>Deitado vê-se melhor a mesa toda.</small><button id="vertical-btn">Quero jogar na vertical</button></div>

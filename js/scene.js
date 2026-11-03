@@ -838,6 +838,8 @@ function createWorld(canvasEl) {
     caixa.position.set(sitio[0], .03, sitio[2]);
     caixa.visible = true;
     limpaFundo.visible = true;
+    // O fundo da caixa recebe sombras: a do pino não pode cair lá dentro.
+    pin.traverse(o => { if (o.isMesh) { if (o.userData.sombra === undefined) o.userData.sombra = o.castShadow; o.castShadow = false; } });
     return Promise.all(lista.map(({ tipo, face }, i) => {
       const die = DICE[tipo], f = die.faces[face], m = die.mesh;
       const frame = new THREE.Matrix4().makeBasis(f.right, f.up, f.n);
@@ -905,7 +907,11 @@ function createWorld(canvasEl) {
   });
   porCima(caixa);
   Object.values(DICE).forEach(d => porCima(d.mesh));
-  const hideDice = () => { Object.values(DICE).forEach(d => (d.mesh.visible = false)); caixa.visible = false; limpaFundo.visible = false; };
+  const hideDice = () => {
+    Object.values(DICE).forEach(d => (d.mesh.visible = false));
+    caixa.visible = false; limpaFundo.visible = false;
+    pin.traverse(o => { if (o.isMesh && o.userData.sombra !== undefined) o.castShadow = o.userData.sombra; });
+  };
 
   // O d20 de quem chega a uma classe aprimorada: perolado, com os números acesos.
   let d20Tema = null, d20Halo = null;
@@ -915,6 +921,8 @@ function createWorld(canvasEl) {
       map, emissive: 0xffffff, emissiveMap: brilho, emissiveIntensity: 1.2,
       roughness: .2, metalness: tema.metal, clearcoat: 1, clearcoatRoughness: .08,
       iridescence: 1, iridescenceIOR: 1.35, iridescenceThicknessRange: [120, 480], envMapIntensity: 1.3,
+      // Como os outros dados, desenha-se por cima da caixa: sem isto, o fundo dela tapava-o e só ficava a sombra.
+      transparent: true,
     });
     if (d20Halo) DICE.d20.mesh.remove(d20Halo);
     d20Halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex.glowSprite(tema.halo), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .4 }));
@@ -928,6 +936,9 @@ function createWorld(canvasEl) {
     DICE.d20.mesh.material.emissiveIntensity = 1.2 + v;
     d20Halo.material.opacity = .4 + v * .35;
   }
+
+  // A abertura: a câmara desce do alto até à vista de jogo.
+  const revelarMesa = () => tween(2.6, e => { cam.entrada = 1 - e; }, { ease: easeOut });
 
   // Crítico: a mesa treme, o dado acende e saltam faíscas.
   function efeitoCritico(bom) {
@@ -1004,7 +1015,7 @@ function createWorld(canvasEl) {
   })();
 
   // ---- Câmara: fixa, para a mesa não se mexer enquanto se escolhe ----
-  const cam = { pos: new THREE.Vector3(...VISTA.pos), look: new THREE.Vector3(...VISTA.look), shake: 0 };
+  const cam = { pos: new THREE.Vector3(...VISTA.pos), look: new THREE.Vector3(...VISTA.look), shake: 0, entrada: 1 };
   const mouse = { x: 0, y: 0, ndc: new THREE.Vector2(-5, -5) };
   const alvoCamera = new THREE.Vector3(), pontoEcra = new THREE.Vector2(), frenteCamera = new THREE.Vector3();
 
@@ -1031,6 +1042,12 @@ function createWorld(canvasEl) {
 
   function applyCamera(dt) {
     posicaoCamera();
+    if (cam.entrada > 0) {
+      const e = cam.entrada;
+      camera.position.sub(alvoCamera).multiplyScalar(1 + e * 1.3).add(alvoCamera);
+      camera.position.y += e * 9;
+      camera.position.x += e * 6;
+    }
     if (cam.shake > 0) {
       camera.position.x += (Math.random() - .5) * cam.shake;
       camera.position.y += (Math.random() - .5) * cam.shake;
@@ -1377,7 +1394,7 @@ function createWorld(canvasEl) {
   }
   loop();
 
-  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, hideDice, efeitoCritico, cards, resize, handlers, fileira, veu, halo, livroDireita, retangulo, retanguloLivro,
+  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, revelarMesa, hideDice, efeitoCritico, cards, resize, handlers, fileira, veu, halo, livroDireita, retangulo, retanguloLivro,
     get qualidade() { return QUALIDADES[qualidade].nome; },
     set aoMudarQualidade(f) { aoMudar = f; },
     proximaQualidade() {

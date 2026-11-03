@@ -724,7 +724,7 @@ function desenharPainel() {
 
 // A letra: a legível (Andika) é a de origem, a clássica fica para quem a preferir.
 const LETRAS = {
-  legivel: { titulo: '"Andika", Verdana, sans-serif', texto: '"Andika", Verdana, sans-serif', nome: 'legível' },
+  legivel: { titulo: '"Andika Cardo", Verdana, sans-serif', texto: '"Andika Cardo", Verdana, sans-serif', nome: 'legível' },
   classica: { titulo: '"Cinzel", Georgia, serif', texto: '"EB Garamond", Georgia, serif', nome: 'clássica' },
 };
 function usarLetra(nome) {
@@ -739,7 +739,7 @@ try { letra = localStorage.getItem('cardomancer-letra') || 'legivel'; } catch (e
 
 async function main() {
   try {
-    await Promise.all(['40px "Cinzel"', '600 40px "Cinzel"', '700 40px "Cinzel"', '40px "EB Garamond"', 'italic 40px "EB Garamond"', '40px "Andika"', '700 40px "Andika"', 'italic 40px "Andika"'].map(f => document.fonts.load(f, 'Áçã')));
+    await Promise.all(['40px "Cinzel"', '600 40px "Cinzel"', '700 40px "Cinzel"', '40px "EB Garamond"', 'italic 40px "EB Garamond"', '40px "Andika Cardo"', '700 40px "Andika Cardo"', 'italic 40px "Andika Cardo"'].map(f => document.fonts.load(f, 'Áçã')));
   } catch (e) { /* sem fontes, usa Georgia */ }
   usarLetra(letra);
 
@@ -831,12 +831,28 @@ async function main() {
     if (id && usarItem(id)) { sfx.coin(); ui.sync(); }
   });
 
+  // As configurações da abertura são as mesmas do painel da direita.
+  const opcoesAbertura = [...$('title-opcoes').children];
+  const rotulos = () => opcoesAbertura.forEach(b => { b.textContent = $(b.dataset.alvo).textContent; });
+  rotulos();
+  opcoesAbertura.forEach(b => b.addEventListener('click', async () => { await $(b.dataset.alvo).click(); setTimeout(rotulos, 50); }));
+  $('title-config').addEventListener('click', () => {
+    const abre = $('title-opcoes').hidden;
+    $('title-opcoes').hidden = !abre;
+    $('title-config').setAttribute('aria-expanded', String(abre));
+    rotulos();
+  });
+  $('title-ajuda').addEventListener('click', () => { abrirLore('Como se joga', COMO_JOGAR); $('rever-guia').hidden = true; });
+
   await new Promise(resolve => $('start').addEventListener('click', resolve, { once: true }));
   pedirEcraInteiro();
   await perguntarPrimeiraVez();
   sfx.card();
   musica.ligar();
-  $('title').classList.remove('on');
+  // O preto desvanece enquanto a câmara desce sobre a mesa.
+  $('title').classList.add('sai');
+  await world.revelarMesa();
+  $('title').classList.remove('on', 'sai');
   novoEstado();
   ui.sync();
   await partida(ui);

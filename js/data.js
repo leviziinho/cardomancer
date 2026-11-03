@@ -49,6 +49,11 @@ const RACAS = {
 const ITENS = {
   adaga: { nome: 'Adaga Curva', slot: 'arma', preco: 8, dado: 'd6', a: 'agilidade', attrs: { agilidade: 1 }, glyph: 'dagger', desc: 'Ataca com Agilidade. Dado d6, +1 Agilidade.' },
   cajado: { nome: 'Cajado de Freixo', slot: 'arma', preco: 8, dado: 'd6', a: 'mente', attrs: { mente: 1 }, glyph: 'star', desc: 'Ataca com Mente. Dado d6, +1 Mente.' },
+  // Focos mágicos: só quem lança magia sabe tirar deles mais do que um pau ou uma pedra.
+  vara: { nome: 'Vara de Sabugueiro', slot: 'arma', perfil: 'magica', preco: 14, dado: 'd8', a: 'mente', attrs: { mente: 1 }, glyph: 'leaf', desc: 'Foco mágico. Ataca com Mente. Dado d8, +1 Mente.' },
+  orbe: { nome: 'Orbe de Cristal', slot: 'arma', perfil: 'magica', preco: 16, dado: 'd8', a: 'carisma', attrs: { carisma: 1 }, glyph: 'sun', desc: 'Foco mágico. Ataca com Carisma. Dado d8, +1 Carisma.' },
+  simbolo: { nome: 'Símbolo Sagrado', slot: 'arma', perfil: 'magica', preco: 16, dado: 'd8', a: 'mente', attrs: { carisma: 1 }, glyph: 'seal', desc: 'Foco mágico. Ataca com Mente. Dado d8, +1 Carisma.' },
+  grimorio: { nome: 'Grimório Proibido', slot: 'arma', perfil: 'magica', preco: 22, dado: 'd10', a: 'mente', attrs: { carisma: -1 }, glyph: 'rune', desc: 'Foco mágico. Ataca com Mente. Dado d10, -1 Carisma: há páginas que não se leem em voz alta.' },
   espada: { nome: 'Espada de Família', slot: 'arma', perfil: 'marcial', preco: 12, dado: 'd8', a: 'forca', glyph: 'sword', desc: 'Ataca com Força. Velha, mas de confiança. Dado d8.' },
   rapieira: { nome: 'Rapieira de Duelo', slot: 'arma', perfil: 'fina', preco: 16, dado: 'd8', a: 'agilidade', attrs: { carisma: 1 }, glyph: 'sword', desc: 'Ataca com Agilidade. Dado d8, +1 Carisma.' },
   arco: { nome: 'Arco de Teixo', slot: 'arma', perfil: 'arco', preco: 16, dado: 'd8', a: 'agilidade', attrs: { agilidade: 1 }, glyph: 'bow', desc: 'Ataca com Agilidade. Dado d8, +1 Agilidade.' },
