@@ -16,7 +16,7 @@ Faça duplo clique em `index.html`. É preciso Internet para descarregar o motor
 
 - **Testes:** d20 + atributo, contra o número indicado na carta. Um 20 natural é acerto crítico (+3 XP e +3 Ouro) e um 1 natural é falha crítica (-2 Vida).
 - **Combate:** joga-se à vez, e quem tem mais Agilidade começa. O seu d20 mais o atributo tem de chegar à CA dele, e o d20 negro dele tem de chegar à sua CA (10 + metade da Agilidade + armadura). Quem acerta rola o dado de dano. Um 20 fere a dobrar. Cada arma usa o seu atributo: adaga, rapieira e arco usam Agilidade, o cajado usa Mente, e as restantes usam Força.
-- **Chefe final:** tem PV para cerca de 5 rondas (6 + 3 por nível do herói) e duas ações por ronda: um efeito sem dado e um ataque. Não dá para fugir, e os trunfos da história baixam-lhe a CA. Antes do combate, o herói recupera metade da Vida, e o atraso deixa de pesar nos testes.
+- **Chefe final:** tem 10 PV + 4 por nível do herói, dano d8 e duas ações por ronda: um efeito sem dado e um golpe. O golpe varia: normal, partir a guarda (a sua CA desce 2), cansar o braço (o seu dano desce 2 por duas rondas), fechar-se na defesa (CA +3 até à vez seguinte) ou um golpe certeiro, sem dado e mais fraco. Não dá para fugir, e os trunfos da história baixam-lhe a CA. Antes do combate, o herói recupera metade da Vida, e o atraso deixa de pesar nos testes.
 - **Subida de nível:** cada nível dá +10% de PV aos inimigos. A cada três níveis, os testes, a CA, o ataque e o dano deles sobem 1.
 - **Magias e técnicas:** cada classe tem as suas, usadas uma vez por combate. Fora de combate, algumas aparecem como opção de cena.
 - **Sorte da estrada:** dois d10 dão um número de 1 a 100, que cai em cima do mapa. Com a percentagem da carta ou menos, há encontro, e um d10 decide de que tipo é.
@@ -28,16 +28,17 @@ Faça duplo clique em `index.html`. É preciso Internet para descarregar o motor
 - **Missão:** a estrela dourada no mapa e o aviso "Agora" dizem sempre para onde ir. A história avança por três etapas, e os diálogos, os combates ganhos e os interrogatórios dão dicas do caminho.
 - **Pistas:** são opcionais. O olho vermelho no mapa marca a próxima. Cada pista tem 3 fragmentos: ganha-se um com uma carta com olho, no sítio da pista. Até um combate pode ter o olho, por isso também se consegue uma pista à força. Se falhar a carta com olho, a pista muda de sítio mas o progresso fica. Cada pista completa enfraquece o chefe final no combate.
 - **Mundos:** cada partida começa pela escolha do mundo. As Terras de Vésper e Daraan, o Império da Espada, têm mapa, missões, vilões e encontros próprios. Guerreiro, Feiticeiro, Monge e Druida existem nos dois, e Daraan tem ainda raça, antecedentes e objetos só seus.
-- **Viagem:** o pino para a meio da estrada, e é aí que escolhe a postura e resolve o que aparecer. A Marcha Forçada gasta 1 dia e 2 de Vida, e pode ser apanhado de surpresa. Pelos Trilhos gasta 2 dias e pode ser você a surpreender. Só depois de resolver o encontro é que chega ao destino, por isso a carta da pista nunca aparece na estrada.
+- **Viagem:** o pino para a meio da estrada, e é aí que escolhe a postura e resolve o que aparecer. A Marcha Forçada gasta 1 dia e tem 50% de encontro, que o apanha de surpresa. Pelos Trilhos gasta 2 dias e tem 25%, e se der com alguém escolhe se vai ver ou se segue. Explorar o Caminho gasta 3 dias e tem sempre encontro. Os perigos da estrada começam logo em combate. Só depois de resolver o encontro é que chega ao destino, por isso a carta da pista nunca aparece na estrada.
 - **Tabuleiro:** cada carta do herói tem o seu lugar marcado, e os lugares vazios mostram o que falta.
 - **Equipamento:** um objeto por espaço (arma, armadura, acessório) e 3 lugares na mochila. Um objeto substituído rende 1/4 do preço.
 - **Melhorias:** o ferreiro do mercado aprimora o que traz no corpo, com um máximo de duas melhorias por objeto. O mercador secreto da estrada cobra menos 30%.
 - **Estrada:** os encontros nem sempre são maus. Um d10 decide: 1 é um mestre raríssimo que oferece a evolução da classe, ou o nível máximo a quem recusa (uma vez por partida), 2 e 3 são o mercador secreto, 4 e 5 são boa sorte, e o resto é perigo. Também há contratempos que custam um dia ou ouro.
-- **Experiência:** os testes dão XP, mesmo fora do combate. Ao subir de nível, escolhe um talento quando sai da cena.
+- **Experiência:** só os testes dão XP (9, 21, 36, 54 e 75 para os níveis 2 a 6). As cartas especiais dão 1, e as escolhas sem teste não dão nada. Ao subir de nível, escolhe um talento quando sai da cena.
 - **Telemóvel:** joga-se melhor deitado, com o livro à esquerda e as cartas à direita. De pé, o botão "Quero jogar na vertical" mostra a página como texto e as cartas por baixo. Toque numa carta para a ler, e toque de novo para a jogar. A imagem é mais leve no telemóvel, para não aquecer.
 - **Primeira vez:** o jogo pergunta se é a primeira aventura e pode explicar a mesa, parte a parte. A explicação volta a estar na Ajuda.
 - **Dados:** rolam dentro de uma caixa, sempre à vista.
-- **Aliados e reviravoltas:** os aliados ajudam nos testes do seu campo. Depois da segunda etapa, a história pode mudar.
+- **Sem teste:** por mão aparece no máximo uma escolha comum sem teste (pagar, esperar, comprar). Sucesso garantido é só das cartas especiais e das magias de cura e proteção. Fugir de um combate é sempre um teste, e falhar gasta a vez.
+- **Aliados e reviravoltas:** os aliados ajudam nos testes do seu campo e lutam a seu lado: cada um tem CA, PV e uma ação (atacar, curar ou proteger). O inimigo pode atacá-los, e um aliado que cai em combate perde-se. Depois da segunda etapa, a história pode mudar.
 - **Vida 0:** a partida acaba, e a carta selada revela o que estava em jogo.
 
 ## Onde mexer

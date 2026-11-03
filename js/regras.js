@@ -46,6 +46,44 @@ function talentosAtivos() {
   return G.talentos.map(id => lista.find(t => t.id === id));
 }
 const aliadosAtivos = () => G.aliados.map(id => ALIADOS[id]);
+
+// Os aliados também lutam. Os números saem do nome, para serem sempre os mesmos.
+function fichaAliado(id) {
+  const a = ALIADOS[id];
+  let h = 7;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 9973;
+  const sorte = n => { h = (h * 17 + 11) % 9973; return h % n; };
+  const forte = (a.tipo && a.tipo.combate) || 0;
+  const acao = a.vidaMax ? 'cura' : a.tipo && a.tipo.social ? 'guarda' : 'golpe';
+  return {
+    id, nome: a.nome, acao,
+    pv: 6 + sorte(5) + forte * 2, ca: 10 + sorte(3) + (forte ? 1 : 0), ataque: 2 + sorte(2) + forte,
+    dado: forte || sorte(3) === 0 ? 'd8' : 'd6', cura: 3 + sorte(2),
+  };
+}
+function resumoAliado(f) {
+  const faz = f.acao === 'cura' ? `Cura ${f.cura} por ronda` : f.acao === 'guarda' ? 'Protege: +2 na sua CA' : `Ataca +${f.ataque}, dano ${f.dado}`;
+  return `CA ${f.ca}  ·  ${f.pv} PV  ·  ${faz}`;
+}
+
+// Os aliados também lutam. Os números saem do nome, para serem sempre os mesmos.
+function fichaAliado(id) {
+  const a = ALIADOS[id];
+  let h = 7;
+  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 9973;
+  const sorte = n => { h = (h * 17 + 11) % 9973; return h % n; };
+  const forte = (a.tipo && a.tipo.combate) || 0;
+  const acao = a.vidaMax ? 'cura' : a.tipo && a.tipo.social ? 'guarda' : 'golpe';
+  return {
+    id, nome: a.nome, acao,
+    pv: 6 + sorte(5) + forte * 2, ca: 10 + sorte(3) + (forte ? 1 : 0), ataque: 2 + sorte(2) + forte,
+    dado: forte || sorte(3) === 0 ? 'd8' : 'd6', cura: 3 + sorte(2),
+  };
+}
+function resumoAliado(f) {
+  const faz = f.acao === 'cura' ? `Cura ${f.cura} por ronda` : f.acao === 'guarda' ? 'Protege: +2 na sua CA' : `Ataca +${f.ataque}, dano ${f.dado}`;
+  return `CA ${f.ca}  ·  ${f.pv} PV  ·  ${faz}`;
+}
 const itensCorpo = () => Object.values(G.equip).filter(Boolean).map(id => ITENS[id]);
 
 const evolucao = () => (G.evolucao ? EVOLUCOES[G.cls].find(e => e.id === G.evolucao) : null);
@@ -384,7 +422,9 @@ function maoDaCena(cena) {
 
   const fixas = [...raras, ...porItem, ...taticas];
   const lugares = Math.max(1, 4 - fixas.length);
-  const usaveis = baralhar(base.filter(podeUsar));
+  // Sem teste só passa uma por mão: o que resolve sem dados são as cartas especiais.
+  let semTeste = 0;
+  const usaveis = baralhar(base.filter(podeUsar)).filter(o => o.roll || semTeste++ < 1);
   const escolhidas = usaveis.slice(0, lugares);
   if (!escolhidas.length && !fixas.length) escolhidas.push(...base.slice(0, lugares));
   const mao = [...fixas, ...escolhidas];
@@ -456,8 +496,8 @@ function chefeFinal() {
 const dadoDoInimigo = ini => `${ini.dado}${ini.mais ? `+${ini.mais}` : ''}`;
 
 // O d20 do inimigo contra a sua CA. Depois de uma falha crítica sua, acerta sempre.
-function ataqueDoInimigo(ini, exposto = false) {
-  const d20 = dado(20), ca = caJogador(), total = d20 + ini.ataque;
+function ataqueDoInimigo(ini, exposto = false, ca = caJogador()) {
+  const d20 = dado(20), total = d20 + ini.ataque;
   const critico = d20 === 20;
   const acerta = exposto || critico || (d20 !== 1 && total >= ca);
   const rolado = acerta ? dado(parseInt(ini.dado.slice(1), 10)) : 0;

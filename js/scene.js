@@ -829,6 +829,7 @@ function createWorld(canvasEl) {
     const sitio = onde === 'mapa' || !book.aberto ? [CX, 0, 1.4] : naVista(ecraPequeno() ? .62 : 0, ecraPequeno() ? .3 : -.6, 0).pos;
     caixa.position.set(sitio[0], .03, sitio[2]);
     caixa.visible = true;
+    limpaFundo.visible = true;
     return Promise.all(lista.map(({ tipo, face }, i) => {
       const die = DICE[tipo], f = die.faces[face], m = die.mesh;
       const frame = new THREE.Matrix4().makeBasis(f.right, f.up, f.n);
@@ -879,7 +880,23 @@ function createWorld(canvasEl) {
     scene.add(g);
     return g;
   })();
-  const hideDice = () => { Object.values(DICE).forEach(d => (d.mesh.visible = false)); caixa.visible = false; };
+  // Antes da caixa, apaga-se a profundidade do que já se desenhou: o pino e as cartas ficam por baixo dela.
+  // Tudo isto vai na lista dos transparentes, com ordem alta: desenha-se no fim de tudo, até das sombras falsas e dos brilhos.
+  const limpaFundo = new THREE.Mesh(new THREE.PlaneGeometry(.01, .01), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, transparent: true }));
+  limpaFundo.frustumCulled = false;
+  limpaFundo.renderOrder = 9;
+  limpaFundo.position.z = -1;
+  limpaFundo.onBeforeRender = r => r.clearDepth();
+  limpaFundo.visible = false;
+  camera.add(limpaFundo);
+  // O latão é partilhado com o tabuleiro: a caixa leva cópias, para não mudar mais nada.
+  const porCima = o => o.traverse(m => {
+    m.renderOrder = 10;
+    if (m.material && !Array.isArray(m.material)) { m.material = m.material.clone(); m.material.transparent = true; }
+  });
+  porCima(caixa);
+  Object.values(DICE).forEach(d => porCima(d.mesh));
+  const hideDice = () => { Object.values(DICE).forEach(d => (d.mesh.visible = false)); caixa.visible = false; limpaFundo.visible = false; };
 
   // O d20 de quem chega a uma classe aprimorada: perolado, com os números acesos.
   let d20Tema = null, d20Halo = null;
@@ -1236,7 +1253,7 @@ function createWorld(canvasEl) {
     const h = innerHeight - topo - (trilha ? trilha.offsetHeight : 0);
     canvasEl.style.top = `${topo}px`;
     // Desenha com folga e encolhe: as letras pequenas das cartas ficam nítidas. A densidade do ecrã lê-se sempre de novo, porque muda com o zoom.
-    const densidade = Math.min((window.devicePixelRatio || 1) * nitidez, Math.sqrt(QUALIDADES[qualidade].maxPixeis / (w * h)), LEVE ? 1.5 : 9);
+    const densidade = Math.min((window.devicePixelRatio || 1) * nitidez, Math.sqrt(QUALIDADES[qualidade].maxPixeis / (w * h)), LEVE ? 2 : 9);
     const chave = `${w}x${h}@${densidade}`;
     if (chave === ultimoTamanho) return;
     ultimoTamanho = chave;

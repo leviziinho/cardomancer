@@ -193,7 +193,7 @@ function fitText(ctx, text, x, y, maxW, maxH, size, minSize, family, color, alig
 function textures(renderer) {
   const CARD_W = 1024, CARD_H = 1434;
   // No telemóvel as cartas desenham-se mais pequenas: são muitas, e a memória da placa é pouca.
-  const RES_CARTA = eTelemovel() ? .62 : 1;
+  const RES_CARTA = eTelemovel() ? .85 : 1;
   // O medalhão é pequeno para a letra poder ser grande: as cartas têm de se ler sem as aproximar.
   const MEDALHAO = { y: 355, r: 170 };
 

@@ -56,7 +56,8 @@ function especOpcao(o) {
     rodape = `${ATTR[a].nome} ${sinal(bonusDe(o))}  ·  ${dcDe(o)}+  ·  ${pct(chanceDe(o))}`;
     rodapeGlyph = ATTR[a].glyph;
   } else {
-    rodape = o.ganhoTexto !== undefined ? 'Sem teste' : 'Sucesso garantido';
+    // Sucesso garantido é coisa das cartas especiais. O resto é uma escolha, com o seu preço.
+    rodape = o.rara || o.req ? 'Sucesso garantido' : 'Sem teste';
   }
   const preso = !ok || !!o.bloqueada;
   return {
@@ -253,24 +254,76 @@ async function fazerTeste(ui, o) {
   return r;
 }
 
+const caEmCombate = est => Math.max(5, caJogador() - est.caMenos + (est.guarda ? 2 : 0));
+const vivos = est => est.aliados.filter(a => a.pv > 0);
+const notaAliados = est => est.aliados.map(a => `${a.nome.split(',')[0]}: ${Math.max(0, a.pv)}/${a.pvMax} PV`).join('  ·  ');
+
+// O que o chefe faz com a sua segunda ação: nem sempre é o mesmo golpe.
+const GOLPES_DO_CHEFE = [
+  { id: 'golpe', t: 'ataca' },
+  { id: 'golpe', t: 'ataca' },
+  { id: 'quebra', t: 'ataca para lhe partir a guarda', nota: 'se acertar, a sua CA desce 2' },
+  { id: 'corta', t: 'ataca-lhe o braço da arma', nota: 'se acertar, o seu dano desce 2 por duas rondas' },
+  { id: 'guarda', t: 'fecha-se na defesa', nota: 'CA +3 até à próxima vez dele' },
+  { id: 'certeiro', t: 'atinge-o sem falhar', nota: 'dano menor, mas sem teste' },
+];
+
+// Um aliado atingido pode cair, e quem cai em combate não volta.
+async function feridoAliado(ui, ini, est, a) {
+  const r = ataqueDoInimigo(ini, false, a.ca);
+  await ui.dados([{ tipo: 'd20i', face: r.d20 - 1 }, ...(r.rolado ? [{ tipo: ini.dado, face: r.rolado - 1 }] : [])]);
+  await ui.resultado(`${ini.nome} vira-se para ${a.nome}: ${r.total} contra CA ${a.ca}: ${r.acerta ? `acerta, -${r.dano} PV` : 'falha'}`, !r.acerta);
+  if (!r.acerta) return `${ini.nome} tenta atingir ${a.nome}, e falha.`;
+  a.pv -= r.dano;
+  ui.som('golpe');
+  if (a.pv > 0) return `${ini.nome} fere ${a.nome}, que perde ${r.dano} PV.`;
+  G.aliados = G.aliados.filter(id => id !== a.id);
+  G.aliadosPerdidos = (G.aliadosPerdidos || 0) + 1;
+  ui.sync();
+  return `${a.nome} cai, e não se volta a levantar. A carta perde-se.`;
+}
+
 // O inimigo joga: d20 contra a sua CA e, se acertar, o dado dele. Devolve o texto do que aconteceu.
 async function ataqueInimigo(ui, ini, est) {
+  const golpe = ini.chefe ? umDe(GOLPES_DO_CHEFE) : GOLPES_DO_CHEFE[0];
+  if (golpe.id === 'guarda') {
+    ini.defesa += 3;
+    est.guardaChefe = 3;
+    await ui.resultado(`${ini.nome} ${golpe.t}: ${golpe.nota}`, false);
+    est.rodape = [est.rodape, `CA dele ${ini.defesa}`].filter(Boolean).join('  ·  ');
+    return `${ini.nome} recua e fecha-se na defesa.`;
+  }
+  // Com aliados ao lado, nem sempre é o herói o alvo.
+  const lado = vivos(est);
+  if (golpe.id !== 'certeiro' && lado.length && Math.random() < .35) return feridoAliado(ui, ini, est, umDe(lado));
   if (est.escudo) {
     est.escudo = false;
     return fmt(`O escudo aguenta o golpe de ${ini.nome}.`);
   }
-  const r = ataqueDoInimigo(ini, est.exposto);
+  if (golpe.id === 'certeiro') {
+    const dano = Math.max(1, Math.ceil(dado(parseInt(ini.dado.slice(1), 10)) / 2) + (ini.mais || 0));
+    await ui.resultado(`${ini.nome} ${golpe.t}: -${dano} Vida`, false);
+    await aplicar(ui, { vida: -dano });
+    ui.som('golpe');
+    est.rodape = [est.rodape, `-${dano} Vida`].filter(Boolean).join('  ·  ');
+    return `${ini.nome} atinge-o sem falhar, e tira-lhe ${dano} de Vida.`;
+  }
+  const r = ataqueDoInimigo(ini, est.exposto, caEmCombate(est));
+  est.guarda = false;
   const estava = est.exposto;
   est.exposto = false;
   const lista = [{ tipo: 'd20i', face: r.d20 - 1 }];
   if (r.rolado) lista.push({ tipo: ini.dado, face: r.rolado - 1 });
   await ui.dados(lista);
-  await ui.resultado(`${ini.nome}: d20 ${r.d20} ${sinal(ini.ataque)} = ${r.total}, contra a sua CA ${r.ca}: ${r.acerta ? `acerta, -${r.dano} Vida` : 'falha'}`, !r.acerta);
+  await ui.resultado(`${ini.nome}${golpe.nota ? ` ${golpe.t}` : ''}: d20 ${r.d20} ${sinal(ini.ataque)} = ${r.total}, contra a sua CA ${r.ca}: ${r.acerta ? `acerta, -${r.dano} Vida` : 'falha'}`, !r.acerta);
   if (!r.acerta) return `${ini.nome} ataca, e falha.`;
   await aplicar(ui, { vida: -r.dano });
   ui.som('golpe');
   est.rodape = [est.rodape, `-${r.dano} Vida`].filter(Boolean).join('  ·  ');
-  return `${r.critico ? 'Um golpe terrível! ' : estava ? 'Apanha-o exposto. ' : ''}${ini.nome} acerta-lhe, e tira-lhe ${r.dano} de Vida.`;
+  let extra = '';
+  if (golpe.id === 'quebra') { est.caMenos = Math.min(4, est.caMenos + 2); extra = ` A sua guarda abre-se: CA ${caEmCombate(est)}.`; }
+  if (golpe.id === 'corta') { est.danoMenos = 2; extra = ' O braço da arma fica dormente: o seu dano desce 2 por duas rondas.'; }
+  return `${r.critico ? 'Um golpe terrível! ' : estava ? 'Apanha-o exposto. ' : ''}${ini.nome} acerta-lhe, e tira-lhe ${r.dano} de Vida.${extra}`;
 }
 
 // O efeito do chefe, antes do ataque. Não precisa de dado, mas o escudo não o trava.
@@ -289,6 +342,7 @@ async function efeitoDoChefe(ui, ini, est) {
 
 // A vez do inimigo. O chefe tem duas ações: primeiro o efeito, depois o ataque.
 async function turnoInimigo(ui, ini, est) {
+  if (est.guardaChefe) { ini.defesa -= est.guardaChefe; est.guardaChefe = 0; }
   if (est.calado) { est.calado = false; return `${ini.nome} hesita, e perde a vez.`; }
   const frases = [];
   if (ini.efeitos) frases.push(await efeitoDoChefe(ui, ini, est));
@@ -296,9 +350,39 @@ async function turnoInimigo(ui, ini, est) {
   return frases.join(' ');
 }
 
+// Cada aliado de pé faz a sua parte, à vez, depois do herói.
+async function turnoAliados(ui, ini, est) {
+  const frases = [];
+  for (const a of vivos(est)) {
+    if (ini.pv <= 0) break;
+    if (a.acao === 'cura' && G.vida < vidaMax()) {
+      await aplicar(ui, { vida: a.cura });
+      await ui.resultado(`${a.nome} trata-lhe das feridas: +${a.cura} Vida`, true);
+      frases.push(`${a.nome} fecha-lhe uma ferida.`);
+      continue;
+    }
+    if (a.acao === 'guarda') {
+      est.guarda = true;
+      await ui.resultado(`${a.nome} distrai ${ini.nome}: +2 na sua CA`, true);
+      frases.push(`${a.nome} põe-se entre os dois.`);
+      continue;
+    }
+    const d20 = dado(20), acerta = d20 === 20 || (d20 !== 1 && d20 + a.ataque >= ini.defesa);
+    const rolado = acerta ? dado(parseInt(a.dado.slice(1), 10)) : 0;
+    const dano = acerta ? rolado * (d20 === 20 ? 2 : 1) : 0;
+    await ui.dados([{ tipo: 'd20', face: d20 - 1 }, ...(acerta ? [{ tipo: a.dado, face: rolado - 1 }] : [])]);
+    await ui.resultado(`${a.nome}: d20 ${d20} +${a.ataque} = ${d20 + a.ataque}, contra ${ini.defesa}: ${acerta ? `acerta, ${dano} de dano` : 'falha'}`, acerta);
+    ini.pv -= dano;
+    frases.push(acerta ? `${a.nome} acerta, e tira-lhe ${dano} de PV.` : `${a.nome} ataca, e falha.`);
+  }
+  return frases.join(' ');
+}
+
 // Combate à vez, com um d20 para cada lado. Devolve 'vitoria', 'fuga' ou 'morte'.
 async function combate(ui, ini, arte) {
-  const usadas = new Set(), est = { escudo: false, exposto: false, rodape: ini.sabe || '', fraco: 0, calado: !!ini.calado };
+  const usadas = new Set(), est = { escudo: false, exposto: false, rodape: ini.sabe || '', fraco: 0, calado: !!ini.calado, caMenos: 0, danoMenos: 0, guarda: false, guardaChefe: 0 };
+  // Os aliados entram de Vida cheia em cada combate.
+  est.aliados = G.aliados.map(id => ({ ...fichaAliado(id), pvMax: fichaAliado(id).pv }));
   let ronda = 1;
   G.log.combates++;
   G.emCombate = true;
@@ -306,6 +390,7 @@ async function combate(ui, ini, arte) {
   ui.sync();
   ui.musica(ini.chefe ? 'chefe' : 'combate');
   const fim = r => {
+    if (ini.chefe && est.guardaChefe) ini.defesa -= est.guardaChefe;
     G.emCombate = false;
     G.emCombateFinal = false;
     if (ini.chefe) G.log.rondasChefe = ronda;
@@ -318,8 +403,8 @@ async function combate(ui, ini, arte) {
   const quemComeca = primeiro ? 'É mais rápido, e joga primeiro.' : `É mais lento, e ${plural ? 'eles jogam' : 'ele joga'} primeiro.`;
   let texto = ini.abertura ? fmt(`${ini.abertura} ${quemComeca}`) : `${ini.nome} não o ${plural ? 'deixam' : 'deixa'} passar. Joga-se à vez: cada um rola o d20 contra a armadura do outro. ${quemComeca}`;
   const pagina = () => ui.livro({
-    capitulo: `${ini.capitulo || 'Combate'}  ·  Ronda ${ronda}`, titulo: ini.nome, arte, texto, rodape: est.rodape,
-    combate: { nome: ini.nome, pv: Math.max(0, ini.pv), pvMax: ini.pvMax, ataque: ini.ataque, dado: dadoDoInimigo(ini), defesa: ini.defesa, vida: G.vida, vidaMax: vidaMax(), ca: caJogador(), escudo: est.escudo },
+    capitulo: `${ini.capitulo || 'Combate'}  ·  Ronda ${ronda}`, titulo: ini.nome, arte, texto, rodape: [est.rodape, notaAliados(est)].filter(Boolean).join('  ·  '),
+    combate: { nome: ini.nome, pv: Math.max(0, ini.pv), pvMax: ini.pvMax, ataque: ini.ataque, dado: dadoDoInimigo(ini), defesa: ini.defesa, vida: G.vida, vidaMax: vidaMax(), ca: caEmCombate(est), escudo: est.escudo },
   });
   if (!primeiro) {
     await pagina();
@@ -347,6 +432,8 @@ async function combate(ui, ini, arte) {
         if (G.vida <= 0) return fim('morte');
       }
       const r = o.roll ? await fazerTeste(ui, o) : { ok: true };
+      if (r.ok && r.dano && est.danoMenos) r.dano = Math.max(1, r.dano - 2);
+      if (est.danoMenos) est.danoMenos--;
       if (r.ok) {
         if (o.fugir || m.fuga) return fim('fuga');
         if (m.vence) { ini.pv = 0; ini.ultimoGolpe = `${o.t}: ${ini.nome} cai, sem saber o que o atingiu.`; return fim('vitoria'); }
@@ -381,6 +468,10 @@ async function combate(ui, ini, arte) {
     }
     // Quem cai não responde, e o golpe final conta-se na página do resultado.
     if (ini.pv <= 0) { ini.ultimoGolpe = texto; return fim('vitoria'); }
+    if (vivos(est).length) {
+      texto = `${texto} ${await turnoAliados(ui, ini, est)}`;
+      if (ini.pv <= 0) { ini.ultimoGolpe = texto; return fim('vitoria'); }
+    }
     {
       const resposta = await turnoInimigo(ui, ini, est);
       texto = `${texto} ${resposta}`;
@@ -399,7 +490,7 @@ async function jogarCena(ui, cena, capitulo = null) {
   if (cena.etapa) ui.prompt(`Etapa ${G.fio + 1} de ${ETAPAS_DA_MISSAO} da missão`, `Mesmo falhando, fica a saber para onde ir, mas falhar custa caro.${G.dicas ? ` As dicas que ouviu tornam os testes ${Math.min(G.dicas, 3)} mais fáceis.` : ''}`);
   else if (mao.some(o => o.fragmento || o.rasto)) ui.prompt(cena.prologo ? 'O primeiro fragmento' : 'A pista está aqui!', cena.prologo ? 'As cartas com o olho vermelho dão um fragmento de pista.' : `As cartas com o olho vermelho dão um fragmento (tem ${G.fragmentos} de ${FRAGMENTOS_POR_PISTA}). Se falhar, a pista muda de sítio, mas nada se perde.`);
   else if (mao.some(o => o.rara && o.tokenReq)) ui.prompt('Uma carta rara!', 'Só há uma destas na aventura. Se não a usar agora, volta ao baralho.');
-  const i = await ui.escolha(mao.map(especOpcao), { ctx: 'cena' });
+  const i = cena.direto ? 0 : await ui.escolha(mao.map(especOpcao), { ctx: 'cena' });
   ui.prompt('');
   const o = mao[i];
   if (o.tokenReq) {
@@ -430,9 +521,11 @@ async function jogarCena(ui, cena, capitulo = null) {
   }
   const fx = { ...(res.fx || {}) };
   if (!r.ok && fx.vida < 0) fx.vida = Math.round(fx.vida * VIDA.falha);
+  const especial = !!(o.req || o.rara);
+  if (r.certo && !especial) delete fx.xp;
   let texto = [golpe, fmt(res.txt || '')].filter(Boolean).join(' ');
 
-  G.xp += r.certo ? XP_GANHO.certeza : r.ok ? XP_GANHO.sucesso : XP_GANHO.falha;
+  G.xp += r.certo ? (especial ? XP_GANHO.certeza : 0) : r.ok ? XP_GANHO.sucesso : XP_GANHO.falha;
   if (!r.certo) G.xp += talentosAtivos().reduce((s, t) => s + (t.xpExtra || 0), 0);
 
   if (r.critico) {
@@ -550,13 +643,16 @@ async function escolherPostura(ui) {
   await ui.fecharLivro();
   const lento = temTalento('trilho') ? 1 : 2;
   const contra = Math.max(5, SURPRESA_CHANCE - talentosAtivos().reduce((s, t) => s + (t.alerta || 0), 0));
-  ui.prompt('Como quer viajar?', `Dia ${G.dia} de ${G.prazo}. Pelos trilhos, cada estrada leva ${lento} ${lento === 1 ? 'dia' : 'dias'}.`);
+  ui.prompt('Como quer viajar?', `Dia ${G.dia} de ${G.prazo}. O dado decide o que há na estrada; a maneira de viajar decide quantas vezes o encontra.`);
   const i = await ui.escolha([
-    { tema: 'combate', etiqueta: 'Depressa', titulo: 'Marcha Forçada', glyph: 'hourglass', desc: `Chega mais cedo, exausto e sem olhar para os lados. Com ${contra} ou menos nos dados, há encontro, sem aviso.`, rodape: `1 dia  ·  -${VIDA.marcha} Vida  ·  Encontro ${contra}%`, postura: 'depressa' },
-    { tema: 'habilidade', etiqueta: 'Sorrateiro', titulo: 'Pelos Trilhos', glyph: 'feather', desc: `Mais lento, mas é você quem vê primeiro. Com ${SURPRESA_CHANCE + 10} ou menos nos dados, há encontro, e decide o que fazer.`, rodape: `${lento} ${lento === 1 ? 'dia' : 'dias'}  ·  Encontro ${SURPRESA_CHANCE + 10}%`, postura: 'sorrateiro' },
+    { tema: 'combate', etiqueta: 'Depressa', titulo: 'Marcha Forçada', glyph: 'hourglass', desc: 'Chega mais cedo, sem olhar para os lados. O que houver na estrada dá de caras consigo.', rodape: `1 dia  ·  Encontro ${contra}%`, postura: 'depressa' },
+    { tema: 'habilidade', etiqueta: 'Sorrateiro', titulo: 'Pelos Trilhos', glyph: 'feather', desc: 'Mais lento, mas raramente o veem. Se der com alguém, decide se vai ver ou se segue.', rodape: `${lento} ${lento === 1 ? 'dia' : 'dias'}  ·  Encontro ${TRILHOS_CHANCE}%`, postura: 'sorrateiro' },
+    { tema: 'investigacao', etiqueta: 'Explorar', titulo: 'Explorar o Caminho', glyph: 'eye', desc: 'Sair da estrada e procurar o que ela esconde. Há sempre um encontro, para o bem ou para o mal.', rodape: `${EXPLORAR_DIAS} dias  ·  Encontro sempre`, postura: 'explorar' },
   ], { ctx: 'postura' });
   ui.prompt('');
-  return i === 0 ? { dias: 1, tipo: 'contra', chance: contra, vida: -VIDA.marcha } : { dias: lento, tipo: 'favor', chance: SURPRESA_CHANCE + 10 };
+  if (i === 0) return { dias: 1, tipo: 'contra', chance: contra };
+  if (i === 1) return { dias: lento, tipo: 'favor', chance: TRILHOS_CHANCE, decide: true };
+  return { dias: EXPLORAR_DIAS, tipo: 'favor', chance: 100, explorar: true };
 }
 
 async function passarDias(ui, dias) {
@@ -569,25 +665,18 @@ async function passarDias(ui, dias) {
   }
 }
 
+// Um perigo na estrada: o combate começa logo. Quem é apanhado leva o primeiro golpe; quem vê primeiro, dá-o.
 function cenaSurpresa(tipo) {
   const s = umDe(SURPRESAS);
   if (tipo === 'contra') {
     return {
-      titulo: `Emboscada: ${s.inimigo}`, texto: s.contra,
-      opcoes: [
-        { t: 'Lutar para sair', d: 'Sem tempo para mais nada.', tipo: 'combate', roll: { a: 'forca', dc: 13, pv: s.pv, ini: s.inimigo, primeiro: 'inimigo' }, ok: { txt: 'Abre caminho entre eles, e ainda fica com o que deixam cair.', fx: { ouro: Math.ceil(s.saque / 2) } }, ko: { txt: 'Foi apanhado desprevenido, e paga por isso.', fx: { vida: -5 } } },
-        { t: 'Fugir', d: 'Largar tudo e correr.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 12 }, ok: { txt: 'Salta a vedação e corre até lhe faltar o ar. Ninguém o segue.', fx: {} }, ko: { txt: 'Apanham-no pelas costas antes de conseguir fugir.', fx: { vida: -4 } } },
-        { t: 'Falar depressa', d: 'Muito depressa.', tipo: 'social', roll: { a: 'carisma', dc: 14 }, ok: { txt: 'Não sabe bem o que disse, mas eles param, olham uns para os outros e deixam-no ir.', fx: { xp: 2 } }, ko: { txt: 'Ninguém quis ouvir.', fx: { vida: -4 } } },
-      ],
+      titulo: `Emboscada: ${s.inimigo}`, texto: s.contra, direto: true,
+      opcoes: [{ t: 'Lutar para sair', d: 'Sem tempo para mais nada.', tipo: 'combate', roll: { a: 'forca', dc: 13, pv: s.pv, ini: s.inimigo, primeiro: 'inimigo' }, ok: { txt: 'Abre caminho entre eles, e ainda fica com o que deixam cair.', fx: { ouro: Math.ceil(s.saque / 2) } }, ko: { txt: 'Foi apanhado desprevenido, e paga por isso.', fx: { vida: -5 } } }],
     };
   }
   return {
-    titulo: `À Espreita: ${s.inimigo}`, texto: s.favor,
-    opcoes: [
-      { t: 'Atacar primeiro', d: 'Eles nem vão perceber de onde veio.', tipo: 'combate', roll: { a: 'forca', dc: 10, pv: s.pv - 2, ini: s.inimigo, primeiro: 'jogador' }, ok: { txt: 'Acaba tudo antes que se levantem. Fica com o que traziam.', fx: { ouro: s.saque, xp: 2 } }, ko: { txt: 'Falha o primeiro golpe, e a vantagem foi-se.', fx: { vida: -2 } } },
-      { t: 'Roubar-lhes as coisas', d: 'Sem acordar ninguém.', tipo: 'habilidade', roll: { a: 'agilidade', dc: 11 }, ok: { txt: 'Sai com as bolsas todas e sem um único arranhão. Só darão por isso de manhã.', fx: { ouro: s.saque + 3 } }, ko: { txt: 'Um ramo parte-se. Sai a correr, com uma ferida a lembrar-lhe a asneira.', fx: { vida: -3 } } },
-      { t: 'Passar sem ser visto', d: 'Não precisa desta luta.', ok: { txt: 'Passa à larga, em silêncio. Nunca chegarão a saber.', fx: { xp: 1 } } },
-    ],
+    titulo: `À Espreita: ${s.inimigo}`, texto: s.favor, direto: true,
+    opcoes: [{ t: 'Atacar primeiro', d: 'Eles nem vão perceber de onde veio.', tipo: 'combate', roll: { a: 'forca', dc: 10, pv: s.pv - 2, ini: s.inimigo, primeiro: 'jogador' }, ok: { txt: 'Acaba tudo antes que se levantem. Fica com o que traziam.', fx: { ouro: s.saque } }, ko: { txt: 'Falha o primeiro golpe, e a vantagem foi-se.', fx: { vida: -2 } } }],
   };
 }
 
@@ -704,6 +793,18 @@ function proximaCena() {
   const e = umDe(lista);
   G.vistos.add(e.id);
   return e;
+}
+
+// Pelos trilhos, quem vê primeiro decide se vai ver o que é.
+async function querVer(ui, postura) {
+  if (!postura.decide) return true;
+  ui.prompt('Há alguém na estrada', 'Ainda não o viram. Vai ver quem é, ou segue sem fazer barulho?');
+  const i = await ui.escolha([
+    { tema: 'investigacao', etiqueta: 'Aproximar-se', titulo: 'Ir Ver', glyph: 'eye', desc: 'Pode ser um perigo, um mercador, ou coisa mais rara.', rodape: 'O d10 decide' },
+    { tema: 'escolha', etiqueta: 'Seguir', titulo: 'Seguir Caminho', glyph: 'feather', desc: 'Passa à larga, e chega ao destino como se nada fosse.', rodape: 'Sem encontro' },
+  ], { ctx: 'interagir' });
+  ui.prompt('');
+  return i === 0;
 }
 
 async function rolarSurpresa(ui, postura) {
@@ -889,7 +990,6 @@ async function partida(ui) {
     const postura = await escolherPostura(ui);
     G.naEstrada = true;
     await passarDias(ui, postura.dias);
-    if (postura.vida) await aplicar(ui, { vida: postura.vida });
     if (G.vida <= 0) return fimDaPartida(ui, 'morte');
     if (G.dia >= G.prazo + 4) return fimDaPartida(ui, 'tarde');
 
@@ -899,7 +999,7 @@ async function partida(ui) {
       await ui.seguir();
       if (G.dia >= G.prazo + 4) return fimDaPartida(ui, 'tarde');
     }
-    if (!G.reviravoltaPendente && await rolarSurpresa(ui, postura)) {
+    if (!G.reviravoltaPendente && (postura.explorar || await rolarSurpresa(ui, postura)) && await querVer(ui, postura)) {
       const encontro = await encontroDaEstrada(ui, postura);
       if (encontro) {
         if (!await jogarCena(ui, encontro)) return fimDaPartida(ui, 'morte');

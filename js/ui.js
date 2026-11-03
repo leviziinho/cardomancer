@@ -128,11 +128,11 @@ Testes: o d20 mais o atributo tem de chegar ao número indicado na carta. Um 20 
 
 Combate: joga-se à vez, e quem tem mais Agilidade começa. O seu d20 tem de chegar à CA dele, e o d20 negro dele tem de chegar à sua CA. Quem acerta rola o dado da arma.
 
-Chefe final: tem muitos PV e duas ações por ronda, um efeito e um ataque. Os inimigos e os testes ficam mais duros à medida que sobe de nível.
+Chefe final: tem muitos PV e duas ações por ronda, um efeito e um golpe. Os golpes variam: há os que partem a sua guarda, os que lhe cansam o braço, os que acertam sem dado, e há rondas em que ele só se defende. Os inimigos e os testes ficam mais duros à medida que sobe de nível.
 
-Encontros na estrada: o pino para a meio do caminho, e só chega depois de resolver o que lá houver. Os dois d10 dão um número de 1 a 100. Com a percentagem da carta ou menos, há encontro. Nos testes é ao contrário, porque se quer um número alto: o 11+ da carta é 11 ou mais.
+Encontros na estrada: o pino para a meio do caminho, e só chega depois de resolver o que lá houver. A Marcha Forçada (1 dia) dá com um encontro metade das vezes. Pelos Trilhos (2 dias) só um quarto das vezes, e pode escolher passar ao lado. Explorar o Caminho (3 dias) tem sempre encontro. Os dois d10 dão um número de 1 a 100: com a percentagem da carta ou menos, há encontro, e um d10 diz qual. Um perigo começa logo em combate. Nos testes é ao contrário, porque se quer um número alto: o 11+ da carta é 11 ou mais.
 
-Tempo e Vida: a pressa gasta Vida, e recuperá-la gasta tempo. Durma numa estalagem, acampe na estrada ou guarde uma poção. A trilha em baixo mostra os dias, e o fim do prazo.
+Tempo e Vida: os falhanços gastam Vida, e recuperá-la gasta tempo. Os aliados lutam a seu lado, com CA e PV próprios. O inimigo também os ataca, e quem cai em combate perde-se. Durma numa estalagem, acampe na estrada ou guarde uma poção. A trilha em baixo mostra os dias, e o fim do prazo.
 
 Missão: a estrela dourada no mapa e o aviso no canto dizem sempre para onde ir. São três etapas, e mesmo quem falha fica a saber a seguinte. Ganhar combates e ter êxito em testes também lhe dá dicas, que tornam a etapa seguinte mais fácil.
 
@@ -236,7 +236,7 @@ function sincronizarMochila() {
 function sincronizarExtras() {
   const quer = [
     ...talentosAtivos().map(t => ({ chave: t.id, spec: { tema: 'talento', titulo: t.nome, glyph: t.glyph || 'star', desc: t.desc } })),
-    ...aliadosAtivos().map(a => ({ chave: a.nome, spec: { tema: 'social', etiqueta: 'Aliado', titulo: a.nome, glyph: 'person', desc: a.desc } })),
+    ...G.aliados.map(id => ({ chave: ALIADOS[id].nome, spec: { tema: 'social', etiqueta: 'Aliado', titulo: ALIADOS[id].nome, glyph: 'person', desc: `${resumoAliado(fichaAliado(id))}. ${(ALIADOS[id].desc.match(/[^.]+\.\s*$/) || [''])[0].trim()}` } })),
   ];
   Object.keys(cartasExtra).forEach(k => { if (!quer.some(q => q.chave === k)) trocarCarta(cartasExtra, k, null); });
   quer.forEach((q, i) => {
@@ -679,7 +679,7 @@ function desenharPainel() {
     .map(t => `<li class="talento tem"><span class="nome">${t.nome}</span><span class="desc">${t.desc}</span></li>`).join('');
 
   const aliados = G.aliados.length
-    ? G.aliados.map(id => `<li class="slot"><span class="nome">${ALIADOS[id].nome}</span><span class="desc">${ALIADOS[id].desc}</span></li>`).join('')
+    ? G.aliados.map(id => `<li class="slot"><span class="nome">${ALIADOS[id].nome}</span><span class="desc">${resumoAliado(fichaAliado(id))}<br>${ALIADOS[id].desc}</span></li>`).join('')
     : '<li class="slot vazio"><span class="nome">Viaja sozinho, por agora.</span></li>';
 
   const pistas = G.diario.map((d, i) => `<li class="slot"><span class="rotulo">Pista ${i + 1}: ${FRAQUEZAS[d.fraqueza].nome}</span><span class="desc">${FRAQUEZAS[d.fraqueza].desc} ${d.texto}</span></li>`).join('');

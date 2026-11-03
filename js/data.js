@@ -90,7 +90,7 @@ const DESCONTO_SECRETO = .7;
 
 // Combate: à vez. O seu d20 contra a CA dele, e o d20 dele contra a sua CA.
 // CA do herói: base + metade da Agilidade + armadura. Ataque do inimigo: CA dele - ataqueMenos.
-const COMBATE = { escalaPv: 1, caBase: 10, ataqueMenos: 10, danoMenos: 0, xpVitoria: 3, vilao: { ca: 12, ataque: 3, dado: 'd6', pvBase: 6, pvNivel: 3, folego: .5 } };
+const COMBATE = { escalaPv: 1, caBase: 10, ataqueMenos: 10, danoMenos: 0, xpVitoria: 3, vilao: { ca: 12, ataque: 3, dado: 'd8', pvBase: 10, pvNivel: 4, folego: .5 } };
 // A cada nível o mundo aperta: mais PV nos inimigos e, a cada três níveis, +1 nos testes, na CA, no ataque e no dano.
 const SUBIDA = { pvPorNivel: 0.1, niveisPorPonto: 3 };
 
@@ -122,7 +122,7 @@ const MANOBRAS = {
   ],
   ladino: [
     { id: 'costas', t: 'Golpe pelas Costas', d: 'Mais difícil de acertar, mas não perdoa.', a: 'agilidade', dado: 'd12', dificil: 2, glyph: 'dagger' },
-    { id: 'fumo', t: 'Bomba de Fumo', d: 'Sai do combate sem recompensa, e sem teste.', fuga: true, glyph: 'flame' },
+    { id: 'fumo', t: 'Bomba de Fumo', d: 'Sai do combate sem recompensa. Mais fácil do que fugir a correr.', a: 'agilidade', facil: 3, fuga: true, glyph: 'flame' },
     { id: 'sujo', t: 'Truque Sujo', d: 'Areia nos olhos. Baixa-lhe a Defesa em 3.', a: 'agilidade', enfraquece: 3, glyph: 'lock' },
     { id: 'veneno', t: 'Lâmina Envenenada', d: 'Pequeno corte, grande problema.', a: 'agilidade', dado: 'd10', custo: 1, glyph: 'drop' },
   ],
@@ -206,8 +206,9 @@ const EVOLUCOES = {
 };
 
 // Sobe-se de nível ao chegar a estes valores de XP.
-const NIVEIS = [0, 6, 14, 24, 36, 50];
-const XP_GANHO = { sucesso: 3, falha: 1, certeza: 2 };
+const NIVEIS = [0, 9, 21, 36, 54, 75];
+// Só os testes ensinam. As cartas especiais, sem teste, ainda dão um pouco.
+const XP_GANHO = { sucesso: 3, falha: 1, certeza: 1 };
 
 // Árvore simples: "req" é o talento que tem de vir antes.
 const TALENTOS = {
@@ -332,7 +333,10 @@ const ARCANOS = {
   bardo: '0 · O Louco', mago: 'I · O Mago', druida: 'III · A Imperatriz', clerigo: 'V · O Hierofante', guerreiro: 'VII · O Carro',
   barbaro: 'VIII · A Força', monge: 'XIV · A Temperança', feiticeiro: 'XVI · A Torre', patrulheiro: 'XVII · A Estrela', ladino: 'XVIII · A Lua',
 };
-const SURPRESA_CHANCE = 30;
+// Viajar: a marcha forçada dá de caras com o que houver, os trilhos escondem-no, e explorar procura-o.
+const SURPRESA_CHANCE = 50;
+const TRILHOS_CHANCE = 25;
+const EXPLORAR_DIAS = 3;
 const ATRASO_CHANCE = .15;
 
 // O d20 de quem chega a uma classe aprimorada: fundo perolado e números acesos.
