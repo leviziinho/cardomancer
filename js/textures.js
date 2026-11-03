@@ -192,6 +192,8 @@ function fitText(ctx, text, x, y, maxW, maxH, size, minSize, family, color, alig
 
 function textures(renderer) {
   const CARD_W = 1024, CARD_H = 1434;
+  // No telemóvel as cartas desenham-se mais pequenas: são muitas, e a memória da placa é pouca.
+  const RES_CARTA = eTelemovel() ? .62 : 1;
   // O medalhão é pequeno para a letra poder ser grande: as cartas têm de se ler sem as aproximar.
   const MEDALHAO = { y: 355, r: 170 };
 
@@ -428,7 +430,8 @@ function textures(renderer) {
 
   // spec: { tema, titulo, desc, glyph, rodape, rodapeGlyph, locked, lockText }
   function cardFace(spec) {
-    const [c, x] = canvas(CARD_W, CARD_H);
+    const [c, x] = canvas(Math.round(CARD_W * RES_CARTA), Math.round(CARD_H * RES_CARTA));
+    x.scale(RES_CARTA, RES_CARTA);
     const th = CARD_THEMES[spec.tema] || CARD_THEMES.escolha;
     pintaPapelCarta(x);
     const ouro = ouroEm(x, 0, 0, CARD_W, CARD_H);

@@ -11,7 +11,100 @@ let mapaDestaque = [];
 let mapaChave = '';
 // As cartas que estão à espera de escolha, para se voltarem a arrumar se a janela mudar.
 let maoAtual = null;
+let xpVisto = null;
 let emDestaque = false;
+let guiaPendente = false;
+
+// ---------- A explicação da mesa: acende uma zona de cada vez, e diz para que serve ----------
+const cantos = ({ x, z, w, h }) => [[x - w / 2, 0, z - h / 2], [x + w / 2, 0, z - h / 2], [x - w / 2, 0, z + h / 2], [x + w / 2, 0, z + h / 2]];
+const juntar = ids => ids.map(i => (typeof i === 'string' ? document.querySelector(i) : i)).filter(Boolean).map(e => e.getBoundingClientRect())
+  .reduce((a, b) => ({ left: Math.min(a.left, b.left), top: Math.min(a.top, b.top), right: Math.max(a.right, b.right), bottom: Math.max(a.bottom, b.bottom) }));
+function zonaEmPixeis() {
+  const r = $('view').getBoundingClientRect(), z = zonaDaMao();
+  return { left: r.left + (z.esq + 1) / 2 * r.width, right: r.left + (z.dir + 1) / 2 * r.width, top: r.top + (1 - z.topo) / 2 * r.height, bottom: r.top + (1 - z.base) / 2 * r.height };
+}
+const PASSOS_GUIA = [
+  { titulo: 'O seu herói', alvo: () => world.retangulo(cantos(TABULEIRO)),
+    texto: 'Tudo o que é e tudo o que leva. Em cima, a classe, a raça e a origem. Ao meio, o que traz vestido e na mão. Em baixo, a mochila. Passe por cima de uma carta para a ler; num ecrã de toque, toque nela.' },
+  { titulo: 'Vida e experiência', alvo: () => juntar(['.r-barras']),
+    texto: 'O coração vermelho é a Vida: quando chega a zero, a história acaba. A estrela azul é a experiência: quando se completa, sobe de nível e escolhe um talento.' },
+  { titulo: 'Ouro, armadura e pistas', alvo: () => juntar([$('r-ouro').parentNode, $('r-ca').parentNode, '.r-olhos']),
+    texto: 'O ouro paga mercados, camas e silêncios. O escudo é a sua CA: quem o quiser ferir tem de chegar a esse número no d20. Os olhos acendem-se com cada pista completa.' },
+  { titulo: 'Ficha, Mapa e Ajuda', alvo: () => juntar(['.r-tools']),
+    texto: 'A Ficha guarda tudo sobre o herói e a missão. O Mapa fecha o livro para ver o caminho, e o Livro volta a abri-lo. A Ajuda tem as regras, e esta explicação outra vez.' },
+  { titulo: 'Os dias', alvo: () => juntar(['#trilha']),
+    texto: 'Cada dia acende uma marca. A ampulheta é o fim do prazo. Perto dela, os testes ficam mais difíceis; quatro dias depois, a missão perde-se.' },
+  { titulo: 'Agora', alvo: () => ($('objetivo').classList.contains('on') ? juntar(['#objetivo']) : null),
+    texto: 'O próximo passo da missão, e onde espera a próxima pista. Se se perder, olhe para aqui.' },
+  { titulo: 'O mapa', alvo: () => world.retangulo(cantos(AREA.map)),
+    texto: 'O pino é você. A estrela dourada marca a missão. O olho vermelho marca uma pista: ninguém o obriga a segui-la, mas quem a segue chega mais forte ao fim.' },
+  { titulo: 'O que a missão guarda', alvo: () => world.retangulo(cantos({ x: CX + 11.2, z: -2.3, w: 5.2, h: 8.4 })),
+    texto: 'A carta da missão e, ao lado, o destino selado, que só se abre no fim. Por baixo juntam-se as pistas, os talentos e os aliados.' },
+  { titulo: 'O livro', alvo: () => (ecraVertical() || !world.book.aberto ? null : world.retanguloLivro()),
+    texto: 'O livro conta o que acontece em cada cena, e abre-se sozinho quando há história. As palavras a vermelho escondem mais sobre o mundo: toque ou clique nelas.' },
+  { titulo: 'As escolhas', alvo: () => zonaEmPixeis(),
+    texto: 'Aqui aparecem as cartas. Cada uma é uma maneira de agir. A barra de baixo diz o atributo usado, o número a tirar no d20 e a hipótese de correr bem.' },
+  { titulo: 'Os quatro atributos', alvo: () => null,
+    texto: 'Força: golpes pesados, portas e ameaças. Agilidade: armas leves, fugas e passos sem ruído; decide também quem ataca primeiro. Mente: magia, pistas e armadilhas. Carisma: conversa, mentira e música. Quanto maior o número, mais fácil é o teste. Os seus estão na Ficha.' },
+  { titulo: 'Cartas que contam mais', alvo: () => zonaEmPixeis(),
+    texto: 'As amarelas são raras: correm sempre bem, e só há uma de cada. As que têm um olho vermelho dão um fragmento de pista. As escuras pedem algo que você não tem.' },
+  { titulo: 'É tudo', alvo: () => juntar(['#ajuda']),
+    texto: 'O resto descobre-se a jogar. Para rever esta explicação, use o botão Ajuda.' },
+];
+
+async function guia() {
+  const g = $('guia'), foco = $('guia-foco'), caixa = $('guia-caixa');
+  const visivel = r => r && r.right - r.left > 4 && r.bottom - r.top > 4 && r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight;
+  const passos = PASSOS_GUIA.filter(p => { const r = p.alvo(); return r === null || visivel(r); });
+  g.classList.add('on');
+  for (let i = 0; i < passos.length; i++) {
+    const p = passos[i], r = p.alvo();
+    $('guia-passo').textContent = `${i + 1} de ${passos.length}`;
+    $('guia-titulo').textContent = p.titulo;
+    $('guia-texto').textContent = p.texto;
+    $('guia-seguinte').textContent = i === passos.length - 1 ? 'Jogar' : 'Seguinte';
+    $('guia-saltar').hidden = i === passos.length - 1;
+    if (r) {
+      const m = 6, l = Math.max(2, r.left - m), t = Math.max(2, r.top - m);
+      Object.assign(foco.style, { left: `${l}px`, top: `${t}px`, width: `${Math.min(innerWidth - 2, r.right + m) - l}px`, height: `${Math.min(innerHeight - 2, r.bottom + m) - t}px` });
+      foco.classList.remove('sem');
+    } else foco.classList.add('sem');
+    // A caixa fica do lado com mais espaço, para não tapar o que explica.
+    const w = caixa.offsetWidth, h = caixa.offsetHeight;
+    let cx, cy;
+    if (!r) { cx = (innerWidth - w) / 2; cy = (innerHeight - h) / 2; }
+    else {
+      const espacos = [
+        { k: 'dir', v: innerWidth - r.right }, { k: 'esq', v: r.left }, { k: 'baixo', v: innerHeight - r.bottom }, { k: 'cima', v: r.top },
+      ].map(e => ({ ...e, v: e.k === 'dir' || e.k === 'esq' ? e.v / w : e.v / h })).sort((a, b) => b.v - a.v);
+      const lado = espacos[0].k;
+      cx = lado === 'dir' ? r.right + 14 : lado === 'esq' ? r.left - w - 14 : (r.left + r.right - w) / 2;
+      cy = lado === 'baixo' ? r.bottom + 14 : lado === 'cima' ? r.top - h - 14 : (r.top + r.bottom - h) / 2;
+    }
+    caixa.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, cx))}px`;
+    caixa.style.top = `${Math.max(8, Math.min(innerHeight - h - 8, cy))}px`;
+    const saltou = await new Promise(resolve => {
+      $('guia-seguinte').onclick = () => resolve(false);
+      $('guia-saltar').onclick = () => resolve(true);
+    });
+    if (saltou) break;
+  }
+  g.classList.remove('on');
+}
+
+// Só se pergunta uma vez. Quem já sabe, salta.
+async function perguntarPrimeiraVez() {
+  let visto = false;
+  try { visto = !!localStorage.getItem('cardomancer-primeira'); } catch (e) { /* sem memória do navegador, pergunta-se sempre */ }
+  if (visto) return;
+  $('pergunta').classList.add('on');
+  guiaPendente = await new Promise(resolve => {
+    $('guia-sim').onclick = () => resolve(true);
+    $('guia-nao').onclick = () => resolve(false);
+  });
+  $('pergunta').classList.remove('on');
+  try { localStorage.setItem('cardomancer-primeira', '1'); } catch (e) { /* idem */ }
+}
 // O que está em cada lugar do tabuleiro, e as cartas de talentos e aliados.
 const cartasHeroi = {};
 const cartasExtra = {};
@@ -179,6 +272,11 @@ function desenharTrilha() {
 
 // Com o livro fechado o aviso vai para o canto, para não tapar o mapa nem as cartas.
 function posicaoAviso() {
+  // De pé, a página começa logo abaixo do aviso.
+  const p = $('prompt');
+  const topoFolha = p.classList.contains('on') ? p.getBoundingClientRect().bottom + 4 : $('rail').getBoundingClientRect().bottom + 4;
+  $('folha').style.top = `${topoFolha}px`;
+  $('folha').style.maxHeight = `${Math.max(120, innerHeight * .55 - topoFolha)}px`;
   $('prompt').classList.toggle('lado', !!G.trama && !world.book.aberto && !emDestaque);
   // Com o livro aberto, o aviso fica por cima do "Agora": à direita tapava a carta selada.
   const noLivro = !!G.trama && world.book.aberto && !emDestaque;
@@ -190,6 +288,12 @@ function posicaoAviso() {
 function zonaDaMao() {
   const c = $('view').getBoundingClientRect(), emEcra = px => (px - c.left) / c.width * 2 - 1;
   const aberto = world.book.aberto;
+  if (ecraVertical()) {
+    const emAltura = py => 1 - (py - c.top) / c.height * 2;
+    const acima = aberto ? emAltura($('folha').getBoundingClientRect().bottom + 6) : .02;
+    const faixa = $('objetivo').classList.contains('on') ? emAltura($('objetivo').getBoundingClientRect().top - 3) : -.97;
+    return { topo: acima, base: faixa, esq: -.97, dir: .97, grelha: true };
+  }
   if (ecraPequeno()) {
     const emAltura = py => 1 - (py - c.top) / c.height * 2;
     const aviso = $('prompt').classList.contains('on') ? emAltura($('prompt').getBoundingClientRect().bottom + 4) : .96;
@@ -211,7 +315,26 @@ function pedirEcraInteiro() {
   } catch (e) { /* há sistemas que não deixam, e o aviso de virar chega */ }
 }
 
+// De pé, o livro 3D seria pequeno demais: a página aparece como texto.
+const escapar = t => String(t).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+function desenharFolha(p) {
+  let texto = escapar(p.texto || '');
+  termosDe(p.texto || '').sort((a, b) => b.nome.length - a.nome.length).forEach(t => {
+    texto = texto.split(escapar(t.nome)).join(`<a data-lore="${t.id}">${escapar(t.nome)}</a>`);
+  });
+  const c = p.combate;
+  const barra = (rot, v, max, cor) => `<div class="f-barra"><span>${rot}</span><b>${v}/${max}</b><i><em style="width:${Math.max(0, v) / Math.max(1, max) * 100}%;background:${cor}"></em></i></div>`;
+  $('folha').innerHTML = `<small class="f-cap">${escapar(p.capitulo || '')}</small><h2>${escapar(p.titulo || '')}</h2>`
+    + (p.banner ? `<div class="f-banner ${p.bannerBom ? 'bom' : 'mau'}">${escapar(p.banner)}</div>` : '')
+    + (c ? `${barra('PV do inimigo', c.pv, c.pvMax, '#7c1f1f')}${barra('A sua Vida', c.vida, c.vidaMax, '#2f5a33')}<p class="f-stats">Ele: CA ${c.defesa} · Ataca ${c.ataque >= 0 ? '+' : ''}${c.ataque} · Dano ${c.dado}<br>Você: CA ${c.ca}${c.escudo ? ' · Com escudo' : ''}</p>` : '')
+    + texto.split('\n\n').map(par => `<p>${par}</p>`).join('')
+    + (p.fundo ? '<p><a data-cena="1">Ler mais sobre esta cena</a></p>' : '')
+    + (p.rodape ? `<div class="f-fichas">${p.rodape.split('  ·  ').filter(Boolean).map(f => `<span class="${f[0] === '+' ? 'mais' : f[0] === '-' ? 'menos' : ''}">${escapar(f)}</span>`).join('')}</div>` : '');
+  $('folha').scrollTop = 0;
+}
+
 function atualizaBotaoMapa() {
+  document.body.classList.toggle('livro-aberto', world.book.aberto);
   $('peek-map').textContent = world.book.aberto ? 'Mapa' : 'Livro';
   posicaoAviso();
 }
@@ -221,6 +344,7 @@ function termosDe(texto) {
 }
 
 function abrirLore(titulo, texto) {
+  $('rever-guia').hidden = true;
   $('lore-titulo').textContent = titulo;
   $('lore-texto').textContent = texto;
   $('lore').classList.add('on');
@@ -276,6 +400,7 @@ const ui = {
 
   async livro(p) {
     paginaAtual = p;
+    desenharFolha(p);
     await world.book.turn({ ...p, termos: termosDe(p.texto || '') });
     atualizaBotaoMapa();
   },
@@ -340,7 +465,7 @@ const ui = {
   // A carta escolhida vai para o seu lugar no tabuleiro. As que não têm lugar voltam ao monte.
   async draft(titulo, sub, specs, { lugar = null } = {}) {
     ui.prompt(titulo, sub);
-    const zona = () => world.fileira(specs.length, { topo: .66, base: -.8, esq: -.92, dir: .92, y: 4.5 });
+    const zona = () => world.fileira(specs.length, { topo: .66, base: -.8, esq: -.92, dir: .92, y: 4.5, grelha: ecraVertical() });
     const alvos = zona();
     const cards = specs.map(s => world.createCard(s));
     maoAtual = { cards, zona };
@@ -366,7 +491,7 @@ const ui = {
 
   // Dá as cartas para a mão e devolve o índice da escolhida.
   async escolha(specs, { ctx } = {}) {
-    if (ctx === 'talento' || ctx === 'evolucao') return ui.escolhaEmDestaque(specs);
+    if (ctx === 'talento') return ui.escolhaEmDestaque(specs);
     const zona = () => world.fileira(specs.length, zonaDaMao());
     const alvos = zona();
     const origem = AO_BARALHO();
@@ -386,7 +511,7 @@ const ui = {
     posicaoAviso();
     document.body.classList.add('veu');
     world.veu(true);
-    const zona = () => world.fileira(specs.length, { topo: .7, base: -.92, esq: -.92, dir: .92, perto: true });
+    const zona = () => world.fileira(specs.length, { topo: .7, base: -.92, esq: -.92, dir: .92, perto: true, grelha: ecraVertical() });
     const alvos = zona();
     const origem = AO_BARALHO();
     const cards = specs.map(s => world.createCard(s, { at: origem }));
@@ -446,6 +571,8 @@ const ui = {
       world.fly(cartaSelada, LUGAR_SELADA, 1.1, { arc: 3 }),
     ]);
     cartaMissao.inspectable = true; cartaMissao.zoom = true;
+    ui.sync();
+    if (guiaPendente) { guiaPendente = false; await guia(); }
   },
 
   async revelar() {
@@ -482,9 +609,16 @@ const ui = {
     $('b-vida').style.height = `${max ? Math.max(0, G.vida) / max * 100 : 0}%`;
     $('b-xp').style.height = `${prox === null ? (G.cls ? 100 : 0) : Math.min(100, (G.xp - base) / (prox - base) * 100)}%`;
     $('t-vida').title = G.cls ? `Vida: ${G.vida} de ${max}` : 'Vida';
-    $('t-xp').title = prox === null ? `Nível ${G.nivel}` : `Nível ${G.nivel}: ${G.xp} de ${prox} XP`;
+    $('t-xp').title = prox === null ? `Nível ${G.nivel}: nível máximo` : `Nível ${G.nivel}: ${G.xp} de ${prox} XP`;
+    // No nível máximo a barra fica dourada, e brilha sempre que a experiência sobe.
+    const topo = !!G.cls && prox === null;
+    $('t-xp').classList.toggle('max', topo);
+    if (topo && xpVisto !== null && G.xp > xpVisto) {
+      $('t-xp').classList.remove('pulso'); void $('t-xp').offsetWidth; $('t-xp').classList.add('pulso');
+    }
+    xpVisto = G.cls ? G.xp : null;
     $('r-vida').textContent = G.cls ? G.vida : '-';
-    $('r-nivel').textContent = G.nivel;
+    $('r-nivel').textContent = topo ? 'Máx' : G.nivel;
     $('r-ouro').textContent = G.ouro;
     $('r-ca').textContent = G.cls ? caJogador() : '-';
     let olhos = '';
@@ -612,7 +746,23 @@ async function main() {
     await (world.book.aberto ? world.book.fechar() : world.book.abrir());
     atualizaBotaoMapa();
   });
-  $('ajuda').addEventListener('click', () => abrirLore('Como se joga', COMO_JOGAR));
+  $('ajuda').addEventListener('click', () => { abrirLore('Como se joga', COMO_JOGAR); $('rever-guia').hidden = !G || !G.trama; });
+  $('folha').addEventListener('click', e => {
+    const a = e.target.closest('a');
+    if (!a) return;
+    if (a.dataset.cena) abrirLore(paginaAtual.titulo, paginaAtual.fundo);
+    else if (LORE[a.dataset.lore]) abrirLore(LORE[a.dataset.lore].titulo, LORE[a.dataset.lore].texto);
+    sfx.page();
+  });
+  // Quem prefere jogar de pé fica com essa escolha.
+  try { if (localStorage.getItem('cardomancer-vertical')) document.body.classList.add('vertical'); } catch (e) { /* sem memória, pergunta-se outra vez */ }
+  $('vertical-btn').addEventListener('click', () => {
+    document.body.classList.add('vertical');
+    try { localStorage.setItem('cardomancer-vertical', '1'); } catch (e) { /* idem */ }
+    world.resize();
+    if (maoAtual) { const alvos = maoAtual.zona(); maoAtual.cards.forEach((c, i) => world.fly(c, alvos[i], .2, { arc: 0 })); }
+  });
+  $('rever-guia').addEventListener('click', () => { $('lore').classList.remove('on'); guia(); });
   $('abrir-painel').addEventListener('click', () => $('painel').classList.toggle('on'));
   $('fechar-painel').addEventListener('click', () => $('painel').classList.remove('on'));
   const rotuloImagem = nome => { $('imagem-btn').textContent = `Imagem: ${nome}`; };
@@ -638,6 +788,7 @@ async function main() {
 
   await new Promise(resolve => $('start').addEventListener('click', resolve, { once: true }));
   pedirEcraInteiro();
+  await perguntarPrimeiraVez();
   sfx.card();
   musica.ligar();
   $('title').classList.remove('on');

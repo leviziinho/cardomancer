@@ -616,11 +616,20 @@ async function encontroMestre(ui) {
   await ui.livro({ capitulo: 'Encontro raríssimo', titulo: m.titulo, arte, texto: m.texto });
   ui.prompt('Um encontro raríssimo', 'A sua classe pode mudar para sempre. Só acontece uma vez.');
   const specs = ops.map(e => ({ tema: 'rara', etiqueta: 'Nova Classe', titulo: e.nome, glyph: e.glyph, desc: `${e.desc} Nova carta: ${e.manobra.t}.`, rodape: e.resumo }));
-  specs.push({ tema: 'escolha', etiqueta: 'Recusar', titulo: 'Seguir Como Está', glyph: 'sign', desc: 'Agradece, e continua o seu caminho.' });
+  // Quem recusa não sai de mãos vazias: o que o mestre mostrou leva-o ao nível máximo.
+  const noTopo = xpParaProximo() === null;
+  specs.push({ tema: 'escolha', etiqueta: 'Recusar', titulo: 'Seguir Como Está', glyph: 'sign',
+    desc: noTopo ? 'Agradece, e continua o seu caminho.' : 'Recusa o caminho que lhe oferecem, mas não o que aprendeu.', rodape: noTopo ? '' : 'Sobe ao nível máximo' });
   const i = await ui.escolha(specs, { ctx: 'evolucao' });
   ui.prompt('');
   if (i >= ops.length) {
-    await ui.livro({ capitulo: 'Encontro raríssimo', titulo: m.titulo, arte, texto: 'Quando olha para trás, já não vê ninguém. Fica a dúvida, e fica para sempre.' });
+    if (noTopo) await ui.livro({ capitulo: 'Encontro raríssimo', titulo: m.titulo, arte, texto: 'Quando olha para trás, já não vê ninguém. Fica a dúvida, e fica para sempre.' });
+    else {
+      G.xp = Math.max(G.xp, NIVEIS[NIVEIS.length - 1]);
+      ui.sync();
+      await ui.livro({ capitulo: 'Encontro raríssimo', titulo: m.titulo, arte, texto: 'Quando olha para trás, já não vê ninguém. Mas o que viu ali fica consigo: nunca se sentiu tão capaz.', banner: 'Nível máximo', bannerBom: true });
+      await subirDeNivel(ui);
+    }
   } else {
     G.evolucao = ops[i].id;
     aplicarVida(ops[i].vida || 0);

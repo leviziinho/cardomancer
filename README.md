@@ -16,7 +16,7 @@ Faça duplo clique em `index.html`. É preciso Internet para descarregar o motor
 
 - **Testes:** d20 + atributo, contra o número indicado na carta. Um 20 natural é acerto crítico (+3 XP e +3 Ouro) e um 1 natural é falha crítica (-2 Vida).
 - **Combate:** joga-se à vez, e quem tem mais Agilidade começa. O seu d20 mais o atributo tem de chegar à CA dele, e o d20 negro dele tem de chegar à sua CA (10 + metade da Agilidade + armadura). Quem acerta rola o dado de dano. Um 20 fere a dobrar. Cada arma usa o seu atributo: adaga, rapieira e arco usam Agilidade, o cajado usa Mente, e as restantes usam Força.
-- **Chefe final:** tem PV para cerca de 5 rondas (6 + 2 por nível do herói) e duas ações por ronda: um efeito sem dado e um ataque. Não dá para fugir, e os trunfos da história baixam-lhe a CA. Antes do combate, o herói recupera metade da Vida, e o atraso deixa de pesar nos testes.
+- **Chefe final:** tem PV para cerca de 5 rondas (6 + 3 por nível do herói) e duas ações por ronda: um efeito sem dado e um ataque. Não dá para fugir, e os trunfos da história baixam-lhe a CA. Antes do combate, o herói recupera metade da Vida, e o atraso deixa de pesar nos testes.
 - **Subida de nível:** cada nível dá +10% de PV aos inimigos. A cada três níveis, os testes, a CA, o ataque e o dano deles sobem 1.
 - **Magias e técnicas:** cada classe tem as suas, usadas uma vez por combate. Fora de combate, algumas aparecem como opção de cena.
 - **Sorte da estrada:** dois d10 dão um número de 1 a 100, que cai em cima do mapa. Com a percentagem da carta ou menos, há encontro, e um d10 decide de que tipo é.
@@ -32,9 +32,11 @@ Faça duplo clique em `index.html`. É preciso Internet para descarregar o motor
 - **Tabuleiro:** cada carta do herói tem o seu lugar marcado, e os lugares vazios mostram o que falta.
 - **Equipamento:** um objeto por espaço (arma, armadura, acessório) e 3 lugares na mochila. Um objeto substituído rende 1/4 do preço.
 - **Melhorias:** o ferreiro do mercado aprimora o que traz no corpo, com um máximo de duas melhorias por objeto. O mercador secreto da estrada cobra menos 30%.
-- **Estrada:** os encontros nem sempre são maus. Um d10 decide: 1 é um mestre raríssimo que oferece a evolução da classe (uma vez por partida), 2 e 3 são o mercador secreto, 4 e 5 são boa sorte, e o resto é perigo. Também há contratempos que custam um dia ou ouro.
+- **Estrada:** os encontros nem sempre são maus. Um d10 decide: 1 é um mestre raríssimo que oferece a evolução da classe, ou o nível máximo a quem recusa (uma vez por partida), 2 e 3 são o mercador secreto, 4 e 5 são boa sorte, e o resto é perigo. Também há contratempos que custam um dia ou ouro.
 - **Experiência:** os testes dão XP, mesmo fora do combate. Ao subir de nível, escolhe um talento quando sai da cena.
-- **Telemóvel:** joga-se deitado. O livro fica à esquerda e as cartas à direita. Toque numa carta para a ler, e toque de novo para a jogar.
+- **Telemóvel:** joga-se melhor deitado, com o livro à esquerda e as cartas à direita. De pé, o botão "Quero jogar na vertical" mostra a página como texto e as cartas por baixo. Toque numa carta para a ler, e toque de novo para a jogar. A imagem é mais leve no telemóvel, para não aquecer.
+- **Primeira vez:** o jogo pergunta se é a primeira aventura e pode explicar a mesa, parte a parte. A explicação volta a estar na Ajuda.
+- **Dados:** rolam dentro de uma caixa, sempre à vista.
 - **Aliados e reviravoltas:** os aliados ajudam nos testes do seu campo. Depois da segunda etapa, a história pode mudar.
 - **Vida 0:** a partida acaba, e a carta selada revela o que estava em jogo.
 

@@ -95,6 +95,8 @@ const DE_FRENTE = -Math.atan2(VISTA.pos[1] - VISTA.look[1], VISTA.pos[2] - VISTA
 const BARALHO = [CX + 11.4, 0, 4.7];
 // Num ecrã baixo o livro e a mão ficam lado a lado, porque um por cima do outro não se liam.
 const ecraPequeno = () => innerHeight < 500 && innerWidth > innerHeight;
+// De pé, só para quem o pediu: a página lê-se como texto e a mesa mostra só o mapa.
+const ecraVertical = () => document.body.classList.contains('vertical') && innerHeight > innerWidth;
 const eTelemovel = () => matchMedia('(pointer: coarse)').matches && Math.min(innerWidth, innerHeight) < 500;
 
 // O tabuleiro da personagem, à esquerda do mapa.
@@ -111,9 +113,13 @@ function roundedRect(w, h, r) {
 }
 
 function createWorld(canvasEl) {
-  const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true });
+  // No telemóvel o jogo aquecia e chegava a bloquear: menos píxeis, menos luzes e menos imagens por segundo.
+  const LEVE = eTelemovel();
+  const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: !LEVE });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
+  // Parada, a mesa não precisa de refazer as sombras a cada imagem.
+  if (LEVE) renderer.shadowMap.autoUpdate = false;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
 
@@ -312,7 +318,7 @@ function createWorld(canvasEl) {
     }
     async function abrir() {
       if (aberto || !right.material.map) return;
-      g.visible = true;
+      g.visible = !LIVRO.oculto;
       await tween(.14, e => { mostra(e); g.position.y = LIVRO.y - 1.2 * (1 - e); });
       await tween(.22, e => dobra(1 - e));
       aberto = true;
@@ -511,7 +517,7 @@ function createWorld(canvasEl) {
     g.add(flame);
     const light = new THREE.PointLight(0xffa458, 38, 26, 2);
     light.position.y = flameY + .2;
-    g.add(light);
+    if (!LEVE) g.add(light);
     g.position.set(x, 0, z);
     scene.add(g);
     candles.push({ sprite, light, flame, seed: Math.random() * 40 });
@@ -648,7 +654,7 @@ function createWorld(canvasEl) {
     // Onde há folha de ouro a luz reflete, e as cartas raras mudam de cor conforme o ângulo.
     const superficie = spec.tarot ? superficieTarot : superficieNormal;
     const base = { map, normalMap: superficie.normal, normalScale: new THREE.Vector2(.35, .35), roughnessMap: superficie.brilho, metalnessMap: superficie.brilho, roughness: 1, metalness: 1, envMapIntensity: .85 };
-    const frontMat = spec.tema === 'pista' || spec.tema === 'rara'
+    const frontMat = (spec.tema === 'pista' || spec.tema === 'rara') && !LEVE
       ? new THREE.MeshPhysicalMaterial({ ...base, iridescence: .55, iridescenceIOR: 1.4, iridescenceThicknessRange: [180, 420] })
       : new THREE.MeshStandardMaterial(base);
     const front = new THREE.Mesh(faceGeo, frontMat);
@@ -819,6 +825,10 @@ function createWorld(canvasEl) {
   const ultimoDado = new THREE.Vector3();
   function rollDice(lista, { onde = 'mesa' } = {}) {
     const n = lista.length, escala = 1.1;
+    // Com o livro aberto, a caixa vai para onde ele não tapa: por baixo dele, ou ao lado no ecrã pequeno.
+    const sitio = onde === 'mapa' || !book.aberto ? [CX, 0, 1.4] : naVista(ecraPequeno() ? .62 : 0, ecraPequeno() ? .3 : -.6, 0).pos;
+    caixa.position.set(sitio[0], .03, sitio[2]);
+    caixa.visible = true;
     return Promise.all(lista.map(({ tipo, face }, i) => {
       const die = DICE[tipo], f = die.faces[face], m = die.mesh;
       const frame = new THREE.Matrix4().makeBasis(f.right, f.up, f.n);
@@ -828,18 +838,16 @@ function createWorld(canvasEl) {
       const axis = new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize();
       const spin = (5 + i) * Math.PI * 2;
       const q = new THREE.Quaternion();
-      // No ecrã pequeno o livro ocupa o meio da mesa, e os dados caem ao lado dele.
-      const aoLado = ecraPequeno() && onde !== 'mapa' && book.aberto ? naVista(.66, -.1, 0).pos : null;
-      const tx = (aoLado ? aoLado[0] : CX) + (i - (n - 1) / 2) * 3, tz = (aoLado ? aoLado[2] : onde === 'mapa' ? 1.4 : 6.8) + (i % 2) * .35;
+      const tx = caixa.position.x + (i - (n - 1) / 2) * 2.3, tz = caixa.position.z - .25 + (i % 2) * .5;
       if (i === 0) ultimoDado.set(tx, 1.2, tz);
       m.visible = true;
       m.scale.setScalar(escala);
       let last = 0;
       return tween(1.15, (e, raw) => {
-        m.position.x = tx + (1 - e) * (7 + i);
-        m.position.z = tz + (1 - e) * 3;
+        m.position.x = tx + (1 - e) * 1.6;
+        m.position.z = tz + (1 - e) * 1.1;
         // saltos decrescentes
-        m.position.y = f.height * escala + Math.abs(Math.cos(raw * Math.PI * 3.5)) * Math.pow(1 - raw, 1.7) * 3.2;
+        m.position.y = f.height * escala + Math.abs(Math.cos(raw * Math.PI * 3.5)) * Math.pow(1 - raw, 1.7) * 2.2;
         q.setFromAxisAngle(axis, spin * (1 - e));
         m.quaternion.copy(q).multiply(final);
         const hit = Math.floor(raw * 3.5 + .5);
@@ -847,7 +855,31 @@ function createWorld(canvasEl) {
       }, { ease: easeOut });
     }));
   }
-  const hideDice = () => Object.values(DICE).forEach(d => (d.mesh.visible = false));
+  // A caixa onde os dados rolam: fica sempre à vista, e nada lhe sai por cima das bordas.
+  const CAIXA = { w: 7.4, d: 4.8, borda: .55 };
+  const caixa = (() => {
+    const g = new THREE.Group();
+    const fundo = new THREE.Mesh(new THREE.BoxGeometry(CAIXA.w, .06, CAIXA.d), new THREE.MeshStandardMaterial({ color: 0x5c1616, roughness: 1 }));
+    fundo.receiveShadow = true;
+    g.add(fundo);
+    const madeira = new THREE.MeshStandardMaterial({ color: 0x4a2a14, roughness: .62 });
+    [[0, -1], [0, 1], [-1, 0], [1, 0]].forEach(([a, b]) => {
+      const largo = a ? .32 : CAIXA.w + .32, fundoL = a ? CAIXA.d : .32;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(largo, CAIXA.borda, fundoL), madeira);
+      m.position.set(a * CAIXA.w / 2, CAIXA.borda / 2, b * CAIXA.d / 2);
+      m.castShadow = true; m.receiveShadow = true;
+      g.add(m);
+    });
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(.42, CAIXA.borda + .06, .42), brass);
+      m.position.set(a * CAIXA.w / 2, (CAIXA.borda + .06) / 2, b * CAIXA.d / 2);
+      g.add(m);
+    });
+    g.visible = false;
+    scene.add(g);
+    return g;
+  })();
+  const hideDice = () => { Object.values(DICE).forEach(d => (d.mesh.visible = false)); caixa.visible = false; };
 
   // O d20 de quem chega a uma classe aprimorada: perolado, com os números acesos.
   let d20Tema = null, d20Halo = null;
@@ -951,6 +983,15 @@ function createWorld(canvasEl) {
   const alvoCamera = new THREE.Vector3(), pontoEcra = new THREE.Vector2(), frenteCamera = new THREE.Vector3();
 
   function posicaoCamera() {
+    if (ecraVertical()) {
+      // De pé, a câmara recua até o mapa caber de lado a lado, e sobe-o para o topo.
+      const recua = Math.max(1, 1.05 / camera.aspect), D = cam.pos.distanceTo(cam.look) * recua;
+      alvoCamera.set(cam.look.x, 0, AREA.map.z + .12 * D);
+      camera.position.copy(cam.pos).sub(cam.look).multiplyScalar(recua).add(alvoCamera);
+      camera.lookAt(alvoCamera);
+      camera.updateMatrixWorld();
+      return;
+    }
     // Em janelas estreitas a câmara recua, para caberem as cartas dos lados da mesa.
     // A mesa fica encostada ao topo, e o que sobra fica em baixo para a mão.
     const widen = Math.max(1, 1.95 / camera.aspect);
@@ -1071,6 +1112,7 @@ function createWorld(canvasEl) {
   }
 
   function bookLinkAtMouse() {
+    if (LIVRO.oculto) return null;
     ray.setFromCamera(mouse.ndc, camera);
     const hit = ray.intersectObject(book.rightSurface, false)[0];
     return hit ? book.linkAt(hit.uv) : null;
@@ -1098,6 +1140,7 @@ function createWorld(canvasEl) {
     const r = canvasEl.getBoundingClientRect();
     mouse.ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     mouse.x = mouse.ndc.x; mouse.y = mouse.ndc.y;
+    ultimoToque = performance.now();
   };
   window.addEventListener('pointermove', trackMouse);
   canvasEl.addEventListener('pointerleave', () => mouse.ndc.set(-5, -5));
@@ -1105,7 +1148,8 @@ function createWorld(canvasEl) {
   canvasEl.addEventListener('pointerdown', e => { tipoPonteiro = e.pointerType; });
   canvasEl.addEventListener('click', e => {
     trackMouse(e);
-    const c = pickCardAtMouse();
+    const c = pickCardAtMouse(), link = !c && bookLinkAtMouse();
+    // Depois de um toque não fica nenhum dedo por cima de nada.
     if (tipoPonteiro === 'touch') {
       mouse.ndc.set(-5, -5);
       const tinha = armada;
@@ -1115,7 +1159,6 @@ function createWorld(canvasEl) {
     }
     if (c && !(choice && choice.list.includes(c)) && handlers.carta) handlers.carta(c);
     if (c) { select(c); return; }
-    const link = bookLinkAtMouse();
     if (link && handlers.link) handlers.link(link);
   });
   window.addEventListener('keydown', e => {
@@ -1153,10 +1196,31 @@ function createWorld(canvasEl) {
     LIVRO.s = pequeno ? Math.min(.88, .62 * largo / inteiro) : .54;
     LIVRO.y = pequeno ? .25 : 1.62;
     LIVRO.x = pequeno ? -largo / 2 + inteiro * LIVRO.s / 2 + largo * .012 : 0;
-    ZOOM.s = pequeno ? 1.08 : .85;
+    ZOOM.s = pequeno ? 1.08 : ecraVertical() ? .78 : .85;
+    LIVRO.oculto = ecraVertical();
+    book.group.visible = book.aberto && !LIVRO.oculto;
     book.group.position.set(LIVRO.x, LIVRO.y, -LIVRO.d);
     book.luz.position.x = LIVRO.x;
     if (book.aberto) book.group.scale.setScalar(LIVRO.s);
+  }
+  // Onde ficam no ecrã uns pontos da mesa, em píxeis: serve para a explicação acender cada zona.
+  function retangulo(pontos) {
+    posicaoCamera();
+    const r = canvasEl.getBoundingClientRect(), v = new THREE.Vector3();
+    let esq = Infinity, topo = Infinity, dir = -Infinity, base = -Infinity;
+    pontos.forEach(p => {
+      v.set(...p).project(camera);
+      const x = r.left + (v.x + 1) / 2 * r.width, y = r.top + (1 - v.y) / 2 * r.height;
+      esq = Math.min(esq, x); dir = Math.max(dir, x); topo = Math.min(topo, y); base = Math.max(base, y);
+    });
+    return { left: esq, top: topo, right: dir, bottom: base };
+  }
+  function retanguloLivro() {
+    const r = canvasEl.getBoundingClientRect();
+    const alto = 2 * LIVRO.d * Math.tan(camera.fov * Math.PI / 360), largo = alto * camera.aspect;
+    const meioX = r.left + (LIVRO.x / largo + .5) * r.width, meioY = r.top + (.5 - LIVRO.y / alto) * r.height;
+    const w = 12.96 * LIVRO.s / largo * r.width / 2, h = 8.42 * LIVRO.s / alto * r.height / 2;
+    return { left: meioX - w, right: meioX + w, top: meioY - h, bottom: meioY + h };
   }
   // A beira direita do livro, de -1 a 1 no ecrã.
   function livroDireita() {
@@ -1166,10 +1230,13 @@ function createWorld(canvasEl) {
   function resize() {
     const rail = document.getElementById('rail');
     const trilha = document.getElementById('trilha');
-    const w = innerWidth - (rail ? rail.offsetWidth : 0);
-    const h = innerHeight - (trilha ? trilha.offsetHeight : 0);
+    // De pé, o painel passa para cima, e a mesa começa por baixo dele.
+    const vertical = ecraVertical(), topo = vertical && rail ? rail.offsetHeight : 0;
+    const w = innerWidth - (rail && !vertical ? rail.offsetWidth : 0);
+    const h = innerHeight - topo - (trilha ? trilha.offsetHeight : 0);
+    canvasEl.style.top = `${topo}px`;
     // Desenha com folga e encolhe: as letras pequenas das cartas ficam nítidas. A densidade do ecrã lê-se sempre de novo, porque muda com o zoom.
-    const densidade = Math.min((window.devicePixelRatio || 1) * nitidez, Math.sqrt(QUALIDADES[qualidade].maxPixeis / (w * h)));
+    const densidade = Math.min((window.devicePixelRatio || 1) * nitidez, Math.sqrt(QUALIDADES[qualidade].maxPixeis / (w * h)), LEVE ? 1.5 : 9);
     const chave = `${w}x${h}@${densidade}`;
     if (chave === ultimoTamanho) return;
     ultimoTamanho = chave;
@@ -1189,15 +1256,25 @@ function createWorld(canvasEl) {
   const medida = { tempo: 0, frames: 0, mas: 0, lentos: 0 };
   document.addEventListener('visibilitychange', () => { medida.tempo = 0; medida.frames = 0; medida.mas = 0; medida.lentos = 0; clock.getDelta(); });
   const zoomAlvo = new THREE.Vector3();
+  let espera = 0, ultimoToque = 0, havia = false;
   function loop() {
     requestAnimationFrame(loop);
-    const bruto = clock.getDelta();
+    let bruto = clock.getDelta();
+    if (LEVE) {
+      // 30 imagens por segundo, e só 12 quando nada se mexe.
+      espera += bruto;
+      const parado = !tweens.length && performance.now() - ultimoToque > 2500;
+      if (espera < (parado ? 1 / 12 : 1 / 30)) return;
+      bruto = espera; espera = 0;
+      renderer.shadowMap.needsUpdate = tweens.length > 0 || havia;
+      havia = tweens.length > 0;
+    }
     const dt = Math.min(bruto, .05), t = clock.elapsedTime;
     if (d20Tema) pulsarD20(t);
     // Se a máquina não aguentar, desce um degrau. Os soluços ao criar cartas não contam.
     medida.lentos = bruto >= 2 ? medida.lentos + 1 : 0;
     if (!escolhida && qualidade !== 'baixo' && medida.lentos >= 3) { medida.lentos = 0; aplicarQualidade('baixo'); }
-    if (!escolhida && qualidade !== 'baixo' && !document.hidden && bruto < 2) {
+    if (!LEVE && !escolhida && qualidade !== 'baixo' && !document.hidden && bruto < 2) {
       medida.tempo += bruto; medida.frames++;
       if (medida.tempo > 3) {
         medida.mas = medida.frames / medida.tempo < NITIDEZ.fpsMinimo ? medida.mas + 1 : 0;
@@ -1274,7 +1351,7 @@ function createWorld(canvasEl) {
   }
   loop();
 
-  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, hideDice, efeitoCritico, cards, resize, handlers, fileira, veu, halo, livroDireita,
+  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, hideDice, efeitoCritico, cards, resize, handlers, fileira, veu, halo, livroDireita, retangulo, retanguloLivro,
     get qualidade() { return QUALIDADES[qualidade].nome; },
     set aoMudarQualidade(f) { aoMudar = f; },
     proximaQualidade() {

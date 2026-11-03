@@ -21,8 +21,18 @@
   <button id="start">Nova Partida</button>
 </section>
 
-<div id="virar" aria-live="polite"><svg viewBox="0 0 100 100" width="96" height="96" aria-hidden="true"><rect x="32" y="12" width="36" height="76" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="50" cy="78" r="3.5" fill="currentColor"/></svg><p>Vire o telemóvel para jogar.</p></div>
+<div id="virar" aria-live="polite"><svg viewBox="0 0 100 100" width="96" height="96" aria-hidden="true"><rect x="32" y="12" width="36" height="76" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="50" cy="78" r="3.5" fill="currentColor"/></svg><p>Vire o telemóvel para jogar.</p><small>Deitado vê-se melhor a mesa toda.</small><button id="vertical-btn">Quero jogar na vertical</button></div>
+<div id="folha" aria-live="polite"></div>
 <div id="dica-toque"></div>
+<div id="pergunta" role="dialog" aria-modal="true"><article>
+  <h2>É a sua primeira aventura em Cardomancer?</h2>
+  <p>Posso mostrar-lhe a mesa: o que é cada coisa, e onde está. O caminho, esse, fica por sua conta.</p>
+  <div><button id="guia-sim">Sim, mostre-me a mesa</button><button id="guia-nao">Já conheço</button></div>
+</article></div>
+<div id="guia" role="dialog" aria-modal="true"><div id="guia-foco"></div><div id="guia-caixa">
+  <small id="guia-passo"></small><h3 id="guia-titulo"></h3><p id="guia-texto"></p>
+  <div><button id="guia-saltar">Saltar</button><button id="guia-seguinte">Seguinte</button></div>
+</div></div>
 <div id="prompt"><h2 id="prompt-title"></h2><p id="prompt-sub"></p></div>
 <div id="toast"></div>
 <div id="aviso"></div>
@@ -59,6 +69,7 @@
   <article>
     <h2 id="lore-titulo"></h2>
     <p id="lore-texto"></p>
+    <button id="rever-guia" hidden>Rever a explicação da mesa</button>
     <small>Clique em qualquer sítio para fechar.</small>
   </article>
 </div>

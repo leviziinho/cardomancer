@@ -267,21 +267,25 @@ function escolherPista() {
 }
 
 // A pista lê-se aos poucos: cada fragmento mostra mais um pedaço da frase.
+// Corta-se nas vírgulas e nos pontos, para que cada pedaço se entenda sozinho.
 function pedacoDaPista() {
-  const palavras = fmt(VILOES[G.trama.vilao].pistas[G.pistas]).split(' ');
-  return `${palavras.slice(0, Math.ceil(palavras.length * G.fragmentos / FRAGMENTOS_POR_PISTA)).join(' ')}...`;
+  const frase = fmt(VILOES[G.trama.vilao].pistas[G.pistas]);
+  let partes = frase.split(/(?<=[,:;.])\s+/);
+  if (partes.length < FRAGMENTOS_POR_PISTA) partes = frase.split(' ');
+  const visto = partes.slice(0, Math.ceil(partes.length * G.fragmentos / FRAGMENTOS_POR_PISTA)).join(' ').replace(/[,:;.]$/, '');
+  return `${visto}...`;
 }
 
 function ganharFragmento() {
   G.fragmentos++;
-  if (G.fragmentos < FRAGMENTOS_POR_PISTA) return { texto: `Encontra um fragmento da pista (${G.fragmentos} de ${FRAGMENTOS_POR_PISTA}): "${pedacoDaPista()}"` };
+  if (G.fragmentos < FRAGMENTOS_POR_PISTA) return { texto: `Mais um pedaço da pista (${G.fragmentos} de ${FRAGMENTOS_POR_PISTA}): "${pedacoDaPista()}"` };
   const completa = fmt(VILOES[G.trama.vilao].pistas[G.pistas]);
   const f = FRAQUEZAS[G.fraquezas[G.pistas]];
   G.diario.push({ lugar: LUGARES[G.lugar].nome, texto: completa, fraqueza: G.fraquezas[G.pistas] });
   G.pistas++;
   G.fragmentos = 0;
   escolherPista();
-  let texto = `A pista fica completa: "${completa}" Agora conhece ${f.nome}. ${f.desc}`;
+  let texto = `A pista fica inteira: "${completa}" Descobriu ${f.nome}. ${f.desc}`;
   if (!G.destinoRevelado) texto += ` Poupa-lhe também uma etapa da missão.${avancarFio()}`;
   if (G.rastro) texto += fmt(' Há outra pista em {pista}.');
   return { texto, completa: true };
