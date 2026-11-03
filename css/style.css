@@ -95,6 +95,17 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #trilha.on { display: flex; }
 #trilha > img { width: 24px; height: 24px; flex: none; }
 #pips { flex: 1; display: flex; align-items: center; gap: 4px; }
+/* As pistas: três olhos, cada um com três barras que acendem com os fragmentos. */
+#frags { flex: none; display: flex; align-items: center; gap: 10px; padding-left: 10px; border-left: 1px solid rgba(216, 180, 94, .35); }
+.frag { display: flex; align-items: center; gap: 3px; }
+.frag img { width: 22px; height: 22px; opacity: .35; transition: opacity .4s; }
+.frag.cheia img { opacity: 1; filter: drop-shadow(0 0 4px #ff6a5c); }
+.frag.cheia.acende img { animation: olhoAcende 1.4s ease-out; }
+.frag i { width: 13px; height: 14px; background: linear-gradient(#0c0604, #2a1a10); border: 1px solid rgba(232, 103, 95, .45); border-radius: 2px; }
+.frag i.on { background: linear-gradient(#ffb59a, #c2332a); border-color: #ffd2c4; box-shadow: 0 0 6px rgba(255, 106, 92, .7); }
+.frag i.acende { animation: barraAcende 1.2s ease-out; }
+@keyframes barraAcende { 0% { transform: scale(2.4); background: #fff6dc; box-shadow: 0 0 22px 6px #ffd27a; } 60% { transform: scale(1.2); } 100% { transform: none; } }
+@keyframes olhoAcende { 0% { transform: scale(2.6) rotate(-12deg); filter: drop-shadow(0 0 16px #ffd27a); } 100% { transform: none; } }
 .pip { flex: 1; height: 12px; position: relative; background: linear-gradient(#0c0604, #2a1a10); border: 1px solid rgba(216, 180, 94, .3); border-radius: 2px; }
 .pip.passado { background: linear-gradient(#c8a04a, #7a5a20); border-color: #8a6a2c; }
 .pip.atual { height: 24px; background: linear-gradient(#fff0b4, #c49a3e); border-color: #fff0b8; box-shadow: 0 0 10px rgba(255, 215, 120, .75); }
@@ -261,6 +272,10 @@ body.veu #objetivo { opacity: 0; }
   #imagem-btn { display: none; }
   #trilha { gap: 4px; padding: 0 6px; }
   #trilha > img { width: 13px; height: 13px; }
+  #frags { gap: 5px; padding-left: 5px; }
+  .frag { gap: 1px; }
+  .frag img { width: 13px; height: 13px; }
+  .frag i { width: 7px; height: 9px; }
   #pips { gap: 2px; }
   .pip { height: 7px; }
   .pip.atual { height: 13px; }

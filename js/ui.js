@@ -28,12 +28,12 @@ const PASSOS_GUIA = [
     texto: 'Tudo o que é e tudo o que leva. Em cima, a classe, a raça e a origem. Ao meio, o que traz vestido e na mão. Em baixo, a mochila. Passe por cima de uma carta para a ler; num ecrã de toque, toque nela.' },
   { titulo: 'Vida e experiência', alvo: () => juntar(['.r-barras']),
     texto: 'O coração vermelho é a Vida: quando chega a zero, a história acaba. A estrela azul é a experiência: quando se completa, sobe de nível e escolhe um talento.' },
-  { titulo: 'Ouro, armadura e pistas', alvo: () => juntar([$('r-ouro').parentNode, $('r-ca').parentNode, '.r-olhos']),
-    texto: 'O ouro paga mercados, camas e silêncios. O escudo é a sua CA: quem o quiser ferir tem de chegar a esse número no d20. Os olhos acendem-se com cada pista completa.' },
+  { titulo: 'Ouro e armadura', alvo: () => juntar([$('r-ouro').parentNode, $('r-ca').parentNode]),
+    texto: 'O ouro paga mercados, camas e silêncios. O escudo é a sua CA: quem o quiser ferir tem de chegar a esse número no d20.' },
   { titulo: 'Ficha, Mapa e Ajuda', alvo: () => juntar(['.r-tools']),
     texto: 'A Ficha guarda tudo sobre o herói e a missão. O Mapa fecha o livro para ver o caminho, e o Livro volta a abri-lo. A Ajuda tem as regras, e esta explicação outra vez.' },
   { titulo: 'Os dias', alvo: () => juntar(['#trilha']),
-    texto: 'Cada dia acende uma marca. A ampulheta é o fim do prazo. Perto dela, os testes ficam mais difíceis; quatro dias depois, a missão perde-se.' },
+    texto: 'Cada dia acende uma marca. A ampulheta é o fim do prazo. Perto dela, os testes ficam mais difíceis; quatro dias depois, a missão perde-se. À direita, as pistas: cada fragmento acende uma barra, e três barras completam o olho.' },
   { titulo: 'Agora', alvo: () => ($('objetivo').classList.contains('on') ? juntar(['#objetivo']) : null),
     texto: 'O próximo passo da missão, e onde espera a próxima pista. Se se perder, olhe para aqui.' },
   { titulo: 'O mapa', alvo: () => world.retangulo(cantos(AREA.map)),
@@ -116,6 +116,8 @@ function lugarNoTabuleiro(nome, virada = false) {
   const [col, lin] = LUGAR_HEROI[nome], l = lugarTabuleiro(col, lin);
   return { pos: [l.x, .06, l.z], rot: [virada ? FACE_DOWN : FACE_UP, 0, 0], scale: SLOT_SCALE };
 }
+// O que a ficha de combate não diz: o bónus nos testes, ou a última frase. Nos animais a última frase repete o ataque.
+const extraAliado = id => ((ALIADOS[id].desc.match(/\+\d+ (em|na|de) [^.]+\./) || ALIADOS[id].desc.match(/[^.]+\.\s*$/) || [''])[0]).trim();
 const LUGAR_MISSAO = { pos: [CX + 10.4, .05, -4.9], rot: [FACE_UP, 0, -.02], scale: SLOT_SCALE };
 const LUGAR_SELADA = { pos: [CX + 12.55, .05, -4.9], rot: [FACE_DOWN, 0, .02], scale: SLOT_SCALE };
 const lugarPista = i => ({ pos: [CX + 9.5 + i * 2.15, .05 + i * .002, -2.05], rot: [FACE_UP, 0, (i % 2 ? -1 : 1) * .02], scale: SLOT_SCALE });
@@ -132,9 +134,11 @@ Jeitos de lutar: cada inimigo tem o seu, dito no início do combate e no rodapé
 
 Chefe final: tem muitos PV e duas ações por ronda, um efeito e um golpe. Os golpes variam: há os que partem a sua guarda, os que lhe cansam o braço, os que acertam sem dado, e há rondas em que ele só se defende. Os inimigos ficam mais duros a cada etapa da história, não a cada nível que sobe: o que ganha a subir fica seu. Nenhuma ronda o derruba de uma vez: perde no máximo 40% dos PV por ronda. E traz um guarda por cada aliado seu, que os aliados têm de derrubar antes de lhe chegar.
 
-Encontros na estrada: o pino para a meio do caminho, e só chega depois de resolver o que lá houver. A Marcha Forçada (1 dia) dá com um encontro metade das vezes. Pelos Trilhos (2 dias) só um quarto das vezes, e pode escolher passar ao lado. Explorar o Caminho (3 dias) tem sempre encontro. Os dois d10 dão um número de 1 a 100: com a percentagem da carta ou menos, há encontro, e um d10 diz qual. O 10 é um inimigo lendário: mais duro, e paga muito melhor. Um perigo começa logo em combate. Nos testes é ao contrário, porque se quer um número alto: o 11+ da carta é 11 ou mais.
+Encontros na estrada: o pino para a meio do caminho, e só chega depois de resolver o que lá houver. A Marcha Forçada (1 dia) dá com um encontro metade das vezes. Pelos Trilhos (2 dias) só um quarto das vezes: vê primeiro o que é, e se passar sem ser visto (75%) escolhe se vai ter com eles. Explorar o Caminho (3 dias) tem sempre encontro. Os dois d10 dão um número de 1 a 100: com a percentagem da carta ou menos, há encontro, e um d10 diz qual. O 10 é um inimigo lendário: mais duro, e paga muito melhor. Um perigo começa logo em combate. Nos testes é ao contrário, porque se quer um número alto: o 11+ da carta é 11 ou mais.
 
-Tempo e Vida: os falhanços gastam Vida, e recuperá-la gasta tempo. Os aliados lutam a seu lado, com CA e PV próprios. O inimigo também os ataca, e quem cai em combate perde-se. Durma numa estalagem, acampe na estrada ou guarde uma poção. A trilha em baixo mostra os dias, e o fim do prazo.
+Tempo e Vida: os falhanços gastam Vida, e recuperá-la gasta tempo. Os aliados lutam a seu lado, com CA e PV próprios, que se veem no livro. No combate final, os guardas do chefe recebem os golpes primeiro. O inimigo também os ataca, e quem cai em combate perde-se. Durma numa estalagem, acampe na estrada ou guarde uma poção. A trilha em baixo mostra os dias, e o fim do prazo.
+
+Classes: cada uma tem uma habilidade sua, escrita na carta do draft. O Bárbaro tem a carta Fúria, o Ladino rola dois d20 em Mente e Agilidade fora de combate, o Bardo, o Patrulheiro e o Druida começam acompanhados, e outras somam um atributo à CA ou ao dano.
 
 Equipamento: cada classe só usa as armas e armaduras do seu tipo. O mercado só mostra o que a sua classe sabe usar. Adagas, cajados, capas, mantos e acessórios servem a todos.
 
@@ -240,7 +244,7 @@ function sincronizarMochila() {
 function sincronizarExtras() {
   const quer = [
     ...talentosAtivos().map(t => ({ chave: t.id, spec: { tema: 'talento', titulo: t.nome, glyph: t.glyph || 'star', desc: t.desc } })),
-    ...G.aliados.map(id => ({ chave: ALIADOS[id].nome, spec: { tema: 'social', etiqueta: 'Aliado', titulo: ALIADOS[id].nome, glyph: 'person', desc: `${resumoAliado(fichaAliado(id))}. ${(ALIADOS[id].desc.match(/[^.]+\.\s*$/) || [''])[0].trim()}` } })),
+    ...G.aliados.map(id => ({ chave: ALIADOS[id].nome, spec: { tema: 'social', etiqueta: 'Aliado', titulo: ALIADOS[id].nome, glyph: 'person', desc: `${resumoAliado(fichaAliado(id))}. ${extraAliado(id)}` } })),
   ];
   Object.keys(cartasExtra).forEach(k => { if (!quer.some(q => q.chave === k)) trocarCarta(cartasExtra, k, null); });
   quer.forEach((q, i) => {
@@ -272,6 +276,29 @@ function desenharTrilha() {
     html += `<div class="pip ${cls}" title="${dica}">${marca ? `<img src="${marca}" alt="">` : ''}</div>`;
   }
   $('pips').innerHTML = html;
+}
+
+// As pistas na trilha: cada olho tem três barras, uma por fragmento. A que acaba de chegar acende com brilho.
+let fragsVistos = null;
+function desenharFragmentos() {
+  const total = Math.min(PISTAS_PRECISAS * FRAGMENTOS_POR_PISTA, G.pistas * FRAGMENTOS_POR_PISTA + (G.pistas < PISTAS_PRECISAS ? G.fragmentos : 0));
+  // Só se redesenha quando muda, para a barra nova acabar de acender.
+  if (G.trama && fragsVistos === total && $('frags').childElementCount) return;
+  const antes = fragsVistos === null ? total : fragsVistos;
+  fragsVistos = G.trama ? total : null;
+  let html = '';
+  for (let p = 0; p < PISTAS_PRECISAS; p++) {
+    const cheia = p < G.pistas, acabou = cheia && antes < (p + 1) * FRAGMENTOS_POR_PISTA;
+    let barras = '';
+    for (let f = 0; f < FRAGMENTOS_POR_PISTA; f++) {
+      const n = p * FRAGMENTOS_POR_PISTA + f;
+      barras += `<i class="${n < total ? 'on' : ''} ${n < total && n >= antes ? 'acende' : ''}"></i>`;
+    }
+    html += `<div class="frag ${cheia ? 'cheia' : ''} ${acabou ? 'acende' : ''}" title="Pista ${p + 1}"><img src="${icone('eye', cheia ? '#ff6a5c' : '#f2e3bd')}" alt="">${barras}</div>`;
+  }
+  $('frags').innerHTML = html;
+  $('frags').title = `Pistas completas: ${G.pistas} de ${PISTAS_PRECISAS}. Fragmentos da pista em curso: ${G.fragmentos} de ${FRAGMENTOS_POR_PISTA}.`;
+  if (total > antes) sfx.fragmento();
 }
 
 // Com o livro fechado o aviso vai para o canto, para não tapar o mapa nem as cartas.
@@ -330,7 +357,7 @@ function desenharFolha(p) {
   const barra = (rot, v, max, cor) => `<div class="f-barra"><span>${rot}</span><b>${v}/${max}</b><i><em style="width:${Math.max(0, v) / Math.max(1, max) * 100}%;background:${cor}"></em></i></div>`;
   $('folha').innerHTML = `<small class="f-cap">${escapar(p.capitulo || '')}</small><h2>${escapar(p.titulo || '')}</h2>`
     + (p.banner ? `<div class="f-banner ${p.bannerBom ? 'bom' : 'mau'}">${escapar(p.banner)}</div>` : '')
-    + (c ? `${barra('PV do inimigo', c.pv, c.pvMax, '#7c1f1f')}${barra('A sua Vida', c.vida, c.vidaMax, '#2f5a33')}<p class="f-stats">Ele: CA ${c.defesa} · Ataca ${c.ataque >= 0 ? '+' : ''}${c.ataque} · Dano ${c.dado}<br>Você: CA ${c.ca}${c.escudo ? ' · Com escudo' : ''}</p>` : '')
+    + (c ? `${barra('PV do inimigo', c.pv, c.pvMax, '#7c1f1f')}${barra('A sua Vida', c.vida, c.vidaMax, '#2f5a33')}${(c.lados || []).map(l => barra(l.nome, l.pv, l.pvMax, l.inimigo ? '#9a3a2a' : '#4f7a3a')).join('')}<p class="f-stats">Ele: CA ${c.defesa} · Ataca ${c.ataque >= 0 ? '+' : ''}${c.ataque} · Dano ${c.dado}<br>Você: CA ${c.ca}${c.escudo ? ' · Com escudo' : ''}</p>` : '')
     + texto.split('\n\n').map(par => `<p>${par}</p>`).join('')
     + (p.fundo ? '<p><a data-cena="1">Ler mais sobre esta cena</a></p>' : '')
     + (p.rodape ? `<div class="f-fichas">${p.rodape.split('  ·  ').filter(Boolean).map(f => `<span class="${f[0] === '+' ? 'mais' : f[0] === '-' ? 'menos' : ''}">${escapar(f)}</span>`).join('')}</div>` : '');
@@ -521,7 +548,9 @@ const ui = {
     await Promise.all(cards.map((c, i) => world.fly(c, alvos[i], .7, { delay: i * .14, arc: 2 })));
     const idx = await world.choose(cards);
     maoAtual = null;
-    await Promise.all(cards.map(c => world.fly(c, { pos: origem, rot: [FACE_DOWN, 0, 0], scale: .6 }, .45, { arc: 1 }).then(() => world.removeCard(c))));
+    // A carta única da criação não volta ao baralho: desfaz-se em fogo.
+    const arde = specs[idx].unica ? cards[idx] : null;
+    await Promise.all(cards.map(c => (c === arde ? world.desintegrar(c) : world.fly(c, { pos: origem, rot: [FACE_DOWN, 0, 0], scale: .6 }, .45, { arc: 1 })).then(() => world.removeCard(c))));
     return idx;
   },
 
@@ -555,9 +584,10 @@ const ui = {
   async missao() {
     const t = G.trama, obj = OBJETIVOS[t.objetivo], v = VILOES[t.vilao], rev = REVIRAVOLTAS[t.reviravolta];
     ui.prompt('A sua missão', 'Isto é o que sabe. Há uma parte que continua selada.');
+    // As cartas flutuam acima do pino, que está de pé no mapa e não pode ficar à frente delas.
     cartaMissao = world.createCard({ tema: 'classe', etiqueta: 'Missão', titulo: fmt(obj.titulo), glyph: obj.glyph, desc: obj.desc });
     sfx.card();
-    await world.fly(cartaMissao, { pos: [CX - 3, 1.6, 1], rot: [TILT, 0, 0], scale: 1.4 }, .9, { arc: 3 });
+    await world.fly(cartaMissao, { pos: [CX - 3, 3, 1], rot: [TILT, 0, 0], scale: 1.4 }, .9, { arc: 3 });
 
     const backC = (() => {
       const [c, x] = canvas(world.tex.CARD_W, world.tex.CARD_H);
@@ -579,7 +609,7 @@ const ui = {
       desc: fmt(`${t.motivo} ${rev.nome}: ${rev.resumo}`),
     }, { back: backC });
     sfx.card();
-    await world.fly(cartaSelada, { pos: [CX + 3, 1.6, 1], rot: [FACE_DOWN, 0, 0], scale: 1.4 }, .9, { arc: 3 });
+    await world.fly(cartaSelada, { pos: [CX + 3, 3, 1], rot: [FACE_DOWN, 0, 0], scale: 1.4 }, .9, { arc: 3 });
     await wait(.5);
 
     ui.prompt('A sua missão', 'Há uma parte que continua selada. Clique na missão para a aceitar.');
@@ -641,14 +671,6 @@ const ui = {
     $('r-nivel').textContent = topo ? 'Máx' : G.nivel;
     $('r-ouro').textContent = G.ouro;
     $('r-ca').textContent = G.cls ? caJogador() : '-';
-    let olhos = '';
-    for (let i = 0; i < PISTAS_PRECISAS; i++) {
-      // O olho da pista em curso vai ganhando cor com os fragmentos.
-      const brilho = i < G.pistas ? 1 : i === G.pistas ? .25 + .25 * G.fragmentos : .25;
-      olhos += `<img src="${icone('eye', i < G.pistas || (i === G.pistas && G.fragmentos) ? '#ff6a5c' : '#f2e3bd')}" style="opacity:${brilho}" alt="">`;
-    }
-    $('r-pistas').innerHTML = olhos;
-    $('r-pistas').title = `Pistas completas: ${G.pistas} de ${PISTAS_PRECISAS}. Fragmentos da pista em curso: ${G.fragmentos} de ${FRAGMENTOS_POR_PISTA}.`;
     const missaoOn = !!G.trama && !G.emCombate;
     $('objetivo').classList.toggle('on', missaoOn);
     if (missaoOn) {
@@ -660,9 +682,10 @@ const ui = {
       if (!trilha.classList.contains('on')) { trilha.classList.add('on'); world.resize(); }
       desenharTrilha();
     }
+    desenharFragmentos();
     refazerMapa();
     sincronizarTabuleiro();
-    world.tokens.sync(G.cls ? Math.max(0, G.vida) : 0, Math.min(G.ouro, 40));
+    world.tokens.sync(G.cls ? Object.keys(ATTR).map(a => [ATTR[a].nome, attr(a)]) : null, Math.min(G.ouro, 40));
     desenharPainel();
   },
 };

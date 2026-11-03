@@ -18,12 +18,12 @@ const TIPOS = {
 };
 
 const CLASSES = {
-  barbaro: { nome: 'Bárbaro', glyph: 'axe', cor: 0x9c1414, vida: 16, attrs: { forca: 3, agilidade: 1 }, desc: 'Resolve portas, grilhões e discussões da mesma maneira: com força.' },
-  ladino: { nome: 'Ladino', glyph: 'dagger', cor: 0x2b2b33, vida: 11, attrs: { agilidade: 3, mente: 1 }, desc: 'Vê a armadilha antes de a pisar e a saída antes de precisar dela.' },
-  bardo: { nome: 'Bardo', glyph: 'note', cor: 0xb0701c, vida: 11, attrs: { carisma: 3, agilidade: 1 }, desc: 'Convence um inimigo de que nunca houve motivo para lutar.' },
-  mago: { nome: 'Mago', glyph: 'star', cor: 0x3a2a8c, vida: 10, attrs: { mente: 3, carisma: 1 }, desc: 'Lê as runas que os outros tomam por riscos na pedra.' },
-  clerigo: { nome: 'Clérigo', glyph: 'sun', cor: 0xd8c27a, vida: 13, attrs: { mente: 2, carisma: 2 }, desc: 'Sara feridas e manda de volta o que devia continuar morto.' },
-  patrulheiro: { nome: 'Patrulheiro', glyph: 'bow', cor: 0x2f6b3a, vida: 13, attrs: { agilidade: 2, forca: 2 }, desc: 'Lê a terra como quem lê um livro aberto.' },
+  barbaro: { nome: 'Bárbaro', glyph: 'axe', cor: 0x9c1414, vida: 12, attrs: { forca: 2, agilidade: 2, carisma: -1, mente: -1 }, raridade: 'lendaria', habilidade: 'Fúria: +3 Força, um ataque a mais por ronda, -2 CA, e não foge.', desc: 'Resolve portas, grilhões e discussões da mesma maneira: com força.' },
+  ladino: { nome: 'Ladino', glyph: 'dagger', cor: 0x2b2b33, vida: 8, attrs: { agilidade: 4, mente: 2, carisma: 1, forca: -1 }, raridade: 'rara', vantagem: ['mente', 'agilidade'], habilidade: 'Fora de combate, testes de Mente e Agilidade com dois d20: fica o melhor.', desc: 'Vê a armadilha antes de a pisar e a saída antes de precisar dela.' },
+  bardo: { nome: 'Bardo', glyph: 'note', cor: 0xb0701c, vida: 8, attrs: { carisma: 4, mente: 1 }, raridade: 'rara', aliadoInicial: true, aliadosDobro: true, habilidade: 'Começa com um aliado, e os aliados fazem o dobro do dano.', desc: 'Convence um inimigo de que nunca houve motivo para lutar.' },
+  mago: { nome: 'Mago', glyph: 'star', cor: 0x3a2a8c, vida: 12, attrs: { mente: 3, carisma: 1 }, raridade: 'incomum', caDe: 'mente', habilidade: 'Soma a Mente à CA.', desc: 'Lê as runas que os outros tomam por riscos na pedra.' },
+  clerigo: { nome: 'Clérigo', glyph: 'sun', cor: 0xd8c27a, vida: 10, attrs: { mente: 3, carisma: 2 }, raridade: 'incomum', curaSempre: 'curar', habilidade: 'Em combate, tem sempre à mão Curar Feridas.', desc: 'Sara feridas e manda de volta o que devia continuar morto.' },
+  patrulheiro: { nome: 'Patrulheiro', glyph: 'bow', cor: 0x2f6b3a, vida: 10, attrs: { agilidade: 1, forca: 1, mente: 1 }, raridade: 'comum', companheiros: ['lobo', 'urso', 'aguia'], habilidade: 'Começa com um companheiro: Lobo, Urso ou Águia.', desc: 'Lê a terra como quem lê um livro aberto.' },
 };
 
 const ANTECEDENTES = {
@@ -54,7 +54,7 @@ const ITENS = {
   orbe: { nome: 'Orbe de Cristal', slot: 'arma', perfil: 'magica', preco: 16, dado: 'd8', a: 'carisma', attrs: { carisma: 1 }, glyph: 'sun', desc: 'Foco mágico. Ataca com Carisma. Dado d8, +1 Carisma.' },
   simbolo: { nome: 'Símbolo Sagrado', slot: 'arma', perfil: 'magica', preco: 16, dado: 'd8', a: 'mente', attrs: { carisma: 1 }, glyph: 'seal', desc: 'Foco mágico. Ataca com Mente. Dado d8, +1 Carisma.' },
   grimorio: { nome: 'Grimório Proibido', slot: 'arma', perfil: 'magica', preco: 22, dado: 'd10', a: 'mente', attrs: { carisma: -1 }, glyph: 'rune', desc: 'Foco mágico. Ataca com Mente. Dado d10, -1 Carisma: há páginas que não se leem em voz alta.' },
-  espada: { nome: 'Espada de Família', slot: 'arma', perfil: 'marcial', preco: 12, dado: 'd8', a: 'forca', glyph: 'sword', desc: 'Ataca com Força. Velha, mas de confiança. Dado d8.' },
+  espada: { nome: 'Espada de Família', slot: 'arma', perfil: 'marcial', preco: 12, dado: 'd8', a: 'forca', ca: 1, glyph: 'sword', desc: 'Ataca com Força. Velha, mas sabe aparar. Dado d8, +1 CA.' },
   rapieira: { nome: 'Rapieira de Duelo', slot: 'arma', perfil: 'fina', preco: 16, dado: 'd8', a: 'agilidade', attrs: { carisma: 1 }, glyph: 'sword', desc: 'Ataca com Agilidade. Dado d8, +1 Carisma.' },
   arco: { nome: 'Arco de Teixo', slot: 'arma', perfil: 'arco', preco: 16, dado: 'd8', a: 'agilidade', attrs: { agilidade: 1 }, glyph: 'bow', desc: 'Ataca com Agilidade. Dado d8, +1 Agilidade.' },
   machado: { nome: 'Machado de Guerra', slot: 'arma', perfil: 'pesada', preco: 18, dado: 'd10', a: 'forca', glyph: 'axe', desc: 'Ataca com Força. Pesado e pouco diplomático. Dado d10.' },
@@ -111,7 +111,7 @@ const DESCONTO_SECRETO = .7;
 // CA do herói: base + metade da Agilidade + armadura. Ataque do inimigo: CA dele - ataqueMenos.
 const COMBATE = { escalaPv: 1, caBase: 10, ataqueMenos: 10, danoMenos: 0, xpVitoria: 3, vilao: { ca: 12, ataque: 3, dado: 'd8', pv: 22, folego: .5,
   // Nunca perde mais do que esta parte dos PV numa só ronda, e traz um guarda por cada aliado seu.
-  tetoRonda: .4, guarda: { pv: 5, ca: 11, ataque: 1, dado: 'd6' }, guardasMax: 3 } };
+  tetoRonda: .4, guarda: { pv: 7, ca: 11, ataque: 2, dado: 'd6' }, guardasMax: 3 } };
 // O jeito de lutar de cada inimigo comum. Sai do nome dele: o primeiro jeito cuja busca servir é o que conta
 // (uma opção de combate pode escolher outro com roll.jeito). Quem não servir em nenhum luta sem truques.
 const JEITOS = {
@@ -166,6 +166,7 @@ const MANOBRAS = {
     { id: 'rugido', t: 'Rugido', d: 'Ele hesita. Baixa-lhe a Defesa em 3.', a: 'forca', enfraquece: 3, glyph: 'speech' },
     { id: 'folego', t: 'Segundo Fôlego', d: 'Ainda não é hoje.', cura: 5, glyph: 'drop' },
     { id: 'investida', t: 'Investida', d: 'Mais difícil de acertar, mas derruba.', a: 'forca', dado: 'd10', dificil: 2, glyph: 'hammer' },
+    { id: 'furia', t: 'Fúria', d: 'Gasta a vez. Até ao fim do combate: +3 Força, um ataque a mais por ronda, -2 CA, e já não foge.', furia: true, glyph: 'flame' },
   ],
   patrulheiro: [
     { id: 'duplo', t: 'Tiro Duplo', d: 'Duas setas, um único gesto.', a: 'agilidade', dado: 'd10', dificil: 1, glyph: 'bow' },
@@ -248,7 +249,7 @@ const XP_GANHO = { sucesso: 3, falha: 1, certeza: 1 };
 // Árvore simples: "req" é o talento que tem de vir antes.
 const TALENTOS = {
   barbaro: [
-    { id: 'furia', nome: 'Fúria', desc: '+2 em testes de Combate.', tipo: { combate: 2 } },
+    { id: 'furia', nome: 'Sangue Quente', desc: '+2 em testes de Combate.', tipo: { combate: 2 } },
     { id: 'couro', nome: 'Couro Duro', desc: '+4 Vida máxima.', vidaMax: 4 },
     { id: 'brutal', nome: 'Golpe Brutal', req: 'furia', desc: '+2 no dado da arma.', dano: 2 },
     { id: 'sangue', nome: 'Sede de Sangue', req: 'couro', desc: 'Recupera 2 de Vida ao vencer um Combate.', curaCombate: 2 },
@@ -284,7 +285,7 @@ const TALENTOS = {
     { id: 'sentinela', nome: 'Sentinela', req: 'trilho', desc: 'Menos 20% de encontros surpresa contra si.', alerta: 20 },
   ],
   geral: [
-    { id: 'robusto', nome: 'Robusto', desc: '+3 Vida máxima.', vidaMax: 3 },
+    { id: 'robusto', nome: 'Robusto', desc: 'Em combate, cada golpe que leva tira menos 1 de Vida.', aguenta: 1 },
     { id: 'forte', nome: 'Treino de Força', desc: '+1 Força.', attrs: { forca: 1 } },
     { id: 'agil', nome: 'Treino de Agilidade', desc: '+1 Agilidade.', attrs: { agilidade: 1 } },
     { id: 'astuto', nome: 'Estudo Tardio', desc: '+1 Mente.', attrs: { mente: 1 } },
@@ -300,6 +301,13 @@ const ALIADOS = {
   tome: { nome: 'Tomé, o Noviço', desc: 'Sabe demasiado para a idade. +1 em Investigação.', tipo: { investigacao: 1 } },
   grumm: { nome: 'Grumm, o Ogro', desc: 'Aprendeu a escrever "passagem". +2 em Combate.', tipo: { combate: 2 } },
   sela: { nome: 'Sela, a Mercadora', desc: 'Conhece toda a gente. +1 em Social.', tipo: { social: 1 } },
+  // Os companheiros do Patrulheiro e do Druida. Não se recrutam pelo caminho.
+  lobo: { nome: 'Lobo', animal: true, desc: 'Fareja o perigo antes de si. +1 em Habilidade. Morde forte.', tipo: { habilidade: 1 }, ficha: { acao: 'golpe', pv: 7, ca: 12, ataque: 3, dado: 'd6' } },
+  urso: { nome: 'Urso', animal: true, desc: 'Ninguém discute com ele. +1 em Combate. Aguenta muito.', tipo: { combate: 1 }, ficha: { acao: 'golpe', pv: 12, ca: 10, ataque: 2, dado: 'd8' } },
+  aguia: { nome: 'Águia', animal: true, desc: 'Vê tudo lá de cima. +1 em Investigação. Ataca os olhos: -2 no ataque do inimigo.', tipo: { investigacao: 1 }, ficha: { acao: 'olhos', pv: 6, ca: 14, ataque: 3, dado: 'd6' } },
+  cobra: { nome: 'Cobra', animal: true, desc: 'Silenciosa e paciente. +1 em Habilidade. O veneno tira 1 PV por ronda.', tipo: { habilidade: 1 }, ficha: { acao: 'veneno', pv: 6, ca: 13, ataque: 4, dado: 'd6' } },
+  aranha: { nome: 'Aranha', animal: true, desc: 'Tece onde ninguém olha. +1 em Habilidade. A teia prende o inimigo: perde a vez, uma vez por combate.', tipo: { habilidade: 1 }, ficha: { acao: 'teia', pv: 6, ca: 13, ataque: 3, dado: 'd6' } },
+  corvo: { nome: 'Corvo', animal: true, desc: 'Traz notícias de longe. +2 em Investigação. Distrai: +2 na sua CA.', tipo: { investigacao: 2 }, ficha: { acao: 'guarda', pv: 5, ca: 14, ataque: 2, dado: 'd6' } },
 };
 
 // Coordenadas normalizadas sobre o mapa (0–1).
@@ -371,6 +379,8 @@ const ARCANOS = {
 // Viajar: a marcha forçada dá de caras com o que houver, os trilhos escondem-no, e explorar procura-o.
 const SURPRESA_CHANCE = 50;
 const TRILHOS_CHANCE = 25;
+// Pelos trilhos, depois de ver o que há na estrada: a chance de passar sem ser visto e poder escolher.
+const TRILHOS_ESCONDE = 75;
 const EXPLORAR_DIAS = 3;
 const ATRASO_CHANCE = .15;
 

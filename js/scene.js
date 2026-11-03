@@ -70,6 +70,10 @@ const sfx = (() => {
     hit: () => noise(.25, 240, .6),
     critico: () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, .5, .13, i * .09)); noise(.5, 5200, .18, 2); },
     falha: () => { [196, 147, 98].forEach((f, i) => tone(f, .6, .2, i * .13, 'sawtooth')); noise(.6, 140, .8); },
+    // Um fragmento de pista: duas notas que sobem.
+    fragmento: () => { [880, 1175, 1568].forEach((f, i) => tone(f, .55, .1, i * .11)); noise(.3, 7000, .06, 4); },
+    // A carta a arder: um crepitar comprido.
+    queimar: () => { noise(1.4, 900, .22, .4); noise(.9, 3200, .08, 2); },
     toggle: () => (muted = !muted),
   };
 })();
@@ -690,6 +694,73 @@ function createWorld(canvasEl) {
     return card;
   }
 
+  // A queima entra no shader: o que fica abaixo da linha desaparece, e a orla da linha brilha como brasa.
+  function materialQueima(mat, sentido, u) {
+    const m = mat.clone();
+    m.onBeforeCompile = sh => {
+      sh.uniforms.uQueima = u;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vQ;')
+        .replace('#include <begin_vertex>', `#include <begin_vertex>\nvQ = vec2(position.x / ${CARD.w.toFixed(3)} + .5, ${sentido.toFixed(1)} * position.y / ${CARD.h.toFixed(3)} + .5);`);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+varying vec2 vQ;
+uniform float uQueima;
+float qRuido(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
+  float a = fract(sin(dot(i, vec2(12.9898, 78.233))) * 43758.5453), b = fract(sin(dot(i + vec2(1, 0), vec2(12.9898, 78.233))) * 43758.5453);
+  float c = fract(sin(dot(i + vec2(0, 1), vec2(12.9898, 78.233))) * 43758.5453), d = fract(sin(dot(i + vec2(1, 1), vec2(12.9898, 78.233))) * 43758.5453);
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y); }`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+float qLinha = uQueima * 1.3 - .15 + (qRuido(vQ * 9.) - .5) * .22 + (qRuido(vQ * 23.) - .5) * .08;
+float qDist = vQ.y - qLinha;
+if (qDist < 0.) discard;
+float qOrla = 1. - smoothstep(0., .07, qDist);
+totalEmissiveRadiance += mix(vec3(1., .35, .05), vec3(1., .85, .4), qOrla * qOrla) * qOrla * 3.;
+diffuseColor.rgb *= 1. - qOrla * .8;`);
+    };
+    return m;
+  }
+
+  function desintegrar(card) {
+    const u = { value: 0 };
+    card.front.material = materialQueima(card.front.material, 1, u);
+    card.backMesh.material = materialQueima(card.backMesh.material, -1, u);
+    card.body.material = materialQueima(card.body.material, 1, u);
+    card.enabled = false;
+    sfx.queimar();
+    // Brasas que sobem da linha de fogo, e uma luz quente por cima da carta.
+    const n = 70, pos = new Float32Array(n * 3), sem = [];
+    for (let i = 0; i < n; i++) sem.push([Math.random() - .5, Math.random(), Math.random() * .6 + .4, Math.random() * 6.28]);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({ map: tex.glowSprite('255,150,50'), size: .3, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const brasas = new THREE.Points(geo, mat);
+    brasas.renderOrder = 11;
+    scene.add(brasas);
+    const luz = new THREE.PointLight(0xff7a2a, 0, 12, 1.6);
+    scene.add(luz);
+    const g = card.group, base = new THREE.Vector3(), cima = new THREE.Vector3(), lado = new THREE.Vector3();
+    return tween(1.6, (e, raw) => {
+      u.value = raw;
+      g.updateMatrixWorld();
+      lado.set(1, 0, 0).applyQuaternion(g.quaternion).multiplyScalar(CARD.w * g.scale.x);
+      cima.set(0, 1, 0).applyQuaternion(g.quaternion).multiplyScalar(CARD.h * g.scale.x);
+      base.setFromMatrixPosition(g.matrixWorld).addScaledVector(cima, -.5);
+      const linha = Math.min(1, raw * 1.3 - .15);
+      luz.position.copy(base).addScaledVector(cima, linha).add(new THREE.Vector3(0, .8, 0));
+      luz.intensity = 90 * Math.sin(Math.PI * raw);
+      for (let i = 0; i < n; i++) {
+        const [sx, atraso, vel, fase] = sem[i];
+        const t = Math.max(0, raw - atraso * .7) * vel * 2.2;
+        const p = base.clone().addScaledVector(lado, sx).addScaledVector(cima, Math.max(0, linha - .05) + t * .35);
+        p.y += t * 1.6; p.x += Math.sin(fase + t * 5) * .15;
+        pos.set([p.x, p.y, p.z], i * 3);
+      }
+      geo.attributes.position.needsUpdate = true;
+      mat.opacity = 1 - Math.pow(raw, 3);
+    }, { ease: t => t }).then(() => {
+      scene.remove(brasas); scene.remove(luz); geo.dispose(); mat.map.dispose(); mat.dispose();
+    });
+  }
+
   function removeCard(card) {
     scene.remove(card.group);
     scene.remove(card.hit);
@@ -734,9 +805,9 @@ function createWorld(canvasEl) {
 
   // ---- Dados: d6, d8, d10, d12, d20 e o par de d10 das percentagens ----
   // Cada face é um polígono com a sua célula numa textura com os números.
-  function dieFromPolygons(polys, labels, color, ink) {
+  function dieFromPolygons(polys, labels, color, ink, atlasPronto = null) {
     const cols = 5, rows = 4;
-    const atlas = tex.diceAtlas(labels, color, ink, cols, rows);
+    const atlas = atlasPronto || tex.diceAtlas(labels, color, ink, cols, rows);
     const positions = [], normals = [], uvs = [], faces = [];
     polys.forEach((poly, f) => {
       const c = new THREE.Vector3();
@@ -815,7 +886,49 @@ function createWorld(canvasEl) {
   }
 
   const seq = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => String(a + i));
+
+  // O d4 lê-se no vértice de cima, como os de verdade: cada face tem três números, um junto a cada vértice,
+  // e o que fica em cima é o mesmo nas três faces à vista. Por isso pousa sobre uma face, com o número no bico.
+  function dieD4(color, ink) {
+    const k = 1.25 / Math.sqrt(3);
+    const v = [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]].map(p => new THREE.Vector3(...p).multiplyScalar(k));
+    const polys = v.map((_, oposto) => v.filter((__, i) => i !== oposto).map(p => p.clone()));
+    const atlas = tex.diceAtlas(['', '', '', ''], color, ink, 5, 4);
+    const x = atlas.image.getContext('2d'), cell = 200;
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    polys.forEach((poly, f) => {
+      // As mesmas contas do construtor, para saber onde cai cada vértice na textura.
+      const c = poly.reduce((a, p) => a.add(p), new THREE.Vector3()).divideScalar(3);
+      const n = new THREE.Vector3().crossVectors(poly[1].clone().sub(poly[0]), poly[2].clone().sub(poly[0])).normalize();
+      const p0 = n.dot(c) < 0 ? poly[2] : poly[0];
+      if (n.dot(c) < 0) n.negate();
+      const up = p0.clone().sub(c).projectOnPlane(n).normalize(), right = new THREE.Vector3().crossVectors(up, n).normalize();
+      const radius = Math.max(...poly.map(p => p.distanceTo(c)));
+      poly.forEach(p => {
+        const valor = String(v.findIndex(q => q.distanceTo(p) < 1e-4) + 1);
+        const d = p.clone().sub(c), a = d.dot(right) / radius, b = d.dot(up) / radius;
+        const px = (f % 5 + .5) * cell + a * .46 * cell * .52, py = (Math.floor(f / 5) + .5) * cell - b * .46 * cell * .52;
+        x.save(); x.translate(px, py); x.rotate(Math.atan2(a, b));
+        x.font = `700 46px ${FONT_TITLE}`;
+        x.fillStyle = 'rgba(0,0,0,.55)'; x.fillText(valor, 1.5, 2);
+        x.fillStyle = ink; x.fillText(valor, 0, 0);
+        x.restore();
+      });
+    });
+    atlas.needsUpdate = true;
+    const die = dieFromPolygons(polys, null, color, ink, atlas);
+    // Para o resultado n, o vértice n fica em cima, e uma das faces vira-se para quem joga.
+    const altura = k * Math.sqrt(3) / 3;
+    die.faces = v.map((p, i) => {
+      const n = p.clone().normalize(), outro = v[(i + 1) % 4].clone().normalize();
+      const up = outro.projectOnPlane(n).normalize();
+      return { n, up, right: new THREE.Vector3().crossVectors(up, n).normalize(), height: altura, value: i };
+    });
+    return die;
+  }
+
   const DICE = {
+    d4: dieD4('#1d4f52', '#f0e2bd'),
     d20: dieFromPolygons(polysOf(new THREE.IcosahedronGeometry(1, 0)), seq(1, 20), '#7c1f1f', '#f2d48a'),
     // O dado do inimigo é negro, para nunca se confundir com o seu.
     d20i: dieFromPolygons(polysOf(new THREE.IcosahedronGeometry(1, 0)), seq(1, 20), '#15100e', '#ff6a5c'),
@@ -831,8 +944,29 @@ function createWorld(canvasEl) {
   // lista: [{ tipo: 'd20', face: 0–n }]. A face é o índice do número, a contar de 0.
   // Os dados caem à frente das cartas ou, em viagem, em cima do mapa.
   const ultimoDado = new THREE.Vector3();
+  const copias = {};
+  function dadoN(tipo, k) {
+    const base = DICE[tipo].mesh;
+    if (!k) return base;
+    const lista = copias[tipo] || (copias[tipo] = []);
+    while (lista.length < k) {
+      const m = new THREE.Mesh(base.geometry, base.material);
+      m.castShadow = base.castShadow; m.receiveShadow = base.receiveShadow; m.renderOrder = base.renderOrder;
+      m.visible = false;
+      scene.add(m);
+      lista.push(m);
+    }
+    const m = lista[k - 1];
+    m.material = base.material;
+    return m;
+  }
+
   function rollDice(lista, { onde = 'mesa' } = {}) {
-    const n = lista.length, escala = 1.1;
+    const n = lista.length;
+    // Até três dados numa fila; mais do que isso, em duas filas e mais pequenos.
+    const porFila = n <= 3 ? n : n <= 6 ? 3 : 4, filas = Math.ceil(n / porFila);
+    const escala = n <= 3 ? 1.1 : n <= 6 ? .9 : .75;
+    const vistos = {};
     // Com o livro aberto, a caixa vai para onde ele não tapa: por baixo dele, ou ao lado no ecrã pequeno.
     const sitio = onde === 'mapa' || !book.aberto ? [CX, 0, 1.4] : naVista(ecraPequeno() ? .62 : 0, ecraPequeno() ? .3 : -.6, 0).pos;
     caixa.position.set(sitio[0], .03, sitio[2]);
@@ -841,7 +975,7 @@ function createWorld(canvasEl) {
     // O fundo da caixa recebe sombras: a do pino não pode cair lá dentro.
     pin.traverse(o => { if (o.isMesh) { if (o.userData.sombra === undefined) o.userData.sombra = o.castShadow; o.castShadow = false; } });
     return Promise.all(lista.map(({ tipo, face }, i) => {
-      const die = DICE[tipo], f = die.faces[face], m = die.mesh;
+      const die = DICE[tipo], f = die.faces[face], m = dadoN(tipo, vistos[tipo] = (vistos[tipo] ?? -1) + 1);
       const frame = new THREE.Matrix4().makeBasis(f.right, f.up, f.n);
       const rest = new THREE.Quaternion().setFromRotationMatrix(worldFrame.clone().multiply(frame.invert()));
       const yaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (Math.random() - .5) * .7);
@@ -849,7 +983,9 @@ function createWorld(canvasEl) {
       const axis = new THREE.Vector3(Math.random() - .5, Math.random() - .5, Math.random() - .5).normalize();
       const spin = (5 + i) * Math.PI * 2;
       const q = new THREE.Quaternion();
-      const tx = caixa.position.x + (i - (n - 1) / 2) * 2.3, tz = caixa.position.z - .25 + (i % 2) * .5;
+      const col = i % porFila, fila = Math.floor(i / porFila), nesta = Math.min(porFila, n - fila * porFila);
+      const tx = caixa.position.x + (col - (nesta - 1) / 2) * 2.3 * escala / 1.1;
+      const tz = caixa.position.z + (filas > 1 ? (fila - (filas - 1) / 2) * 2 * escala : -.25 + (i % 2) * .5);
       if (i === 0) ultimoDado.set(tx, 1.2, tz);
       m.visible = true;
       m.scale.setScalar(escala);
@@ -909,6 +1045,7 @@ function createWorld(canvasEl) {
   Object.values(DICE).forEach(d => porCima(d.mesh));
   const hideDice = () => {
     Object.values(DICE).forEach(d => (d.mesh.visible = false));
+    Object.values(copias).forEach(l => l.forEach(m => (m.visible = false)));
     caixa.visible = false; limpaFundo.visible = false;
     pin.traverse(o => { if (o.isMesh && o.userData.sombra !== undefined) o.castShadow = o.userData.sombra; });
   };
@@ -972,16 +1109,45 @@ function createWorld(canvasEl) {
     });
   }
 
-  // ---- Fichas de Vida, Ouro e Pistas sobre a mesa ----
+  // ---- Atributos e Ouro sobre a mesa ----
   const tokens = (() => {
-    const gemGeo = new THREE.IcosahedronGeometry(.27, 0);
-    const gemMat = new THREE.MeshPhysicalMaterial({ color: 0xd01a28, roughness: .1, metalness: .1, flatShading: true, emissive: 0x4a0408, emissiveIntensity: .35, envMapIntensity: 2, clearcoat: 1, clearcoatRoughness: .05 });
+    // A Vida já está na barra; a primeira cova mostra os atributos, gravados numa placa.
+    const placaC = document.createElement('canvas');
+    placaC.width = 660; placaC.height = 500;
+    const placaT = new THREE.CanvasTexture(placaC);
+    placaT.colorSpace = THREE.SRGBColorSpace;
+    placaT.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const placa = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.97), new THREE.MeshStandardMaterial({ map: placaT, transparent: true, roughness: .8 }));
+    placa.rotation.x = -Math.PI / 2;
+    placa.position.set(CX - 12.52, .035, 3.55);
+    placa.visible = false;
+    scene.add(placa);
+    let vistos = '';
+    function atributos(lista) {
+      const chave = JSON.stringify(lista);
+      if (chave === vistos) return;
+      vistos = chave;
+      placa.visible = !!lista;
+      if (!lista) return;
+      const x = placaC.getContext('2d');
+      x.clearRect(0, 0, placaC.width, placaC.height);
+      lista.forEach(([nome, v], i) => {
+        const cx = 40 + (i % 2) * 300, cy = 50 + Math.floor(i / 2) * 230;
+        x.fillStyle = 'rgba(242,227,189,.82)'; x.textAlign = 'left';
+        x.font = `600 46px ${FONT_TITLE}`;
+        x.fillText(nome, cx, cy + 46);
+        x.font = `700 110px ${FONT_TITLE}`;
+        x.fillStyle = v > 0 ? '#e8c46a' : v < 0 ? '#e8675f' : 'rgba(242,227,189,.6)';
+        x.fillText(v > 0 ? `+${v}` : String(v), cx, cy + 168);
+      });
+      placaT.needsUpdate = true;
+    }
     const coinGeo = new THREE.CylinderGeometry(.3, .3, .07, 28);
     const cunho = tex.moeda();
     const coinSide = new THREE.MeshStandardMaterial({ color: 0xd8a640, metalness: 1, roughness: .4, envMapIntensity: 1.3 });
     const coinFace = new THREE.MeshStandardMaterial({ map: cunho.map, normalMap: cunho.normal, metalness: 1, roughness: .36, envMapIntensity: 1.3 });
     const coinMat = [coinSide, coinFace, coinFace];
-    const gems = [], coins = [];
+    const coins = [];
 
     function pop(mesh, target = 1) {
       mesh.scale.setScalar(.01);
@@ -992,15 +1158,8 @@ function createWorld(canvasEl) {
       tween(.3, e => { mesh.scale.setScalar(Math.max(.001, s * (1 - e))); mesh.position.y += .02; }, { ease: easeOut })
         .then(() => scene.remove(mesh));
     }
-    function sync(vida, ouro) {
-      while (gems.length > vida) drop(gems, gems.pop());
-      while (gems.length < vida) {
-        const i = gems.length;
-        const m = shadowed(new THREE.Mesh(gemGeo, gemMat));
-        m.position.set(CX - 13.55 + (i % 6) * .46, .24, 2.85 + Math.floor(i / 6) * .46);
-        m.rotation.set(Math.random() * 3, Math.random() * 3, 0);
-        scene.add(m); pop(m, .78); gems.push(m);
-      }
+    function sync(lista, ouro) {
+      atributos(lista);
       while (coins.length > ouro) drop(coins, coins.pop());
       while (coins.length < ouro) {
         const i = coins.length, per = 5, pile = Math.floor(i / per), h = i % per;
@@ -1394,7 +1553,7 @@ function createWorld(canvasEl) {
   }
   loop();
 
-  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, revelarMesa, hideDice, efeitoCritico, cards, resize, handlers, fileira, veu, halo, livroDireita, retangulo, retanguloLivro,
+  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, revelarMesa, desintegrar, hideDice, efeitoCritico, cards, resize, handlers, fileira, veu, halo, livroDireita, retangulo, retanguloLivro,
     get qualidade() { return QUALIDADES[qualidade].nome; },
     set aoMudarQualidade(f) { aoMudar = f; },
     proximaQualidade() {

@@ -1,0 +1,6 @@
+{
+  "nota": "Vitórias por classe no estilo cacador, aprovadas pelo Levi a 3 nov. 2026 (12000 partidas). O simulador compara-se com isto e avisa quando uma classe sobe. Só se atualiza com: node tools/sim.js 12000 cacador --gravar-base, e só com o acordo dele.",
+  "estilo": "cacador",
+  "partidas": 12000,
+  "classes": { "Bardo": 50, "Bárbaro": 46, "Clérigo": 41, "Druida": 50, "Feiticeiro": 41, "Guerreiro": 51, "Ladino": 46, "Mago": 41, "Monge": 47, "Patrulheiro": 50 }
+}

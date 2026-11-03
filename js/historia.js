@@ -43,7 +43,7 @@ let VILOES = {
     finalTexto: 'O céu escurece ao meio-dia. Em Ossário, sete figuras formam um círculo em torno de {vilao}, de mãos abertas, enquanto o pó dos mortos sobe à sua volta.',
     ronda: { combate: 'A guarda quebra, e o círculo perde um elo.', social: 'Metade dos cultistas está ali por medo, e a dúvida espalha-se.', habilidade: 'Atravessa o círculo sem que o pó o toque.', investigacao: 'Encontra o erro nas contas do ritual, e o céu hesita.' } },
   luvas: { nome: 'o Homem das Luvas Brancas', destino: 'cardeo', glyph: 'flame', fraqueza: ['bardo', 'ladino', 'monge'],
-    efeitos: [{ t: 'Um capanga aponta-lhe uma besta, e custa-lhe a atenção.', tipo: 'fraco', v: 3 }, { t: 'Alguém pago por ele leva-lhe a bolsa.', tipo: 'ouro', v: 4 }],
+    efeitos: [{ t: 'Um capanga aponta-lhe uma besta, e custa-lhe a atenção.', tipo: 'fraco', v: 3 }, { t: 'Alguém pago por ele atira-lhe uma faca das sombras.', tipo: 'dreno', v: 2 }],
     motivos: ['Foi pago para acordar o que dorme na montanha, e nunca falhou um contrato.', 'Quer vender o mundo a quem pagar mais, e já tem comprador.', 'Vai fazer arder as cortes que um dia lhe recusaram a mão.'],
     pistas: [
       'Famílias de mineiros descem a serra sem os homens: alguém pagou o triplo para cavar no Monte Cárdeo.',
@@ -63,7 +63,7 @@ let VILOES = {
     finalTexto: 'No coração do pântano, a cabana sobre estacas é agora do tamanho de uma aldeia. As luzes azuis giram à volta de {vilao}, que mexe a tigela sem pressa. "Sopa ou resposta?", pergunta, sem olhar.',
     ronda: { combate: 'As estacas estalam, e a cabana inclina-se.', social: 'Ela ri, mas responde, e cada resposta custa-lhe um pouco.', habilidade: 'Pisa só onde as luzes não apontam.', investigacao: 'Reconhece um rosto nas moedas, e chama-o pelo nome.' } },
   capitao: { nome: 'o Capitão do Casco Negro', destino: 'carpa', glyph: 'seal', fraqueza: ['patrulheiro', 'barbaro'],
-    efeitos: [{ t: 'A tripulação fecha o cerco à volta dele.', tipo: 'ca', v: 1 }, { t: 'Uma cláusula em letra pequena leva-lhe o ouro.', tipo: 'ouro', v: 4 }],
+    efeitos: [{ t: 'A tripulação fecha o cerco à volta dele.', tipo: 'ca', v: 1 }, { t: 'Paga a um marinheiro para lhe coser as feridas ali mesmo.', tipo: 'cura', v: 4 }],
     motivos: ['Os contratos dizem que o mar é dele, e vai cobrar cada cláusula.', 'Afundou a própria família por engano, e procura a maré que a devolva.', 'Quer tudo o que flutua, e depois tudo o que não flutua.'],
     pistas: [
       'Nos portos falam de um navio que aparece onde a maré recua mais do que devia.',
@@ -437,6 +437,21 @@ const MENTORES = {
   patrulheiro: { titulo: 'A Guardiã da Clareira', texto: 'Há um arco pendurado num ramo, e há um lobo sentado por baixo, à espera. A dona sai de trás de uma árvore que não estava ali. "Os bichos dizem que sabes ouvir. Agora escolhe: a seta certa, ou o amigo certo."' },
   clerigo: { titulo: 'O Eremita da Encruzilhada', texto: 'Um homem de hábito rasgado reza a dois altares ao mesmo tempo. Ao vê-lo, para e sorri, com pena. "Os deuses cansam-se. Alguns de nós foram servir os vivos, em ricas catedrais. Outros foram falar com os mortos. Tu, para que lado vais?"' },
   bardo: { titulo: 'A Canção Sem Autor', texto: 'Um velho de alaúde toca, à beira da estrada, uma música que sabe de cor sem nunca a ter ouvido. Não para de tocar para lhe falar. "Toda a gente ouve as notas. Poucos ouvem o que está entre elas. Queres aprender a enganá-los, ou a adormecê-los?"' },
+};
+
+// Prelúdio: antes da missão, o herói conta quem é, pela sua boca. Serve em qualquer mundo, por isso não tem nomes de lugares.
+// Raças e antecedentes podem ter o seu próprio "preludio"; sem ele, usa-se a primeira frase da descrição.
+const PRELUDIOS = {
+  barbaro: { titulo: 'O Sangue Não Esquece', texto: 'A minha tribo media os anos pelos invernos a que sobrevivia. Eu sobrevivi a todos, e a tribo não. Não sei ler, nem preciso: sei que a raiva é um fogo, e que quem a guarda dentro acaba queimado. Eu deixo-a sair.' },
+  ladino: { titulo: 'Ninguém Me Viu Chegar', texto: 'Cresci em ruas onde o pão era de quem corria mais depressa. Aprendi cedo que toda a porta tem uma fraqueza, e todo o homem também. Não me chamem ladrão. Eu só encontro o que os outros guardam mal.' },
+  bardo: { titulo: 'Uma Canção Por Acabar', texto: 'Já cantei para reis e para bêbados, e os bêbados pagavam melhor. Mas há uma canção que ainda não escrevi, porque lhe falta o fim. Dizem que as melhores histórias se vivem antes de se cantarem. Vou à procura da minha, e não vou sozinho.' },
+  mago: { titulo: 'O Que os Livros Não Dizem', texto: 'Passei mais anos debruçado sobre páginas do que a olhar o céu. As runas falam com quem tem paciência, e eu tenho muita. O meu mestre dizia que o mundo é um texto mal traduzido. Vim corrigir os erros.' },
+  clerigo: { titulo: 'A Luz Que Me Escolheu', texto: 'Não fui eu que escolhi a fé: foi ela que me encontrou, numa noite em que devia ter morrido. Desde então, as minhas mãos fecham feridas que não deviam fechar. Há quem me chame santo. Eu só pago uma dívida.' },
+  patrulheiro: { titulo: 'O Rasto na Lama', texto: 'A estrada mente, mas a terra não. Um ramo partido, uma pegada funda, um silêncio no sítio errado: é assim que leio o mundo. Nunca dormi duas noites debaixo do mesmo teto, e nunca dormi sem alguém a vigiar.' },
+  feiticeiro: { titulo: 'O Fogo Que Herdei', texto: 'Nunca estudei magia. Ela já cá estava quando nasci, enrolada no meu sangue como uma serpente a dormir. Quando acorda, as coisas ardem. Cada feitiço cobra-me ao corpo, e um dia vou saber a quem devo esta herança.' },
+  monge: { titulo: 'O Silêncio Antes do Golpe', texto: 'Disseram-me que as armas são para quem tem medo. No mosteiro aprendi a ouvir o coração de quem tenho à frente, e a saber o que vai fazer antes de ele o saber. Desci da montanha de mãos vazias. São quanto basta.' },
+  druida: { titulo: 'A Terra Respira Comigo', texto: 'As cidades fazem barulho demais. Eu cresci entre raízes, a aprender o nome que os bichos dão uns aos outros. A floresta empresta-me a sua força, e em troca peço-lhe pouco. Mas algo está a apodrecer lá fora, e a terra pediu-me que fosse ver.' },
+  guerreiro: { titulo: 'Cada Cicatriz, Uma Lição', texto: 'Treinei com todas as armas que me deram, e com algumas que tirei a quem as usava contra mim. Não procuro glória: já a tive, e não me deu de comer. Procuro uma luta que valha a pena. Dizem que há uma à minha espera.' },
 };
 
 // Atrasos: o que se passa quando o tempo é contado ao dia.

@@ -55,6 +55,7 @@ function fichaAliado(id) {
   const sorte = n => { h = (h * 17 + 11) % 9973; return h % n; };
   const forte = (a.tipo && a.tipo.combate) || 0;
   const acao = a.vidaMax ? 'cura' : a.tipo && a.tipo.social ? 'guarda' : 'golpe';
+  if (a.ficha) return { id, nome: a.nome, cura: 0, ...a.ficha };
   return {
     id, nome: a.nome, acao,
     pv: 6 + sorte(5) + forte * 2, ca: 10 + sorte(3) + (forte ? 1 : 0), ataque: 2 + sorte(2) + forte,
@@ -62,28 +63,10 @@ function fichaAliado(id) {
   };
 }
 function resumoAliado(f) {
-  const faz = f.acao === 'cura' ? `Cura ${f.cura} por ronda` : f.acao === 'guarda' ? 'Protege: +2 na sua CA' : `Ataca +${f.ataque}, dano ${f.dado}`;
+  const faz = { cura: `Cura ${f.cura} por ronda`, guarda: 'Protege: +2 na sua CA', olhos: 'Ataca-lhe os olhos: -2 no ataque dele', teia: 'Teia: ele perde a vez, uma vez por combate', veneno: `Morde +${f.ataque}, ${f.dado}, e envenena` }[f.acao] || `Ataca +${f.ataque}, dano ${f.dado}`;
   return `CA ${f.ca}  ·  ${f.pv} PV  ·  ${faz}`;
 }
 
-// Os aliados também lutam. Os números saem do nome, para serem sempre os mesmos.
-function fichaAliado(id) {
-  const a = ALIADOS[id];
-  let h = 7;
-  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 9973;
-  const sorte = n => { h = (h * 17 + 11) % 9973; return h % n; };
-  const forte = (a.tipo && a.tipo.combate) || 0;
-  const acao = a.vidaMax ? 'cura' : a.tipo && a.tipo.social ? 'guarda' : 'golpe';
-  return {
-    id, nome: a.nome, acao,
-    pv: 6 + sorte(5) + forte * 2, ca: 10 + sorte(3) + (forte ? 1 : 0), ataque: 2 + sorte(2) + forte,
-    dado: forte || sorte(3) === 0 ? 'd8' : 'd6', cura: 3 + sorte(2),
-  };
-}
-function resumoAliado(f) {
-  const faz = f.acao === 'cura' ? `Cura ${f.cura} por ronda` : f.acao === 'guarda' ? 'Protege: +2 na sua CA' : `Ataca +${f.ataque}, dano ${f.dado}`;
-  return `CA ${f.ca}  ·  ${f.pv} PV  ·  ${faz}`;
-}
 const itensCorpo = () => Object.values(G.equip).filter(Boolean).map(id => ITENS[id]);
 
 const evolucao = () => (G.evolucao ? EVOLUCOES[G.cls].find(e => e.id === G.evolucao) : null);
@@ -116,8 +99,14 @@ function melhoriasDisponiveis() {
 }
 
 // Classe de Armadura: o número que o inimigo tem de alcançar para lhe acertar.
+// Há classes que somam um atributo à CA; a fúria do Bárbaro tira-lhe 2.
+// O que o herói aguenta de cada golpe em combate (o talento Robusto). Nunca fica abaixo de 1.
+const golpeNoHeroi = d => Math.max(1, d - talentosAtivos().reduce((s, t) => s + (t.aguenta || 0), 0));
 const caJogador = () => COMBATE.caBase + Math.floor(Math.max(0, attr('agilidade')) / 2)
-  + itensCorpo().reduce((s, it) => s + (it.ca || 0), 0) + somaMelhorias('ca');
+  + itensCorpo().reduce((s, it) => s + (it.ca || 0), 0) + somaMelhorias('ca')
+  + (G.cls && CLASSES[G.cls].caDe ? Math.max(0, attr(CLASSES[G.cls].caDe)) : 0) - (G.emFuria ? 2 : 0);
+// O Guerreiro soma a Força ao dano da arma.
+const danoClasse = () => (G.cls && CLASSES[G.cls].danoDe ? Math.max(0, attr(CLASSES[G.cls].danoDe)) : 0);
 
 function attr(a) {
   let v = 0;
@@ -125,6 +114,7 @@ function attr(a) {
   soma(CLASSES[G.cls]); soma(ANTECEDENTES[G.bg]); soma(RACAS[G.raca]); soma(evolucao());
   itensCorpo().forEach(soma);
   talentosAtivos().forEach(soma);
+  if (a === 'forca' && G.emFuria) v += 3;
   return v;
 }
 
@@ -173,12 +163,13 @@ const dcDe = o => o.roll.dc + (G.emCombateFinal ? 0 : pressao()) + (o.dcExtra ||
 function repeteTeste(o) {
   return talentosAtivos().some(t => t.repete && t.repete === o.tipo);
 }
+const temVantagem = o => !!(o.roll && !G.emCombate && G.cls && (CLASSES[G.cls].vantagem || []).includes(atributoDe(o)));
 
 // Probabilidade de passar: um 1 falha sempre, um 20 passa sempre.
 function chanceDe(o) {
   const precisa = dcDe(o) - bonusDe(o);
   const p = Math.min(.95, Math.max(.05, (21 - precisa) / 20));
-  return repeteTeste(o) ? 1 - (1 - p) * (1 - p) : p;
+  return repeteTeste(o) || temVantagem(o) ? 1 - (1 - p) * (1 - p) : p;
 }
 
 // "de o Homem" passa a "do Homem", quando um nome entra numa frase.
@@ -440,18 +431,19 @@ function maoDaCena(cena) {
 }
 
 function resolverTeste(o) {
-  let d20 = dado(20);
+  let d20 = dado(20), vantagem = null;
+  if (temVantagem(o)) { vantagem = [d20, dado(20)]; d20 = Math.max(...vantagem); }
   const bonus = bonusDe(o), dc = dcDe(o);
   const passou = v => v === 20 || (v !== 1 && v + bonus >= dc);
   let repetiu = false;
   if (!passou(d20) && repeteTeste(o)) { d20 = dado(20); repetiu = true; }
   const ok = passou(d20);
-  const out = { ok, d20, bonus, dc, total: d20 + bonus, repetiu, critico: d20 === 20, falhaCritica: d20 === 1 };
+  const out = { ok, d20, bonus, dc, total: d20 + bonus, repetiu, vantagem, critico: d20 === 20, falhaCritica: d20 === 1 };
   if (out.critico || out.falhaCritica) G.log.criticos++;
   if (o.dadoDano) {
     out.tipoDado = o.dadoDano;
     out.dadoArma = dado(parseInt(o.dadoDano.slice(1), 10));
-    out.dano = (out.dadoArma + danoExtra() + ((o.m && o.m.mais) || 0)) * (out.critico ? 2 : 1);
+    out.dano = (out.dadoArma + danoExtra() + (o.usaArma ? danoClasse() : 0) + ((o.m && o.m.mais) || 0)) * (out.critico ? 2 : 1);
     out.pv = o.roll.pv || 0;
   }
   return out;
@@ -523,10 +515,11 @@ function cartaAtaque(ini) {
   const a = arma();
   const o = {
     t: `Atacar: ${G.equip.arma ? nomeItem(G.equip.arma) : a.nome}`, d: `Se chegar à CA ${ini.defesa}, tira-lhe PV. Depois, é a vez dele.`,
-    tipo: 'combate', usaArma: true, dadoDano: a.dado, roll: { a: atributoArma(), dc: ini.defesa }, danoMedio: media(a.dado) + danoExtra(),
+    tipo: 'combate', usaArma: true, dadoDano: a.dado, roll: { a: atributoArma(), dc: ini.defesa }, danoMedio: media(a.dado) + danoExtra() + danoClasse(),
     glyph: a.glyph || 'sword',
   };
-  o.ganhoTexto = `Dano ${a.dado}${danoExtra() ? `+${danoExtra()}` : ''}`;
+  const mais = danoExtra() + danoClasse();
+  o.ganhoTexto = `Dano ${a.dado}${mais ? `+${mais}` : ''}`;
   return o;
 }
 
@@ -537,6 +530,8 @@ function cartaManobra(m, ini) {
   if (m.cura) partes.push(`+${m.cura} Vida`);
   if (m.custo) partes.push(`custo: ${m.custo} Vida`);
   if (m.enfraquece) partes.push(`Defesa -${m.enfraquece}`);
+  if (m.furia) partes.push('+3 Força', '-2 CA');
+  if (m.misseis) { partes.push(`Dano ${G.nivel + 1}d4, sem teste`); base.danoMedio = (G.nivel + 1) * 2.5; }
   base.ganhoTexto = partes.join('  ·  ');
   if (m.a) {
     base.roll = { a: m.a, dc: ini.defesa + (m.dificil || 0) - (m.facil || 0) };
@@ -570,9 +565,12 @@ function cartasDoChefe(ini, usadas) {
 function maoDeCombate(ini, usadas) {
   const mao = [cartaAtaque(ini)];
   // A manobra da classe aprimorada aparece sempre.
-  const evo = evolucao();
-  const baralho = [...(evo ? [evo.manobra] : []), ...baralhar(MANOBRAS[G.cls] || [])].filter(m => !usadas.has(m.id) && !(ini.chefe && (m.vence || m.fuga)));
-  baralho.slice(0, 2).forEach(m => mao.push(cartaManobra(m, ini)));
+  const evo = evolucao(), sempre = CLASSES[G.cls].curaSempre;
+  const fixa = sempre ? (MANOBRAS[G.cls] || []).find(m => m.id === sempre) : null;
+  const baralho = [...(evo ? [evo.manobra] : []), ...baralhar(MANOBRAS[G.cls] || [])]
+    .filter(m => m !== fixa && !usadas.has(m.id) && !(ini.chefe && (m.vence || m.fuga)) && !(G.emFuria && (m.fuga || m.furia)));
+  baralho.slice(0, fixa ? 1 : 2).forEach(m => mao.push(cartaManobra(m, ini)));
+  if (fixa) mao.push(cartaManobra(fixa, ini));
   if (G.mochila.includes('pocao')) {
     mao.push({
       t: 'Beber a Poção', d: `Recupera ${ITENS.pocao.uso.vida} de Vida, e a seguir é a vez dele.`, tema: 'equipamento', etiqueta: 'Mochila', glyph: 'drop',
@@ -580,6 +578,7 @@ function maoDeCombate(ini, usadas) {
     });
   }
   if (ini.chefe) return [...mao, ...cartasDoChefe(ini, usadas)].slice(0, 5);
+  if (G.emFuria) return mao;
   mao.push({
     t: 'Fugir', d: 'Sai sem recompensa. Se falhar, ele ataca na mesma.', tipo: 'habilidade', etiqueta: 'Fuga', glyph: 'feather',
     fugir: true, roll: { a: 'agilidade', dc: Math.max(6, ini.defesa - 2) },

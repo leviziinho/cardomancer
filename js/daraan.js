@@ -5,10 +5,10 @@
 // ---------- Classes novas, nos dois mundos ----------
 
 Object.assign(CLASSES, {
-  feiticeiro: { nome: 'Feiticeiro', glyph: 'flame', cor: 0xc8481a, vida: 10, attrs: { carisma: 3, mente: 1 }, desc: 'A magia corre-lhe no sangue, sem livros nem cajados. Cada feitiço cobra-se ao corpo.' },
-  monge: { nome: 'Monge', glyph: 'fist', cor: 0x5a6a78, vida: 12, attrs: { agilidade: 3, mente: 1 }, desc: 'Luta de mãos vazias, e sente a energia de quem tem à frente, mesmo de olhos fechados.' },
-  druida: { nome: 'Druida', glyph: 'leaf', cor: 0x4f7a2c, vida: 12, attrs: { mente: 2, forca: 1, carisma: 1 }, desc: 'Os Saybaff tiram a força da terra. Onde houver plantas e animais, nunca está sozinho.' },
-  guerreiro: { nome: 'Guerreiro', glyph: 'sword', cor: 0x7a5a24, vida: 14, attrs: { forca: 2, agilidade: 2 }, desc: 'Mestre de armas brancas. Treinou muitos, e os poucos que o venceram ainda o elogiam.' },
+  feiticeiro: { nome: 'Feiticeiro', glyph: 'flame', cor: 0xc8481a, vida: 8, attrs: { carisma: 2, mente: 2 }, raridade: 'comum', caDe: 'carisma', habilidade: 'Soma o Carisma à CA.', desc: 'A magia corre-lhe no sangue, sem livros nem cajados. Cada feitiço cobra-se ao corpo.' },
+  monge: { nome: 'Monge', glyph: 'fist', cor: 0x5a6a78, vida: 8, attrs: { agilidade: 2, mente: 2 }, raridade: 'comum', caDe: 'mente', habilidade: 'Soma a Mente à CA.', desc: 'Luta de mãos vazias, e sente a energia de quem tem à frente, mesmo de olhos fechados.' },
+  druida: { nome: 'Druida', glyph: 'leaf', cor: 0x4f7a2c, vida: 10, attrs: { mente: 4 }, raridade: 'comum', companheiros: ['cobra', 'aranha', 'corvo'], habilidade: 'Começa com um companheiro: Cobra, Aranha ou Corvo.', desc: 'Os Saybaff tiram a força da terra. Onde houver plantas e animais, nunca está sozinho.' },
+  guerreiro: { nome: 'Guerreiro', glyph: 'sword', cor: 0x7a5a24, vida: 12, attrs: { forca: 2 }, raridade: 'comum', danoDe: 'forca', habilidade: 'Soma a Força ao dano da arma.', desc: 'Mestre de armas brancas. Treinou muitos, e os poucos que o venceram ainda o elogiam.' },
 });
 
 Object.assign(MANOBRAS, {
@@ -17,6 +17,7 @@ Object.assign(MANOBRAS, {
     { id: 'lach', t: 'Lach', d: 'A palavra que os pais lhe ensinaram. Um vórtice de chamas, e o corpo paga.', magia: true, a: 'carisma', dado: 'd12', mais: 2, custo: 3, glyph: 'flame' },
     { id: 'barreira', t: 'Barreira de Fogo', d: 'O próximo golpe dele não passa.', magia: true, escudo: true, custo: 1, glyph: 'shield' },
     { id: 'tele', t: 'Telecinésia', d: 'Arranca-lhe a guarda à distância. Baixa-lhe a Defesa em 3.', magia: true, a: 'carisma', enfraquece: 3, glyph: 'eye' },
+    { id: 'misseis', t: 'Mísseis Mágicos', d: 'Um dardo de luz por nível, e mais um. Nenhum falha.', magia: true, misseis: true, glyph: 'star' },
   ],
   monge: [
     { id: 'rajada', t: 'Rajada de Golpes', d: 'Chutes e socos, mais depressa do que se conta.', a: 'agilidade', dado: 'd8', facil: 1, glyph: 'fist' },

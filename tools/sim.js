@@ -1,5 +1,6 @@
 // Simula partidas com o mesmo código do jogo, sem 3D, e mostra as taxas de vitória.
-// Uso: node tools/sim.js [partidas por estilo]
+// Uso: node tools/sim.js [partidas por estilo] [estilo] [--gravar-base]
+// No estilo cacador compara cada classe com tools/base-classes.json e avisa quando alguma sobe.
 
 const fs = require('fs');
 const path = require('path');
@@ -59,6 +60,7 @@ const ESTILOS = {
         if (s.fuga) return frac < .25 ? 6 : -1;
         if (s.cura) return frac < .5 ? 5 : 0;
         if (s.vence) return s.chance * 6;
+        if (s.furia) return frac > .4 ? 4 : 0;
         if (s.apoio) return frac < .4 ? 3 : 1;
         return s.chance * (s.danoMedio || 1) - (s.custo || 0) * .5;
       });
@@ -126,12 +128,37 @@ async function correr(estilo, N) {
     if (!linhas.length) return;
     console.log(`  ${g}: ${linhas.map(k => `${k} ${p(por[g][k].v, por[g][k].n).trim()}${g === 'pistasFeitas' ? ` (${p(por[g][k].ganhos, por[g][k].chefes).trim()} do chefe, n=${por[g][k].n})` : ''}`).join('  ')}`);
   });
+  if (estilo === 'cacador') compararBase(por.classe, N);
+}
+
+// A base é o equilíbrio aprovado. Com 12000 partidas o ruído de uma classe chega a 3 pontos, por isso o aviso só conta acima disso.
+const BASE = path.join(__dirname, 'base-classes.json');
+function compararBase(classes, N) {
+  const agora = {};
+  Object.keys(classes).forEach(k => { agora[k] = Math.round(classes[k].v / Math.max(1, classes[k].n) * 100); });
+  if (process.argv.includes('--gravar-base')) {
+    const base = { nota: JSON.parse(fs.readFileSync(BASE, 'utf8')).nota, estilo: 'cacador', partidas: N, classes: agora };
+    fs.writeFileSync(BASE, JSON.stringify(base, null, 2) + '\n');
+    console.log('\nBase gravada.');
+    return;
+  }
+  if (!fs.existsSync(BASE)) return;
+  const base = JSON.parse(fs.readFileSync(BASE, 'utf8')).classes;
+  const folga = N >= 12000 ? 3 : 5;
+  console.log(`\n  Comparação com a base (folga de ${folga} pontos para o ruído${N < 12000 ? '; corra 12000 partidas para um número fiável' : ''}):`);
+  Object.keys(base).sort().forEach(k => {
+    if (agora[k] === undefined) return;
+    const d = agora[k] - base[k];
+    const marca = d > folga ? 'SUBIU' : d < -folga ? 'desceu' : 'igual';
+    console.log(`    ${marca.padEnd(6)} ${k.padEnd(12)} ${String(base[k]).padStart(3)}% -> ${String(agora[k]).padStart(3)}%  (${d > 0 ? '+' : ''}${d})`);
+  });
+  const subiram = Object.keys(base).filter(k => agora[k] !== undefined && agora[k] - base[k] > folga);
+  console.log(subiram.length ? `  AVISO: subiram ${subiram.join(', ')}. Avisar o Levi antes de continuar.` : '  Nenhuma classe subiu acima do ruído.');
 }
 
 (async () => {
   const N = parseInt(process.argv[2], 10) || 3000;
-  await correr('acaso', N);
-  await correr('sensato', N);
-  await correr('cacador', N);
-  await correr('guerreiro', N);
+  // Um segundo argumento corre só esse estilo: node tools/sim.js 10000 cacador
+  const so = process.argv[3];
+  for (const e of ['acaso', 'sensato', 'cacador', 'guerreiro']) if (!so || so === e) await correr(e, N);
 })().catch(e => { console.error(e); process.exit(1); });

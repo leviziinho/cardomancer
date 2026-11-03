@@ -31,7 +31,8 @@ const musica = (() => {
         A: [[[12, 2], [15, 1], [17, 1], [19, 3], [15, 1], [20, 2], [19, 1], [17, 1], [15, 2], [14, 2], [12, 4], [null, 4]], [[24, 2], [22, 1], [20, 1], [19, 2], [15, 2], [17, 2], [19, 2], [20, 2], [17, 2], [15, 4], [null, 4]]],
         B: [[[17, 2], [20, 2], [24, 3], [22, 1], [19, 2], [22, 2], [24, 2], [26, 2], [22, 4], [19, 4]], [[24, 1], [24, 1], [22, 1], [24, 1], [26, 4], [24, 2], [22, 2], [19, 4], [14, 4]]],
       },
-      forma: ['A', 'A', 'B', 'A'], tambor: [1, 0, 0, .5, 1, 0, .6, .4], cordasGraves: true, flauta: true, harpa: .75,
+      forma: ['A', 'A', 'B', 'A'], tambor: [1, 0, .45, .6, 1, 0, .7, .5], cordasGraves: true, flauta: true, harpa: .75,
+      pele: [0, .55, .3, .7, 0, .6, .35, .9], bombo: [1, 0, 0, 0, .75, 0, 0, 0],
     },
     // O chefe: lento e pesado, em sol menor, com um coro de vozes por baixo.
     chefe: {
@@ -46,6 +47,7 @@ const musica = (() => {
         B: [[[24, 4], [25, 2], [24, 2], [20, 4], [19, 4], [22, 3], [20, 1], [19, 2], [15, 2], [18, 4], [19, 4]]],
       },
       forma: ['A', 'B', 'A', 'B'], tambor: [1, 0, 0, 0, .7, 0, .35, .35], cordasGraves: true, flauta: false, harpa: .7, coro: true,
+      pele: [0, 0, .4, 0, 0, .5, .3, .6], bombo: [1, 0, 0, 0, 0, 0, .6, 0],
     },
   };
 
@@ -173,6 +175,43 @@ const musica = (() => {
     n.start(t, Math.random()); n.stop(t + .1);
   }
 
+  // Um tambor de mão, mais agudo e seco: o polegar no meio da pele e os dedos na borda.
+  function pele(t, vol, destino) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.setValueAtTime(330, t);
+    o.frequency.exponentialRampToValueAtTime(190, t + .06);
+    g.gain.setValueAtTime(vol * .7, t);
+    g.gain.exponentialRampToValueAtTime(.001, t + .18);
+    o.connect(g); g.connect(destino);
+    o.start(t); o.stop(t + .2);
+    const n = ac.createBufferSource(), f = ac.createBiquadFilter(), gn = ac.createGain();
+    n.buffer = ruido();
+    f.type = 'bandpass'; f.frequency.value = 2400; f.Q.value = 1.2;
+    gn.gain.setValueAtTime(vol * .45, t);
+    gn.gain.exponentialRampToValueAtTime(.001, t + .05);
+    n.connect(f); f.connect(gn); gn.connect(destino);
+    n.start(t, Math.random()); n.stop(t + .07);
+  }
+
+  // Um bombo grande de guerra: pouco ataque e muito corpo, que se sente mais do que se ouve.
+  function bombo(t, vol, destino) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.setValueAtTime(82, t);
+    o.frequency.exponentialRampToValueAtTime(38, t + .35);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + .012);
+    g.gain.exponentialRampToValueAtTime(.001, t + .9);
+    o.connect(g); g.connect(destino);
+    o.start(t); o.stop(t + .95);
+    const n = ac.createBufferSource(), f = ac.createBiquadFilter(), gn = ac.createGain();
+    n.buffer = ruido();
+    f.type = 'lowpass'; f.frequency.value = 380;
+    gn.gain.setValueAtTime(vol * .5, t);
+    gn.gain.exponentialRampToValueAtTime(.001, t + .16);
+    n.connect(f); f.connect(gn); gn.connect(destino);
+    n.start(t, Math.random()); n.stop(t + .2);
+  }
+
   // Violoncelos e coro: várias vozes quase iguais, que respiram devagar, e mudam com o acorde.
   function acordeLongo(notas, t, dur, vol, destino, coro) {
     notas.forEach((n, i) => {
@@ -231,6 +270,10 @@ const musica = (() => {
     const folga = (Math.random() - .5) * .018;
     corda(m.raiz + graus[idx], t + Math.max(0, folga), quase((p === 0 ? .4 : .27) * m.harpa * m.volume), g.harpa, { brilho: .55, tom: p === 0 ? 3000 : 2300, pan: (idx - 1.5) * .22 });
     if (m.tambor && m.tambor[p]) tambor(t + Math.max(0, folga * .5), quase(.5 * m.tambor[p] * m.volume), g.seco);
+    if (m.pele && m.pele[p]) pele(t + Math.max(0, folga * .3), quase(.4 * m.pele[p] * m.volume), g.seco);
+    if (m.bombo && m.bombo[p]) bombo(t, quase(.75 * m.bombo[p] * m.volume), g.seco);
+    // A meio do compasso, a pele dá às vezes duas pancadas rápidas, como um rufo curto.
+    if (m.pele && p === m.compasso - 1 && Math.random() < .35) pele(t + colcheia / 2, quase(.3 * m.volume), g.seco);
 
     // A melodia corre ao seu próprio ritmo, independentemente do compasso.
     if (resto <= 0 && fraseI < frase.length) {

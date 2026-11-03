@@ -772,6 +772,19 @@ function textures(renderer) {
       x.fillStyle = '#2f5a33';
       x.fillText(`Você: CA ${c.ca}${c.escudo ? '  ·  Com escudo' : ''}`, marginL, y + 254);
       y += 286;
+      // Os guardas dele e os seus aliados, dois por linha, com a Vida em barra.
+      const lados = c.lados || [], colW = (maxW - 40) / 2;
+      lados.forEach((l, i) => {
+        const cx0 = marginL + (i % 2) * (colW + 40), yy = y + Math.floor(i / 2) * 90 + 24;
+        x.textAlign = 'left'; x.fillStyle = l.inimigo ? '#6d1f1a' : '#2f4a2a';
+        x.font = `600 40px ${FONT_TITLE}`;
+        x.fillText(l.nome, cx0, yy, colW - 160);
+        x.textAlign = 'right'; x.font = `700 40px ${FONT_TITLE}`;
+        x.fillText(l.pv > 0 ? `${l.pv}/${l.pvMax}` : 'caído', cx0 + colW, yy);
+        x.fillStyle = 'rgba(60,35,12,.3)'; x.fillRect(cx0, yy + 12, colW, 20);
+        x.fillStyle = l.inimigo ? '#9a3a2a' : '#4f7a3a'; x.fillRect(cx0, yy + 12, colW * l.pv / Math.max(1, l.pvMax), 20);
+      });
+      if (lados.length) y += Math.ceil(lados.length / 2) * 90 + 10;
     }
     for (; size >= 34; size -= 2) {
       x.font = `${size}px ${FONT_BODY}`;
