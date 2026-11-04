@@ -6,9 +6,19 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const raiz = path.join(__dirname, '..', 'js');
-const ctx = vm.createContext({ console, Math, setTimeout });
-['data.js', 'historia.js', 'daraan.js', 'madeira.js', 'etapas.js', 'regras.js', 'partida.js'].forEach(f => vm.runInContext(fs.readFileSync(path.join(raiz, f), 'utf8'), ctx, { filename: f }));
+// SIM_JS=pasta corre uma cópia alterada do jogo (para testar uma regra à parte); SIM_CLASSE=barbaro joga sempre essa classe.
+const raiz = process.env.SIM_JS || path.join(__dirname, '..', 'js');
+const ctx = vm.createContext({ console, Math, setTimeout, __alvo: process.env.SIM_CLASSE || null });
+// Com SIM_CLASSE, a classe pedida vem sempre no draft.
+const lerJogo = f => {
+  const src = fs.readFileSync(path.join(raiz, f), 'utf8');
+  if (f !== 'partida.js' || !process.env.SIM_CLASSE) return src;
+  const de = 'const cls = tirar(doMundo(CLASSES), 3);';
+  if (!src.includes(de)) throw new Error('SIM_CLASSE: o draft de classes mudou em partida.js');
+  return src.replace(de, 'const cls = [__alvo, ...tirar(doMundo(CLASSES), 4).filter(k => k !== __alvo)].slice(0, 3);');
+};
+// vesper.js e madeira.js só existem no computador do Levi; sem eles, joga-se só Daraan.
+['data.js', 'historia.js', 'daraan.js', 'etapas.js', 'vesper.js', 'madeira.js', 'regras.js', 'partida.js'].filter(f => fs.existsSync(path.join(raiz, f))).forEach(f => vm.runInContext(lerJogo(f), ctx, { filename: f }));
 vm.runInContext('globalThis.__api = { partida, vidaMax, get G() { return G; }, CLASSES, RACAS, ANTECEDENTES, ITENS, TIPOS };', ctx);
 const api = ctx.__api;
 
@@ -46,7 +56,8 @@ const ESTILOS = {
   sensato: (specs, c) => {
     const G = api.G;
     if (c === 'destino') return melhor(specs, s => (s.acampar ? (G.vida / api.vidaMax() < .4 ? 5 : 0) : s.final ? 4 : s.missao ? 3 : s.procurar ? 2 : s.rasto ? 1.5 : 1));
-    if (c === 'postura') return G.dia < G.prazo - 4 ? 1 : 0;
+    // O aviso antes do chefe: o simulador segue sempre, para medir como antes.
+    if (c === 'antesDoFim') return specs.findIndex(s => s.seguir);
     if (c === 'cidade') {
       const vidaBaixa = G.vida < 7;
       return melhor(specs, s => (s.acao === 'dormir' && vidaBaixa ? 3 : s.acao === 'mercado' && G.ouro >= 8 && !s.visitou ? 2 : s.acao === 'procurar' ? 2 : s.acao === 'partir' ? 1 : 0));
@@ -70,16 +81,34 @@ const ESTILOS = {
   },
 };
 
+// Escolhas dominantes: cartas de cena que, quando aparecem, quase sempre ganham às outras (ou nunca).
+const escolhas = {};
+function anotarEscolha(specs, i) {
+  // As raras e únicas ganham sempre por desenho (sucesso garantido); ficam de fora da conta.
+  const livres = specs.filter(s => !s.locked);
+  if (livres.length < 2 || livres.some(s => s.rara)) return;
+  livres.forEach(s => {
+    const e = escolhas[s.titulo] = escolhas[s.titulo] || { vista: 0, escolhida: 0, chance: 0 };
+    e.vista++; e.chance += s.chance;
+    if (s === specs[i]) e.escolhida++;
+  });
+}
+
 function uiFalso(estilo) {
   const escolher = (specs, c) => {
-    const i = ESTILOS[estilo](specs, c);
-    return i < 0 ? specs.length - 1 : i;
+    const r = ESTILOS[estilo](specs, c);
+    const i = r < 0 ? specs.length - 1 : r;
+    if (c === 'cena') anotarEscolha(specs, i);
+    return i;
   };
   let visitasCidade = 0;
   return {
     som() {}, prompt() {}, async aviso() {}, async anuncio() {}, async refrescar() {}, async resultado() {}, async dados() {}, async critico() {}, async pista() {}, pino() {}, async fecharLivro() {}, async evoluir() {}, mundo() {}, async meioCaminho() {}, async chegar() {},
-    async livro() {}, mapa() {}, async andar() {}, sync() {}, async seguir() {}, async missao() {}, async revelar() {}, async fim() {}, musica() {},
-    async draft(t, s, specs) { return Math.floor(Math.random() * specs.length); },
+    async livro() {}, mapa() {}, async andar() {}, sync() {}, async seguir() {}, async missao() {}, async revelar() {}, async trocarSelada() {}, async fim() {}, musica() {},
+    async draft(t, s, specs) {
+      const alvo = process.env.SIM_CLASSE && specs.findIndex(x => x.cls === process.env.SIM_CLASSE);
+      return alvo >= 0 ? alvo : Math.floor(Math.random() * specs.length);
+    },
     async escolha(specs, { ctx: c } = {}) {
       if (c === 'cidade' && ++visitasCidade > 6) return specs.length - 1;
       return escolher(specs, c);
@@ -101,13 +130,16 @@ const p = (a, b) => `${Math.round(a / Math.max(1, b) * 100)}%`.padStart(4);
 const m = (a, b) => (a / Math.max(1, b)).toFixed(1).padStart(4);
 
 async function correr(estilo, N) {
-  const total = nova(), por = { pistasFeitas: {}, mundo: {}, classe: {}, raca: {}, antecedente: {}, arma: {}, vilao: {}, reviravolta: {} };
+  const total = nova(), causas = {}, feridas = {}, etapas = [], por = { pistasFeitas: {}, mundo: {}, classe: {}, raca: {}, antecedente: {}, arma: {}, vilao: {}, reviravolta: {} };
   const reg = (grupo, chave, r, G) => { somar(por[grupo][chave] = por[grupo][chave] || nova(), r, G); };
   for (let i = 0; i < N; i++) {
     aprimorou = 0;
     const r = await api.partida(uiFalso(estilo));
     const G = api.G;
     somar(total, r, G);
+    if (r === 'morte') causas[G.log.causa] = (causas[G.log.causa] || 0) + 1;
+    Object.entries(G.log.danoEm).forEach(([k, v]) => { feridas[k] = (feridas[k] || 0) + v; });
+    G.log.etapas.forEach((e, i) => { const t = etapas[i] = etapas[i] || { n: 0, dia: 0, vida: 0 }; t.n++; t.dia += e.dia; t.vida += e.vida / e.vidaMax; });
     reg('pistasFeitas', String(G.pistas), r, G);
     por.pistasFeitas[String(G.pistas)].chefes += 0;
     reg('mundo', G.mundo, r, G);
@@ -128,6 +160,20 @@ async function correr(estilo, N) {
     if (!linhas.length) return;
     console.log(`  ${g}: ${linhas.map(k => `${k} ${p(por[g][k].v, por[g][k].n).trim()}${g === 'pistasFeitas' ? ` (${p(por[g][k].ganhos, por[g][k].chefes).trim()} do chefe, n=${por[g][k].n})` : ''}`).join('  ')}`);
   });
+  // Para onde vai a Vida, e de onde vêm as mortes: o ciclo tempo e vida que o Vitor pediu para medir.
+  const ordem = o => Object.entries(o).sort((a, b) => b[1] - a[1]);
+  console.log(`  mortes por causa: ${ordem(causas).map(([k, v]) => `${k} ${p(v, total.morte).trim()}`).join('  ')}`);
+  console.log(`  Vida perdida por partida: ${ordem(feridas).map(([k, v]) => `${k} ${m(v, N).trim()}`).join('  ')}`);
+  console.log(`  ao chegar a cada etapa: ${etapas.map((e, i) => `${i < 2 ? `etapa ${i + 2}` : 'destino revelado'} dia ${m(e.dia, e.n).trim()}, Vida ${p(e.vida, e.n).trim()} (${p(e.n, N).trim()} chegam)`).join('  ')}`);
+  // Só as cartas vistas muitas vezes: as que ganham quase sempre, e as que nunca se escolhem.
+  const vistas = Object.entries(escolhas).filter(([, e]) => e.vista >= Math.max(30, N / 100));
+  const taxa = e => e.escolhida / e.vista;
+  const dominantes = vistas.filter(([, e]) => taxa(e) >= .85).sort((a, b) => taxa(b[1]) - taxa(a[1])).slice(0, 8);
+  const esquecidas = vistas.filter(([, e]) => taxa(e) <= .03).sort((a, b) => b[1].vista - a[1].vista).slice(0, 8);
+  const linha = ([t, e]) => `${t} ${p(e.escolhida, e.vista).trim()} (${p(e.chance, e.vista).trim()} de êxito)`;
+  console.log(`  escolhas dominantes (escolhidas quase sempre que aparecem): ${dominantes.length ? dominantes.map(linha).join('  ·  ') : 'nenhuma'}`);
+  console.log(`  escolhas esquecidas (quase nunca): ${esquecidas.length ? esquecidas.map(linha).join('  ·  ') : 'nenhuma'}`);
+  Object.keys(escolhas).forEach(k => delete escolhas[k]);
   if (estilo === 'cacador') compararBase(por.classe, N);
 }
 

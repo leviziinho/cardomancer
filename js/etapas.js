@@ -1,7 +1,8 @@
 // O fio da história: três etapas que levam sempre ao fim, mesmo a quem falha.
 // Cada etapa diz para onde ir a seguir. As pistas e as dicas só tornam o caminho mais fácil.
 
-const ETAPA_AGORA = ['Encontrar quem sabe', 'Interrogar o suspeito', 'Ouvir a última testemunha'];
+// O que fazer em cada etapa, no imperativo, para a frase do painel Agora.
+const ETAPA_AGORA = ['Procure quem sabe', 'Interrogue o suspeito', 'Ouça a última testemunha'];
 
 const op = (t, d, tipo, a, dc, ok, ko, koFx = { vida: -2 }, okFx = { xp: 2 }) => ({ t, d, tipo, roll: { a, dc }, ok: { txt: ok, fx: okFx }, ko: { txt: ko, fx: koFx } });
 const luta = (t, d, dc, pv, ini, ok, ko) => ({ t, d, tipo: 'combate', roll: { a: 'forca', dc, pv, ini }, ok: { txt: ok, fx: { ouro: 3 } }, ko: { txt: ko, fx: { vida: -3 } } });
@@ -54,26 +55,6 @@ const ETAPAS_GERAIS = [
 
 // As mesmas etapas, com a gente de cada mundo.
 const ETAPAS_MUNDO = {
-  vesper: [
-    [{ titulo: 'Sela Sabe Sempre', texto: 'Sela, a Mercadora, está a discutir o preço de uma mula com o dono de outra mula. Vê-o por cima do ombro, e nem pára. "Procuram-no, sabia? Mas nós vamos falar do que você procura. Pague a mula, e falamos."',
-      opcoes: [
-        op('Regatear com ela', 'Dizem que nunca ninguém ganhou.', 'social', 'carisma', 11, 'Ela ri-se. Ninguém ganha, mas a tentativa diverte-a, e diz-lhe o que sabe.', 'Fica com a mula, e sem o ouro.', { ouro: -4 }, { xp: 3 }),
-        op('Olhar para o que ela vende', 'Nem tudo veio de onde ela diz.', 'investigacao', 'mente', 11, 'Aponta para um fardo, e ela baixa a voz.', 'Ela percebe, e sobe-lhe o preço de tudo.', { ouro: -2 }),
-        op('Pagar a mula', 'Custa 4 de Ouro. É uma boa mula.', 'social', 'carisma', 5, 'Fecham negócio, e ela fala baixinho enquanto conta as moedas.', 'Ela conta duas vezes, e diz-lhe na mesma.', { ouro: -4 }, { ouro: -4, xp: 2 }),
-      ] }],
-    [{ titulo: 'O Noviço Fugido', texto: 'Tomé, o Noviço, escondeu-se no sítio onde lhe disseram que estaria: atrás do altar, com o livro apertado contra o peito. Leu o que não devia. Olha para si como se você fosse o primeiro a chegar, e já vem atrasado.',
-      opcoes: [
-        op('Prometer protegê-lo', 'Tem de parecer verdade.', 'social', 'carisma', 12, 'Larga o livro aberto na página certa.', 'Corre para a rua a gritar, e leva tempo a apanhá-lo.', { dia: 1 }),
-        op('Pedir o livro', 'Ler com ele.', 'investigacao', 'mente', 12, 'A mesma mão escreveu as duas margens, e há um lugar sublinhado.', 'A tinta é má para os olhos, e pior para a cabeça.', { vida: -3 }),
-        luta('Afastar quem o procura', 'Já se ouvem botas no adro.', 11, 6, 'Os Irmãos de Capuz', 'Ele sai de trás do altar a tremer, e diz-lhe tudo.', 'O rapaz escapa-se, mas deixa o livro aberto.'),
-      ] }],
-    [{ titulo: 'Grumm Sabe Escrever', texto: 'Grumm, o Ogro, está sentado num tronco com um pedaço de carvão, muito concentrado. Escreveu "PASSAGEM" em todas as pedras do caminho, e uma delas tem também um desenho. "Grumm viu", diz. "Grumm mostra. Grumm quer pão."',
-      opcoes: [
-        op('Dar-lhe pão', 'E elogiar a letra.', 'social', 'carisma', 10, 'Comem os dois. Depois, ele aponta com o carvão.', 'Ele queria outro pão, e faz-lhe saber.', { vida: -3 }),
-        op('Ler o desenho', 'É um mapa, ou uma galinha.', 'investigacao', 'mente', 12, 'É um mapa. A galinha é só a marca.', 'É uma galinha. Passa o dia a ver isso.', { dia: 1 }),
-        op('Seguir as pedras', 'Ele não as escreveu ao acaso.', 'habilidade', 'agilidade', 12, 'As pedras levam-no ao que ele queria mostrar.', 'As últimas pedras estão num barranco, e você também.', { vida: -3 }),
-      ] }],
-  ],
   daraan: [
     [{ titulo: 'O Recado de Simony', texto: 'Simony Lumiel encosta-se à parede ao seu lado, a afiar a adaga mais curta, e não olha para si. "O Opositor tem olhos aqui. Não muitos. Quer saber o que eles viram, ou vai continuar a perguntar nas tabernas até o Império vir ter consigo?"',
       opcoes: [
@@ -92,26 +73,6 @@ const ETAPAS_MUNDO = {
         op('Ficar em silêncio', 'Mais tempo do que é confortável.', 'social', 'carisma', 12, 'Ele acena, e aponta sem hesitar, como se a mão soubesse sozinha.', 'Ao fim de um dia, ele diz-lhe na mesma, com pena.', { dia: 1 }),
         op('Ler o que ele ouve', 'O vento vem de um só lado.', 'investigacao', 'mente', 12, 'Diz-lho antes de ele o dizer. Faz-lhe uma vénia pequena.', 'Dá a resposta errada, e ele bate-lhe na testa com um dedo.', { vida: -2 }),
         op('Tentar tocar-lhe', 'É o preço da resposta.', 'habilidade', 'agilidade', 13, 'Um dedo, numa manga. Ele parece contente, e diz-lhe tudo.', 'Acorda a olhar para o céu, e ele já lhe deixou o caminho riscado na terra.', { vida: -3 }),
-      ] }],
-  ],
-  madeira: [
-    [{ titulo: 'Os Olhos de Olares', texto: 'Uma elfa de cara cansada encosta um dedo à mesa, e cinco riscos de luz param no ar à frente do seu copo. "Olares Salazar", diz. "Tenho um grupo, um vizir que me dá bons conselhos, e muitos mortos que me deram maus. Conte-me o que sabe, e eu conto-lhe o que falta."',
-      opcoes: [
-        op('Contar-lhe tudo', 'Ela sabe quando lhe mentem.', 'social', 'carisma', 11, 'Fica calada muito tempo. Depois, risca-lhe um lugar no mapa.', 'Ela não confia, e os riscos de luz não vão embora tão depressa.', { vida: -3 }),
-        op('Falar-lhe do vizir', 'Há alguma coisa nesses conselhos.', 'investigacao', 'mente', 11, 'Vê-lhe a dúvida a nascer, e ela, em troca, diz-lhe por onde seguir.', 'Ela levanta-se. Passa o dia a tentar voltar a falar-lhe.', { dia: 1 }),
-        op('Ouvir o grupo dela', 'Ziul, William, Robert e Strider nunca se calam.', 'social', 'carisma', 10, 'William conta o que não devia, e Robert paga a rodada.', 'Robert paga a rodada só depois de você pagar a sua.', { ouro: -3 }),
-      ] }],
-    [{ titulo: 'O Desertor de Trunfisk', texto: 'Um orc grande, sem brasão, tira a armadura à porta da estalagem, peça por peça, e deita-a para o rio. Tem o peito cheio de marcas de chicote. "Eu vi o elfo mudar de cara", diz, sem lhe perguntarem nada. "Não volto. Pergunte depressa."',
-      opcoes: [
-        op('Perguntar por Ivan', 'Com cuidado.', 'social', 'carisma', 12, 'Conta-lhe da noite do castelo halfling, e por onde foram a seguir.', 'Fica muito quieto, e depois parte-lhe a mesa em cima.', { vida: -3 }),
-        op('Ler-lhe as marcas', 'Quem o chicoteou deixou assinatura.', 'investigacao', 'mente', 12, 'Sabe agora de que quartel é, e o quartel diz-lhe o resto.', 'Ele não gosta que lhe olhem para as costas.', { vida: -2 }),
-        luta('Vencê-lo com as mãos', 'É a única língua que ele respeita.', 12, 7, 'O Desertor', 'Levanta-se a rir, com sangue nos dentes, e paga-lhe a resposta.', 'Dá-lhe a resposta na mesma, com pena de si.'),
-      ] }],
-    [{ titulo: 'A Sombra de Mona Lisa', texto: 'Uma halfling pequena, de pés descalços, tem o estandarte queimado dos York Namy dobrado debaixo do braço. Não larga aquilo, e não larga o que viu. "Vamos para Aramon amanhã", diz. "Pergunte o que tem a perguntar. Ninguém perguntou nada ao meu pai."',
-      opcoes: [
-        op('Ouvi-la até ao fim', 'Ninguém a ouviu ainda.', 'social', 'carisma', 12, 'Conta-lhe a noite inteira, e no fim diz o lugar, sem olhar para si.', 'Calou-se a meio, e custa um dia a voltar a falar.', { dia: 1 }),
-        op('Ver o estandarte', 'O fogo escreve o caminho do vento.', 'investigacao', 'mente', 12, 'A queimadura aponta um rumo, e o rumo é um nome.', 'Ela tira-lho das mãos, e já não lho deixa ver.'),
-        op('Ajudá-la a partir', 'Levar a família inteira ao cais.', 'habilidade', 'forca', 12, 'No último fardo, ela diz-lhe o que procura, como agradecimento.', 'As malas pesam, e os caminhos são maus.', { vida: -3 }),
       ] }],
   ],
 };

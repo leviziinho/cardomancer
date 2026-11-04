@@ -36,7 +36,8 @@ function novoEstado() {
     visitados: [], vistos: new Set(), unicas: [],
     trama: null, rumo: null, fio: 0, dicas: 0, rastro: null, fragmentos: 0, fraquezas: [], destinoRevelado: false, reviravoltaPendente: false,
     diario: [], melhorias: {}, gastos: [], evolucao: null, mentorVisto: false, emCombate: false,
-    log: { testes: 0, sucessos: 0, cartasRaras: 0, comprados: 0, dano: 0, noites: 0, pocoes: 0, combates: 0, criticos: 0 },
+    tend: { bem: 0, ordem: 0 },
+    log: { testes: 0, sucessos: 0, cartasRaras: 0, comprados: 0, dano: 0, noites: 0, pocoes: 0, combates: 0, criticos: 0, onde: 'Prólogo', causa: '', danoEm: {}, etapas: [] },
   };
   return G;
 }
@@ -118,6 +119,9 @@ function attr(a) {
   return v;
 }
 
+// Quando o máximo desce (um aliado cai, um objeto sai), a Vida desce com ele.
+const acertarVida = () => { if (G && G.cls) G.vida = Math.min(G.vida, vidaMax()); };
+
 function vidaMax() {
   let v = 0;
   [CLASSES[G.cls], ANTECEDENTES[G.bg], RACAS[G.raca]].forEach(o => { if (o) v += o.vida || 0; });
@@ -163,12 +167,24 @@ const dcDe = o => o.roll.dc + (G.emCombateFinal ? 0 : pressao()) + (o.dcExtra ||
 function repeteTeste(o) {
   return talentosAtivos().some(t => t.repete && t.repete === o.tipo);
 }
-const temVantagem = o => !!(o.roll && !G.emCombate && G.cls && (CLASSES[G.cls].vantagem || []).includes(atributoDe(o)));
+// Vantagem: dois d20, fica o melhor. Vem da classe (o Ladino) ou da preparação: o objeto certo na mochila.
+// O objeto só se gasta num teste difícil (menos de 80% sem ele), para não se perder no que já ia correr bem.
+const PREPARO_DIFICIL = .8;
+function fonteVantagem(o) {
+  if (!o.roll || G.emCombate || !G.cls) return null;
+  if ((CLASSES[G.cls].vantagem || []).includes(atributoDe(o))) return { nome: CLASSES[G.cls].nome };
+  const id = G.mochila.find(k => ITENS[k].prepara && ITENS[k].prepara === o.tipo);
+  return id && chanceSimples(o) < PREPARO_DIFICIL ? { nome: ITENS[id].nome, item: id } : null;
+}
+const temVantagem = o => !!fonteVantagem(o);
 
 // Probabilidade de passar: um 1 falha sempre, um 20 passa sempre.
-function chanceDe(o) {
+function chanceSimples(o) {
   const precisa = dcDe(o) - bonusDe(o);
-  const p = Math.min(.95, Math.max(.05, (21 - precisa) / 20));
+  return Math.min(.95, Math.max(.05, (21 - precisa) / 20));
+}
+function chanceDe(o) {
+  const p = chanceSimples(o);
   return repeteTeste(o) || temVantagem(o) ? 1 - (1 - p) * (1 - p) : p;
 }
 
@@ -185,7 +201,7 @@ function preencher(texto) {
   const v = VILOES[t.vilao];
   return texto
     .replace(/\{cidade\}/g, LUGARES[G.cidade].nome)
-    .replace(/\{vilao\}/g, v.nome)
+    .replace(/\{vilao\}/g, t.troca ? t.troca.nome : v.nome)
     .replace(/\{reliquia\}/g, t.reliquia)
     .replace(/\{refem\}/g, t.refem)
     .replace(/\{motivo\}/g, t.motivo)
@@ -266,6 +282,8 @@ function sitioPerto(evitar, alcance) {
 
 function avancarFio() {
   G.fio++;
+  // Para o simulador: como o herói chega a cada etapa.
+  G.log.etapas.push({ dia: G.dia, vida: G.vida, vidaMax: vidaMax() });
   G.dicas = 0;
   if (G.fio === 2) G.reviravoltaPendente = true;
   if (G.fio >= ETAPAS_DA_MISSAO) {
@@ -277,17 +295,81 @@ function avancarFio() {
   return fmt(' Agora sabe para onde ir: {proximo}.');
 }
 
-function objetivoAgora() {
-  if (!G.trama) return '';
-  if (G.destinoRevelado) return fmt('Marchar para {destino}, onde tudo acaba');
-  const n = estradasAte(G.rumo);
-  return fmt(`${ETAPA_AGORA[G.fio]} em {proximo}, a ${n} ${n === 1 ? 'estrada' : 'estradas'}`);
+// Com html, o nome da cidade vem realçado: "Interrogue o suspeito em <b>Abiad</b>".
+const nomeRealcado = (id, html) => (html ? `<b class="cidade">${LUGARES[id].nome}</b>` : LUGARES[id].nome);
+const aEstradas = n => (n === 0 ? 'aqui mesmo' : `a ${n} ${n === 1 ? 'estrada' : 'estradas'}`);
+
+// ---------- A tendência: as escolhas do herói vão-no definindo ----------
+// Dois eixos escondidos. Bem: ajudar o povo e os Rebeldes do Opositor. Mal: servir o Império, ou a crueldade.
+// Ordem: a palavra dada, a lei, a paciência. Caos: o truque, o roubo, a pressa.
+// O jogador só vê o nome (um dos nove); uma carta pode trazer o seu próprio "tend", que manda sobre as palavras.
+const TEND_LIMIAR = 3, TEND_MAX = 8;
+const PALAVRAS_TEND = [
+  [/\b(ajudar|ajudá-l|salvar|salvá-l|proteger|curar|libertar|soltar|poupar|partilhar|abrigar|consolar|socorrer|defender|rebeldes?|opositor|deixar uma moeda|dar-lhe)/, { bem: 1 }],
+  [/\b(ameaçar|ameaçá-l|torturar|matar|entregá-l|entregar|denunciar|vendê-l|chantagear|humilhar|assustar|intimidar|extorquir|em nome do império|selo do império|servir o império)/, { bem: -1 }],
+  [/\b(roubar|roubá-l|tirar-lh|enganar|enganá-l|mentir|arrombar|subornar|esgueirar|trapacear|fingir|disfarçar|furtar|às escondidas|fugir)/, { ordem: -1 }],
+  [/\b(prometer|jurar|pagar|esperar|pedir licença|cumprimentar|respeitar|dizer a verdade|mostrar os papéis|obedecer|cumprir|negociar|apresentar-se)/, { ordem: 1 }],
+];
+function tendenciaDe(o) {
+  if (o.tend) return o.tend;
+  if (typeof TEND_CARTAS !== 'undefined' && TEND_CARTAS[o.t]) return TEND_CARTAS[o.t];
+  const t = `${o.t || ''} ${o.d || ''}`.toLowerCase();
+  const d = { bem: 0, ordem: 0 };
+  PALAVRAS_TEND.forEach(([re, v]) => { if (re.test(t)) Object.keys(v).forEach(k => { d[k] += v[k]; }); });
+  return { bem: Math.sign(d.bem), ordem: Math.sign(d.ordem) };
 }
-function pistaAgora() {
+function nomeTendencia() {
+  const b = G.tend.bem >= TEND_LIMIAR ? 'Bom' : G.tend.bem <= -TEND_LIMIAR ? 'Mau' : 'Neutro';
+  const o = G.tend.ordem >= TEND_LIMIAR ? 'Leal' : G.tend.ordem <= -TEND_LIMIAR ? 'Caótico' : 'Neutro';
+  return b === 'Neutro' && o === 'Neutro' ? 'Neutro' : `${o} ${b}`;
+}
+// O que a escolha diz de si, numa ficha da página: "Pende para o Bem", "Pende para o Caos"...
+function pendeDe(d) {
+  const lados = [d.bem > 0 && 'o Bem', d.bem < 0 && 'o Mal', d.ordem > 0 && 'a Ordem', d.ordem < 0 && 'o Caos'].filter(Boolean);
+  return lados.length ? `Pende para ${lados.join(' e ')}` : '';
+}
+// A máscara que a carta leva no fundo: feliz se puxa para o Bem, triste se puxa para o Mal,
+// de lábios cerrados se só mexe na Ordem ou no Caos. Sem tendência, nenhuma.
+function mascaraDe(o) {
+  const d = tendenciaDe(o);
+  return d.bem > 0 ? 'bom' : d.bem < 0 ? 'mau' : d.ordem ? 'neutro' : null;
+}
+// Devolve o nome novo, se a escolha mudou a tendência; senão, nada.
+function mexerTendencia(o) {
+  const antes = nomeTendencia(), d = tendenciaDe(o);
+  G.tend.bem = Math.max(-TEND_MAX, Math.min(TEND_MAX, G.tend.bem + d.bem));
+  G.tend.ordem = Math.max(-TEND_MAX, Math.min(TEND_MAX, G.tend.ordem + d.ordem));
+  const agora = nomeTendencia();
+  return agora !== antes ? agora : null;
+}
+// Quem serviu o Império até ao fim encontra, na última porta, alguém do outro lado.
+function decidirChefe() {
+  const t = G.trama;
+  if (t.ladoDecidido) return null;
+  t.ladoDecidido = true;
+  const v = VILOES[t.vilao];
+  // Para testar a troca sem ter de jogar do lado do Império: ?tendencia=mau no endereço.
+  if (typeof location !== 'undefined' && /[?&]tendencia=mau/.test(location.search)) G.tend.bem = Math.min(G.tend.bem, -TEND_LIMIAR);
+  if (G.tend.bem > -TEND_LIMIAR || !v.rival) return null;
+  t.troca = { ...v.rival };
+  t.motivo = v.rival.motivo || 'Soube de tudo o que fez pelo Império, e veio cobrar em nome de Daraan.';
+  const saiu = !!(v.rival.aliado && G.aliados.includes(v.rival.aliado));
+  if (saiu) { G.aliados = G.aliados.filter(a => a !== v.rival.aliado); acertarVida(); }
+  return { saiu };
+}
+
+function objetivoAgora(html = false) {
+  if (!G.trama) return '';
+  const destino = VILOES[G.trama.vilao].destino;
+  if (G.destinoRevelado) return `Marche para ${nomeRealcado(destino, html)}, onde tudo acaba`;
+  const alvo = G.rumo || destino;
+  return `${ETAPA_AGORA[G.fio]} em ${nomeRealcado(alvo, html)}, ${aEstradas(estradasAte(alvo))}`;
+}
+function pistaAgora(html = false) {
   if (!G.trama || !G.rastro) return '';
-  if (G.rastro === G.lugar) return `Pista ${G.pistas + 1} aqui, com ${G.fragmentos} de ${FRAGMENTOS_POR_PISTA} fragmentos`;
-  const n = estradasAte(G.rastro);
-  return fmt(`Pista ${G.pistas + 1} em {pista}, a ${n} ${n === 1 ? 'estrada' : 'estradas'}, com ${G.fragmentos} de ${FRAGMENTOS_POR_PISTA} fragmentos`);
+  const frag = `${G.fragmentos} de ${FRAGMENTOS_POR_PISTA} fragmentos`;
+  if (G.rastro === G.lugar) return `Procure aqui a pista ${G.pistas + 1}, com ${frag}`;
+  return `Procure a pista ${G.pistas + 1} em ${nomeRealcado(G.rastro, html)}, ${aEstradas(estradasAte(G.rastro))}, com ${frag}`;
 }
 
 // ---------- As pistas: três fragmentos cada uma ----------
@@ -432,13 +514,18 @@ function maoDaCena(cena) {
 
 function resolverTeste(o) {
   let d20 = dado(20), vantagem = null;
-  if (temVantagem(o)) { vantagem = [d20, dado(20)]; d20 = Math.max(...vantagem); }
+  const fonte = fonteVantagem(o);
+  if (fonte) {
+    vantagem = [d20, dado(20)]; d20 = Math.max(...vantagem);
+    // O objeto da mochila gasta-se ao dar a vantagem.
+    if (fonte.item) { G.mochila.splice(G.mochila.indexOf(fonte.item), 1); G.log.preparos = (G.log.preparos || 0) + 1; }
+  }
   const bonus = bonusDe(o), dc = dcDe(o);
   const passou = v => v === 20 || (v !== 1 && v + bonus >= dc);
   let repetiu = false;
   if (!passou(d20) && repeteTeste(o)) { d20 = dado(20); repetiu = true; }
   const ok = passou(d20);
-  const out = { ok, d20, bonus, dc, total: d20 + bonus, repetiu, vantagem, critico: d20 === 20, falhaCritica: d20 === 1 };
+  const out = { ok, d20, bonus, dc, total: d20 + bonus, repetiu, vantagem, fonte: fonte && fonte.nome, critico: d20 === 20, falhaCritica: d20 === 1 };
   if (out.critico || out.falhaCritica) G.log.criticos++;
   if (o.dadoDano) {
     out.tipoDado = o.dadoDano;
@@ -477,12 +564,14 @@ function chefeFinal() {
   // Cada pista completa é uma fraqueza que se leva para a última porta.
   const sabe = G.diario.map(d => FRAQUEZAS[d.fraqueza]);
   const soma = campo => sabe.reduce((t, f) => t + (f[campo] || 0), 0);
-  const pv = Math.ceil(COMBATE.vilao.pv * (1 - soma('pv')));
-  const ca = Math.max(7, COMBATE.vilao.ca + subidaNivel() - trunfos - soma('ca'));
+  // Cada chefe pode ter o seu ajuste sobre o chefe de base (o Santo é mais difícil de acertar).
+  const aj = v.ajuste || {};
+  const pv = Math.ceil((COMBATE.vilao.pv + (aj.pv || 0)) * (1 - soma('pv')));
+  const ca = Math.max(7, COMBATE.vilao.ca + (aj.ca || 0) + subidaNivel() - trunfos - soma('ca'));
   return {
     nome: fmt('{vilao}').replace(/^./, m => m.toUpperCase()),
     pv, pvMax: pv, defesa: ca, caBase: ca,
-    ataque: COMBATE.vilao.ataque + subidaNivel() - soma('ataque'),
+    ataque: COMBATE.vilao.ataque + (aj.ataque || 0) + subidaNivel() - soma('ataque'),
     dado: COMBATE.vilao.dado, agi: 3,
     primeiro: sabe.some(f => f.calado) ? 'jogador' : null, calado: sabe.some(f => f.calado), sabe: sabe.map(f => f.nome).join('  ·  '),
     chefe: true, efeitos: sabe.some(f => f.semEfeito) ? null : v.efeitos, frases: v.ronda, fraqueza: v.fraqueza.includes(G.cls),
@@ -591,7 +680,25 @@ const precoVenda = id => Math.floor(ITENS[id].preco / 4);
 function aplicarVida(delta) {
   const antes = G.vida;
   G.vida = Math.max(0, Math.min(vidaMax(), G.vida + delta));
-  if (G.vida < antes) G.log.dano += antes - G.vida;
+  if (G.vida < antes) {
+    G.log.dano += antes - G.vida;
+    const onde = G.emCombate ? `${G.log.onde} · combate` : G.log.onde;
+    G.log.danoEm[onde] = (G.log.danoEm[onde] || 0) + antes - G.vida;
+  }
+}
+
+// A segunda oportunidade: uma vez por partida, só na primeira etapa da missão (quem começa mal) e nunca contra o chefe.
+// Quem cai a 0 de Vida acorda deixado por morto, com um terço da Vida, sem ouro nenhum e três dias depois.
+const SEGUNDA = { vida: 1 / 3, dias: 3, ateEtapa: 0 };
+const TEXTO_SEGUNDA = 'Acorda numa vala, sem bolsa e sem saber quanto tempo passou. Alguém lhe pôs um pano na ferida e foi-se embora. Esta sorte não se repete.';
+function segundaOportunidade() {
+  if (G.vida > 0 || G.segunda || G.emCombate || G.emCombateFinal || G.fio > SEGUNDA.ateEtapa) return false;
+  G.segunda = true;
+  G.vida = Math.max(1, Math.ceil(vidaMax() * SEGUNDA.vida));
+  G.ouro = 0;
+  G.dia += SEGUNDA.dias;
+  G.log.segunda = 1;
+  return true;
 }
 
 // A poção da mochila salva sozinha quem cair a 0 de Vida.

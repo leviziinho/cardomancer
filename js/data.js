@@ -19,8 +19,8 @@ const TIPOS = {
 
 const CLASSES = {
   barbaro: { nome: 'Bárbaro', glyph: 'axe', cor: 0x9c1414, vida: 12, attrs: { forca: 2, agilidade: 2, carisma: -1, mente: -1 }, raridade: 'lendaria', habilidade: 'Fúria: +3 Força, um ataque a mais por ronda, -2 CA, e não foge.', desc: 'Resolve portas, grilhões e discussões da mesma maneira: com força.' },
-  ladino: { nome: 'Ladino', glyph: 'dagger', cor: 0x2b2b33, vida: 8, attrs: { agilidade: 4, mente: 2, carisma: 1, forca: -1 }, raridade: 'rara', vantagem: ['mente', 'agilidade'], habilidade: 'Fora de combate, testes de Mente e Agilidade com dois d20: fica o melhor.', desc: 'Vê a armadilha antes de a pisar e a saída antes de precisar dela.' },
-  bardo: { nome: 'Bardo', glyph: 'note', cor: 0xb0701c, vida: 8, attrs: { carisma: 4, mente: 1 }, raridade: 'rara', aliadoInicial: true, aliadosDobro: true, habilidade: 'Começa com um aliado, e os aliados fazem o dobro do dano.', desc: 'Convence um inimigo de que nunca houve motivo para lutar.' },
+  ladino: { nome: 'Ladino', glyph: 'dagger', cor: 0x2b2b33, vida: 8, attrs: { agilidade: 4, mente: 2, carisma: 1, forca: -1 }, raridade: 'rara', vantagem: ['mente', 'agilidade'], vePrimeiro: true, habilidade: 'Fora de combate, testes de Mente e Agilidade com dois d20: fica o melhor. Nunca é apanhado de surpresa: na estrada vê primeiro, e pode passar à larga.', desc: 'Vê a armadilha antes de a pisar e a saída antes de precisar dela.' },
+  bardo: { nome: 'Bardo', glyph: 'note', cor: 0xb0701c, vida: 7, attrs: { carisma: 4, mente: 1 }, raridade: 'rara', aliadoInicial: true, aliadosNivel: true, habilidade: 'Começa com um aliado, e os aliados somam o seu nível ao dano.', desc: 'Convence um inimigo de que nunca houve motivo para lutar.' },
   mago: { nome: 'Mago', glyph: 'star', cor: 0x3a2a8c, vida: 12, attrs: { mente: 3, carisma: 1 }, raridade: 'incomum', caDe: 'mente', habilidade: 'Soma a Mente à CA.', desc: 'Lê as runas que os outros tomam por riscos na pedra.' },
   clerigo: { nome: 'Clérigo', glyph: 'sun', cor: 0xd8c27a, vida: 10, attrs: { mente: 3, carisma: 2 }, raridade: 'incomum', curaSempre: 'curar', habilidade: 'Em combate, tem sempre à mão Curar Feridas.', desc: 'Sara feridas e manda de volta o que devia continuar morto.' },
   patrulheiro: { nome: 'Patrulheiro', glyph: 'bow', cor: 0x2f6b3a, vida: 10, attrs: { agilidade: 1, forca: 1, mente: 1 }, raridade: 'comum', companheiros: ['lobo', 'urso', 'aguia'], habilidade: 'Começa com um companheiro: Lobo, Urso ou Águia.', desc: 'Lê a terra como quem lê um livro aberto.' },
@@ -41,7 +41,6 @@ const RACAS = {
   anao: { nome: 'Anão', glyph: 'hammer', attrs: { forca: 1 }, vida: 3, desc: 'Teimoso como a pedra que conhece bem. +1 Força, +3 Vida.' },
   halfling: { nome: 'Halfling', glyph: 'feather', attrs: { agilidade: 1 }, vida: 1, ouro: 2, desc: 'Pequeno, discreto e sortudo. +1 Agilidade, +1 Vida, +2 Ouro.' },
   meioorc: { nome: 'Meio-Orc', glyph: 'axe', attrs: { forca: 2 }, desc: 'Ninguém lhe cobra portagem duas vezes. +2 Força.' },
-  tiefling: { nome: 'Tiefling', glyph: 'flame', attrs: { carisma: 1, mente: 1 }, desc: 'Sangue antigo, olhar incómodo. +1 Carisma, +1 Mente.' },
 };
 
 // slot: arma, armadura, acessorio ou mochila. Só cabe um objeto por slot do corpo.
@@ -68,8 +67,8 @@ const ITENS = {
   diario: { nome: 'Diário Cifrado', slot: 'acessorio', preco: 12, attrs: { mente: 1 }, glyph: 'eye', desc: 'As notas de um sábio desaparecido. +1 Mente.' },
   bracal: { nome: 'Braçal de Ferro', slot: 'acessorio', preco: 12, attrs: { forca: 1 }, glyph: 'hammer', desc: 'Dá peso a cada golpe. +1 Força.' },
   pocao: { nome: 'Poção de Cura', slot: 'mochila', preco: 7, uso: { vida: 7 }, glyph: 'drop', desc: 'Clique nela na mesa para recuperar 7 de Vida. Salva-o sozinha se a Vida chegar a 0. Usada, fica virada.' },
-  corda: { nome: 'Corda e Gancho', slot: 'mochila', preco: 5, glyph: 'sign', desc: 'Abre caminhos onde não há caminho.' },
-  lanterna: { nome: 'Lanterna Furta-Fogo', slot: 'mochila', preco: 5, glyph: 'flame', desc: 'Luz que só aponta para onde você quer.' },
+  corda: { nome: 'Corda e Gancho', slot: 'mochila', preco: 5, glyph: 'sign', prepara: 'habilidade', desc: 'Abre caminhos onde não há caminho. Dá vantagem num teste difícil de Habilidade: dois d20, fica o melhor. Gasta-se.' },
+  lanterna: { nome: 'Lanterna Furta-Fogo', slot: 'mochila', preco: 5, glyph: 'flame', prepara: 'investigacao', desc: 'Luz que só aponta para onde você quer. Dá vantagem num teste difícil de Investigação: dois d20, fica o melhor. Gasta-se.' },
 };
 const MOCHILA_MAX = 3;
 // Que armas e armaduras cada classe sabe usar. O que não tem 'perfil' (adaga, cajado, capas, mantos, acessórios) serve a todos.
@@ -257,7 +256,7 @@ const TALENTOS = {
   ladino: [
     { id: 'sombra', nome: 'Passo de Sombra', desc: '+2 em testes de Habilidade.', tipo: { habilidade: 2 } },
     { id: 'maoleve', nome: 'Mão Leve', desc: '+1 Ouro sempre que ganha Ouro.', ouroExtra: 1 },
-    { id: 'alerta', nome: 'Sempre Alerta', req: 'sombra', desc: 'Menos 20% de encontros surpresa contra si.', alerta: 20 },
+    { id: 'alerta', nome: 'Sempre Alerta', req: 'sombra', desc: 'Menos 20% de emboscadas: quase sempre os vê primeiro.', alerta: 20 },
     { id: 'sorte', nome: 'Sorte de Ladrão', req: 'maoleve', desc: 'Repete um teste falhado de Habilidade.', repete: 'habilidade' },
   ],
   bardo: [
@@ -280,9 +279,9 @@ const TALENTOS = {
   ],
   patrulheiro: [
     { id: 'rastreador', nome: 'Rastreador', desc: '+2 em Investigação.', tipo: { investigacao: 2 } },
-    { id: 'trilho', nome: 'Trilhos Antigos', desc: 'Viajar sorrateiro só custa 1 dia.', trilho: true },
+    { id: 'trilho', nome: 'Trilhos Antigos', desc: 'Na estrada, vê primeiro quem lá está, e pode passar à larga.', trilho: true },
     { id: 'tiro', nome: 'Tiro Certeiro', req: 'rastreador', desc: '+2 no dado da arma.', dano: 2 },
-    { id: 'sentinela', nome: 'Sentinela', req: 'trilho', desc: 'Menos 20% de encontros surpresa contra si.', alerta: 20 },
+    { id: 'sentinela', nome: 'Sentinela', req: 'trilho', desc: 'Menos 20% de emboscadas: quase sempre os vê primeiro.', alerta: 20 },
   ],
   geral: [
     { id: 'robusto', nome: 'Robusto', desc: 'Em combate, cada golpe que leva tira menos 1 de Vida.', aguenta: 1 },
@@ -311,29 +310,9 @@ const ALIADOS = {
 };
 
 // Coordenadas normalizadas sobre o mapa (0–1).
-let LUGARES = {
-  porto: { nome: 'Porto Salgado', x: 0.13, y: 0.72, terreno: 'cidade', cidade: true, desc: 'Cheiro a sal e dívidas. Começa na costa do sudoeste.' },
-  vale: { nome: 'Vale Cinza', x: 0.17, y: 0.30, terreno: 'cidade', cidade: true, desc: 'Moinhos parados e gente de poucas falas. Começa no noroeste.' },
-  lumiar: { nome: 'Lumiar', x: 0.47, y: 0.86, terreno: 'cidade', cidade: true, desc: 'Os sinos tocam sem razão há três noites. Começa no sul.' },
-  pedra: { nome: 'Pedra-Alta', x: 0.50, y: 0.16, terreno: 'cidade', cidade: true, desc: 'Fortaleza de mineiros agarrada à serra. Começa no norte.' },
-  vesper: { nome: 'Floresta de Vésper', x: 0.30, y: 0.50, terreno: 'floresta' },
-  ponte: { nome: 'Ponte do Enforcado', x: 0.34, y: 0.76, terreno: 'estrada' },
-  corvo: { nome: 'Passo do Corvo', x: 0.36, y: 0.22, terreno: 'montanha' },
-  velas: { nome: 'Pântano das Velas', x: 0.58, y: 0.64, terreno: 'pantano' },
-  cruz: { nome: 'Encruzilhada Velha', x: 0.50, y: 0.44, terreno: 'estrada' },
-  ossario: { nome: 'Ruínas de Ossário', x: 0.70, y: 0.40, terreno: 'ruina' },
-  carpa: { nome: 'Enseada da Carpa', x: 0.73, y: 0.80, terreno: 'costa' },
-  cardeo: { nome: 'Monte Cárdeo', x: 0.72, y: 0.14, terreno: 'montanha' },
-  torre: { nome: 'Torre Afogada', x: 0.90, y: 0.62, terreno: 'costa' },
-};
+let LUGARES = {};
 
-let ESTRADAS = [
-  ['porto', 'ponte'], ['porto', 'vesper'], ['vale', 'vesper'], ['vale', 'corvo'],
-  ['corvo', 'pedra'], ['pedra', 'cruz'], ['pedra', 'cardeo'], ['corvo', 'cruz'],
-  ['vesper', 'cruz'], ['vesper', 'ponte'], ['ponte', 'lumiar'], ['lumiar', 'velas'],
-  ['lumiar', 'carpa'], ['cruz', 'velas'], ['cruz', 'ossario'], ['velas', 'ossario'],
-  ['velas', 'carpa'], ['ossario', 'cardeo'], ['ossario', 'torre'], ['carpa', 'torre'],
-];
+let ESTRADAS = [];
 
 const TERRENOS = {
   cidade: { nome: 'Cidade', glyph: 'tower', desc: 'Ruas cheias, mercado e ouvidos atentos.' },
@@ -346,13 +325,7 @@ const TERRENOS = {
 };
 
 // Como se desenha o mapa deste mundo. Tudo em frações do tamanho do mapa.
-let MAPA = {
-  titulo: 'As Terras de Vésper', tituloX: .22,
-  mar: [[1, .34], [.92, .40], [.86, .46], [.83, .55], [.87, .64], [.82, .72], [.80, .82], [.68, .87], [.58, .94], [.40, .96], [.26, .91], [.13, .85], [.05, .80], [0, .76], [0, 1], [1, 1]],
-  serras: [{ x: .24, w: .58, y: .03, h: .20, n: 56 }],
-  florestas: [{ x: .30, y: .50, rx: .15, ry: .14, n: 190 }],
-  pantanos: [{ x: .58, y: .66, rx: .09, ry: .08, n: 180 }],
-};
+let MAPA = {};
 
 // O relógio da missão, em dias.
 const PRAZO_DIAS = 24;
@@ -376,13 +349,15 @@ const ARCANOS = {
   bardo: '0 · O Louco', mago: 'I · O Mago', druida: 'III · A Imperatriz', clerigo: 'V · O Hierofante', guerreiro: 'VII · O Carro',
   barbaro: 'VIII · A Força', monge: 'XIV · A Temperança', feiticeiro: 'XVI · A Torre', patrulheiro: 'XVII · A Estrela', ladino: 'XVIII · A Lua',
 };
-// Viajar: a marcha forçada dá de caras com o que houver, os trilhos escondem-no, e explorar procura-o.
-const SURPRESA_CHANCE = 50;
-const TRILHOS_CHANCE = 25;
-// Pelos trilhos, depois de ver o que há na estrada: a chance de passar sem ser visto e poder escolher.
-const TRILHOS_ESCONDE = 75;
-const EXPLORAR_DIAS = 3;
+// Viajar custa um dia. Metade das vezes há alguém na estrada; os dados rolam escondidos.
+const ENCONTRO_CHANCE = .5;
+// Num encontro perigoso, a chance de ser apanhado de surpresa (os talentos de alerta descem-na).
+const EMBOSCADA_CHANCE = 50;
+// Dos encontros, uma parte são contratempos: um atraso, uma ponte caída, uma noite na cela.
+const ATRASO_NA_ESTRADA = .25;
 const ATRASO_CHANCE = .15;
+// O ferreiro fica de fora por agora; o código das melhorias continua, para voltar um dia.
+const FERREIRO = false;
 
 // O d20 de quem chega a uma classe aprimorada: fundo perolado e números acesos.
 const D20_TEMAS = {

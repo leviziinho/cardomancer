@@ -82,6 +82,87 @@ function drawGlyph(ctx, name, x, y, size, color) {
   ctx.restore();
 }
 
+// Texto com símbolos: "+8 Ouro" desenha-se "+8" e uma moeda, "+2 XP" com uma estrela, "-3 Vida" com um coração. A letra já vem posta em ctx.font.
+// Devolve a largura, e só desenha quando recebe uma posição (o centro do texto).
+const ICONES_TEXTO = { Ouro: 'coin', XP: 'star', Vida: 'heart' };
+function textoIcones(ctx, t, tam, cores, cx, y) {
+  const partes = t.split(/(\d+ (?:Ouro|XP|Vida)\b)/).filter(Boolean).map(s => {
+    const m = s.match(/^(\d+) (Ouro|XP|Vida)$/);
+    return m ? { txt: m[1], icone: ICONES_TEXTO[m[2]] } : { txt: s };
+  });
+  const lado = tam * .92, folga = tam * .1;
+  const largura = partes.reduce((a, p) => a + ctx.measureText(p.txt).width + (p.icone ? folga + lado : 0), 0);
+  if (cx === undefined) return largura;
+  ctx.save();
+  ctx.textAlign = 'left';
+  let px = cx - largura / 2;
+  partes.forEach(p => {
+    ctx.fillText(p.txt, px, y);
+    px += ctx.measureText(p.txt).width;
+    if (p.icone) { drawGlyph(ctx, p.icone, px + folga + lado / 2, y - tam * .34, lado, cores[p.icone] || ctx.fillStyle); px += folga + lado; }
+  });
+  ctx.restore();
+  return largura;
+}
+
+// A máscara de teatro em marca d'água, atrás do texto da carta: 'bom' sorri, 'mau' chora, 'neutro' cerra os lábios.
+function desenharMascara(x, tipo, cx, cy, s) {
+  const tinta = a => `rgba(92, 58, 24, ${a})`;
+  x.save();
+  x.lineCap = 'round'; x.lineJoin = 'round';
+  // O rosto: testa larga, maçãs altas e queixo estreito.
+  x.beginPath();
+  x.moveTo(cx, cy - .52 * s);
+  x.bezierCurveTo(cx + .36 * s, cy - .54 * s, cx + .5 * s, cy - .34 * s, cx + .47 * s, cy - .06 * s);
+  x.bezierCurveTo(cx + .44 * s, cy + .26 * s, cx + .22 * s, cy + .5 * s, cx, cy + .55 * s);
+  x.bezierCurveTo(cx - .22 * s, cy + .5 * s, cx - .44 * s, cy + .26 * s, cx - .47 * s, cy - .06 * s);
+  x.bezierCurveTo(cx - .5 * s, cy - .34 * s, cx - .36 * s, cy - .54 * s, cx, cy - .52 * s);
+  x.closePath();
+  x.fillStyle = tinta(.14); x.fill();
+  x.lineWidth = s * .018; x.strokeStyle = tinta(.36); x.stroke();
+  // As fitas de atar, dos dois lados.
+  [-1, 1].forEach(l => {
+    x.beginPath();
+    x.moveTo(cx + l * .47 * s, cy - .12 * s);
+    x.bezierCurveTo(cx + l * .6 * s, cy - .1 * s, cx + l * .56 * s, cy + .12 * s, cx + l * .66 * s, cy + .22 * s);
+    x.lineWidth = s * .022; x.strokeStyle = tinta(.22); x.stroke();
+  });
+  x.fillStyle = tinta(.4); x.strokeStyle = tinta(.4);
+  [-1, 1].forEach(l => {
+    const ex = cx + l * .19 * s, ey = cy - .12 * s;
+    // Os olhos: arcos fechados de riso, gotas caídas de tristeza, ou rasgos direitos.
+    x.beginPath();
+    if (tipo === 'bom') {
+      x.lineWidth = s * .035;
+      x.arc(ex, ey + .03 * s, .08 * s, Math.PI * 1.1, Math.PI * 1.9); x.stroke();
+    } else {
+      // Na triste, os cantos de fora descaem.
+      x.ellipse(ex, ey, .1 * s, .045 * s, l * (tipo === 'mau' ? .3 : 0), 0, Math.PI * 2);
+      x.fill();
+    }
+    // As sobrancelhas.
+    x.beginPath();
+    x.lineWidth = s * .025;
+    if (tipo === 'bom') { x.arc(ex, ey - .04 * s, .13 * s, Math.PI * 1.2, Math.PI * 1.8); }
+    else if (tipo === 'mau') { x.moveTo(ex - l * .12 * s, ey - .1 * s); x.lineTo(ex + l * .1 * s, ey - .2 * s); }
+    else { x.moveTo(ex - .12 * s, ey - .15 * s); x.lineTo(ex + .12 * s, ey - .15 * s); }
+    x.stroke();
+  });
+  // A lágrima, só na triste.
+  if (tipo === 'mau') {
+    const tx = cx - .2 * s, ty = cy + .02 * s;
+    x.beginPath(); x.moveTo(tx, ty); x.quadraticCurveTo(tx + .04 * s, ty + .08 * s, tx, ty + .1 * s); x.quadraticCurveTo(tx - .04 * s, ty + .08 * s, tx, ty); x.fill();
+  }
+  // A boca.
+  x.beginPath(); x.lineWidth = s * .04;
+  const my = cy + .26 * s;
+  if (tipo === 'bom') { x.moveTo(cx - .2 * s, my - .05 * s); x.quadraticCurveTo(cx, my + .18 * s, cx + .2 * s, my - .05 * s); }
+  else if (tipo === 'mau') { x.moveTo(cx - .18 * s, my + .08 * s); x.quadraticCurveTo(cx, my - .12 * s, cx + .18 * s, my + .08 * s); }
+  else { x.moveTo(cx - .15 * s, my); x.lineTo(cx + .15 * s, my); }
+  x.stroke();
+  x.restore();
+}
+
 // Símbolo com volume: sombra por baixo, cor em degradé e um fio de luz por cima.
 function drawGlyphRico(ctx, name, x, y, size, escuro, claro) {
   const caminho = new Path2D(GLYPHS[name] || GLYPHS.star);
@@ -436,6 +517,19 @@ function textures(renderer) {
     pintaPapelCarta(x);
     const ouro = ouroEm(x, 0, 0, CARD_W, CARD_H);
 
+    // A máscara da tendência: enorme e inclinada, como se a carta fosse uma janela e ela estivesse do outro lado.
+    // A moldura, a faixa e o medalhão pintam-se por cima. A inclinação sai do título, para cada carta ter a sua.
+    if (spec.mascara && !spec.tarot) {
+      const semente = [...(spec.titulo || '')].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 9973, 7);
+      const lado = semente % 2 ? 1 : -1, giro = lado * (.28 + (semente % 17) / 17 * .22);
+      x.save();
+      x.beginPath(); x.rect(60, 60, CARD_W - 120, CARD_H - 120); x.clip();
+      x.translate(CARD_W * (.5 + lado * .1), CARD_H * .55);
+      x.rotate(giro);
+      desenharMascara(x, spec.mascara, 0, 0, 1050);
+      x.restore();
+    }
+
     // moldura: uma faixa da cor do tipo, um filete de ouro e cantos trabalhados
     const bandaCor = x.createLinearGradient(0, 0, 0, CARD_H);
     bandaCor.addColorStop(0, th.band); bandaCor.addColorStop(.5, th.band); bandaCor.addColorStop(1, 'rgba(20,10,5,.92)');
@@ -509,6 +603,24 @@ function textures(renderer) {
       drawGlyph(x, 'eye', cx0 + 252, my - 92, 108, '#ffe3a0');
     }
 
+    // A hipótese de acertar: um selo à esquerda do medalhão, e o papel a puxar para a mesma cor.
+    // Vermelho é difícil, âmbar é meio por meio, verde é quase certo.
+    if (spec.hipotese != null) {
+      const h = Math.max(0, Math.min(1, (spec.hipotese - .25) / .6)) * 120;
+      const cor = `hsl(${h}, 62%, 34%)`;
+      const banho = x.createRadialGradient(CARD_W / 2, CARD_H * .55, 120, CARD_W / 2, CARD_H * .55, CARD_W);
+      banho.addColorStop(0, `hsla(${h}, 70%, 45%, 0)`); banho.addColorStop(1, `hsla(${h}, 70%, 40%, .2)`);
+      x.fillStyle = banho; x.fillRect(53, 53, CARD_W - 106, CARD_H - 106);
+      const sx = cx0 - 252, sy = my - 92;
+      x.save();
+      x.shadowColor = 'rgba(40,10,5,.6)'; x.shadowBlur = 18;
+      x.fillStyle = cor; x.beginPath(); x.arc(sx, sy, 80, 0, 7); x.fill();
+      x.restore();
+      x.strokeStyle = ouro; x.lineWidth = 9; x.beginPath(); x.arc(sx, sy, 80, 0, 7); x.stroke();
+      x.textAlign = 'center'; x.fillStyle = '#fff3d0'; x.font = `700 60px ${FONT_TITLE}`;
+      x.fillText(`${Math.round(spec.hipotese * 100)}%`, sx, sy + 21);
+    }
+
     // título
     x.save();
     x.shadowColor = 'rgba(255,245,215,.85)'; x.shadowBlur = 0; x.shadowOffsetY = 2;
@@ -541,14 +653,17 @@ function textures(renderer) {
 
     // descrição
     if (spec.tarot) fitText(x, spec.desc || '', CARD_W / 2, 994, CARD_W - 150, spec.rodape ? 250 : 350, 72, 44, FONT_BODY, '#33230f');
-    else fitText(x, spec.desc || '', CARD_W / 2, 684, CARD_W - 170, spec.ganho ? 500 : spec.rodape ? 560 : 660, 96, 56, FONT_BODY, '#33230f');
+    else fitText(x, spec.desc || '', CARD_W / 2, 684, CARD_W - 170, spec.ganho && spec.perde ? 430 : spec.ganho || spec.perde ? 500 : spec.rodape ? 560 : 660, 96, 56, FONT_BODY, '#33230f');
 
-    // o que a escolha pode render
-    if (spec.ganho) {
-      x.textAlign = 'center'; x.fillStyle = '#5b2410';
-      x.font = `italic 58px ${FONT_BODY}`;
-      x.fillText(spec.ganho, CARD_W / 2, CARD_H - 192);
-    }
+    // o que a escolha rende, e por baixo o que custa falhar: sempre nesta ordem
+    const linha = (t, y, cor) => {
+      x.textAlign = 'center'; x.fillStyle = cor;
+      let tam = 60;
+      do { tam -= 2; x.font = `italic ${tam}px ${FONT_BODY}`; } while (tam > 38 && textoIcones(x, t, tam, {}) > CARD_W - 170);
+      textoIcones(x, t, tam, { coin: '#b8861f', star: '#2f6a9a', heart: '#b3261e' }, CARD_W / 2, y);
+    };
+    if (spec.ganho) linha(spec.ganho, CARD_H - (spec.perde ? 262 : 192), '#2f4a1c');
+    if (spec.perde) linha(spec.perde, CARD_H - 192, '#7a1f12');
 
     // rodapé
     if (spec.rodape) {
@@ -742,7 +857,7 @@ function textures(renderer) {
     let size = 62, lines, lh;
     // Ganhos e perdas: fichas grandes, verdes ou vermelhas, por cima da margem de baixo.
     x.font = `700 58px ${FONT_TITLE}`;
-    const fichas = (p.rodape || '').split('  ·  ').filter(Boolean).map(t => ({ t, w: x.measureText(t).width + 56 }));
+    const fichas = (p.rodape || '').split('  ·  ').filter(Boolean).map(t => ({ t, w: textoIcones(x, t, 58, {}) + 56 }));
     const linhasFichas = [];
     fichas.forEach(f => {
       const l = linhasFichas[linhasFichas.length - 1];
@@ -754,7 +869,9 @@ function textures(renderer) {
 
     if (p.combate) {
       const c = p.combate;
-      const barra = (rot, val, max, cor, yy) => {
+      // c.mostra traz a largura das barras a meio da animação (o número já é o novo; a barra desliza até lá).
+      const m = c.mostra || {};
+      const barra = (rot, val, max, cor, yy, larg = val) => {
         x.textAlign = 'left'; x.fillStyle = '#2a1a0d';
         x.font = `600 42px ${FONT_TITLE}`;
         x.fillText(rot, marginL, yy);
@@ -762,10 +879,10 @@ function textures(renderer) {
         x.font = `700 46px ${FONT_TITLE}`;
         x.fillText(`${val}/${max}`, marginL + maxW, yy);
         x.fillStyle = 'rgba(60,35,12,.3)'; x.fillRect(marginL, yy + 12, maxW, 26);
-        x.fillStyle = cor; x.fillRect(marginL, yy + 12, maxW * Math.max(0, val) / Math.max(1, max), 26);
+        x.fillStyle = cor; x.fillRect(marginL, yy + 12, maxW * Math.max(0, Math.min(max, larg)) / Math.max(1, max), 26);
       };
-      barra(`PV do inimigo`, c.pv, c.pvMax, '#7c1f1f', y);
-      barra('A sua Vida', c.vida, c.vidaMax, '#2f5a33', y + 96);
+      barra(`PV do inimigo`, c.pv, c.pvMax, '#7c1f1f', y, m.pv ?? c.pv);
+      barra('A sua Vida', c.vida, c.vidaMax, '#2f5a33', y + 96, m.vida ?? c.vida);
       x.textAlign = 'left'; x.fillStyle = '#6d1f1a';
       x.font = `italic 52px ${FONT_BODY}`;
       x.fillText(`Ele: CA ${c.defesa}  ·  Ataca ${c.ataque >= 0 ? '+' : ''}${c.ataque}  ·  Dano ${c.dado}`, marginL, y + 192);
@@ -782,7 +899,7 @@ function textures(renderer) {
         x.textAlign = 'right'; x.font = `700 40px ${FONT_TITLE}`;
         x.fillText(l.pv > 0 ? `${l.pv}/${l.pvMax}` : 'caído', cx0 + colW, yy);
         x.fillStyle = 'rgba(60,35,12,.3)'; x.fillRect(cx0, yy + 12, colW, 20);
-        x.fillStyle = l.inimigo ? '#9a3a2a' : '#4f7a3a'; x.fillRect(cx0, yy + 12, colW * l.pv / Math.max(1, l.pvMax), 20);
+        x.fillStyle = l.inimigo ? '#9a3a2a' : '#4f7a3a'; x.fillRect(cx0, yy + 12, colW * Math.max(0, (m.lados && m.lados[i] != null ? m.lados[i] : l.pv)) / Math.max(1, l.pvMax), 20);
       });
       if (lados.length) y += Math.ceil(lados.length / 2) * 90 + 10;
     }
@@ -841,7 +958,7 @@ function textures(renderer) {
         x.fillRect(fx, fy, f.w, 82);
         x.fillStyle = '#f7ecd0'; x.textAlign = 'center';
         x.font = `700 58px ${FONT_TITLE}`;
-        x.fillText(f.t, fx + f.w / 2, fy + 60);
+        textoIcones(x, f.t, 58, { coin: '#f4d470', star: '#bfe0ff', heart: '#ffb0a8' }, fx + f.w / 2, fy + 60);
         fx += f.w + 18;
       });
     });
@@ -1076,7 +1193,7 @@ function textures(renderer) {
       }
     });
 
-    // Uma árvore enorme, quando o mundo a tem: Madeira Negra deve-lhe o nome.
+    // Uma árvore enorme, quando o mapa do mundo a tem.
     if (MAPA.arvore) {
       const ax = W * MAPA.arvore.x, ay = H * MAPA.arvore.y;
       const brilho = x.createRadialGradient(ax, ay - 90, 20, ax, ay - 90, 300);

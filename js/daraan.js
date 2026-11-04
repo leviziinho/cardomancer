@@ -6,7 +6,7 @@
 
 Object.assign(CLASSES, {
   feiticeiro: { nome: 'Feiticeiro', glyph: 'flame', cor: 0xc8481a, vida: 8, attrs: { carisma: 2, mente: 2 }, raridade: 'comum', caDe: 'carisma', habilidade: 'Soma o Carisma à CA.', desc: 'A magia corre-lhe no sangue, sem livros nem cajados. Cada feitiço cobra-se ao corpo.' },
-  monge: { nome: 'Monge', glyph: 'fist', cor: 0x5a6a78, vida: 8, attrs: { agilidade: 2, mente: 2 }, raridade: 'comum', caDe: 'mente', habilidade: 'Soma a Mente à CA.', desc: 'Luta de mãos vazias, e sente a energia de quem tem à frente, mesmo de olhos fechados.' },
+  monge: { nome: 'Monge', glyph: 'fist', cor: 0x5a6a78, vida: 7, attrs: { agilidade: 2, mente: 2 }, raridade: 'comum', caDe: 'mente', habilidade: 'Soma a Mente à CA.', desc: 'Luta de mãos vazias, e sente a energia de quem tem à frente, mesmo de olhos fechados.' },
   druida: { nome: 'Druida', glyph: 'leaf', cor: 0x4f7a2c, vida: 10, attrs: { mente: 4 }, raridade: 'comum', companheiros: ['cobra', 'aranha', 'corvo'], habilidade: 'Começa com um companheiro: Cobra, Aranha ou Corvo.', desc: 'Os Saybaff tiram a força da terra. Onde houver plantas e animais, nunca está sozinho.' },
   guerreiro: { nome: 'Guerreiro', glyph: 'sword', cor: 0x7a5a24, vida: 12, attrs: { forca: 2 }, raridade: 'comum', danoDe: 'forca', habilidade: 'Soma a Força ao dano da arma.', desc: 'Mestre de armas brancas. Treinou muitos, e os poucos que o venceram ainda o elogiam.' },
 });
@@ -84,13 +84,13 @@ Object.assign(TALENTOS, {
   monge: [
     { id: 'monasterio', nome: 'Monastério de Heironeus', desc: '+2 em testes de Habilidade.', tipo: { habilidade: 2 } },
     { id: 'pele', nome: 'Pele Dura', desc: '+4 Vida máxima.', vidaMax: 4 },
-    { id: 'instinto', nome: 'Instinto', req: 'monasterio', desc: 'Menos 20% de encontros surpresa contra si.', alerta: 20 },
+    { id: 'instinto', nome: 'Instinto', req: 'monasterio', desc: 'Menos 20% de emboscadas: quase sempre os vê primeiro.', alerta: 20 },
     { id: 'mao_vazia', nome: 'Mãos Vazias', req: 'pele', desc: '+2 no dano.', dano: 2 },
   ],
   druida: [
     { id: 'raizes', nome: 'Falar com as Raízes', desc: '+2 em Investigação.', tipo: { investigacao: 2 } },
     { id: 'colheita', nome: 'Colheita', desc: 'Recupera 1 de Vida em cada cena.', curaCena: 1 },
-    { id: 'trilho_verde', nome: 'Trilho Verde', req: 'raizes', desc: 'Viajar sorrateiro só custa 1 dia.', trilho: true },
+    { id: 'trilho_verde', nome: 'Trilho Verde', req: 'raizes', desc: 'Na estrada, vê primeiro quem lá está, e pode passar à larga.', trilho: true },
     { id: 'matilha', nome: 'Matilha', req: 'colheita', desc: '+2 em testes de Combate.', tipo: { combate: 2 } },
   ],
   guerreiro: [
@@ -117,7 +117,6 @@ Object.assign(CARTAS_UNICAS.cls, {
 
 // ---------- Só em Daraan ----------
 
-RACAS.tiefling.foraDe = ['daraan'];
 Object.assign(RACAS, {
   elfosombrio: { nome: 'Elfo Sombrio', mundo: 'daraan', glyph: 'moon', attrs: { agilidade: 1, carisma: 1 }, desc: 'Como o Imperador, e toda a gente repara. +1 Agilidade, +1 Carisma.' },
 });
@@ -235,7 +234,8 @@ const VILOES_DARAAN = {
     ],
     finalTexto: 'O portão de Sangue Sombrio está aberto, e o chão pulsa em cores a cada passo. Coisas com quatro asas rondam lá em cima, sem se aproximarem. {vilao} levanta os olhos do cajado com a caveira de dragão. "Que exemplar maravilhoso", diz. "Sugiro que não se mexa."',
     ronda: { combate: 'A esfera racha, e pela primeira vez a chuva toca-lhe.', social: 'Pergunta-lhe o que Ivan fará dele no fim, e ele demora a responder.', habilidade: 'Salta os selos do chão, um a um, até ao alcance do cajado.', investigacao: 'Reconhece no anel o selo da prisão, e sabe desfazê-lo.' } },
-  espadachim: { nome: 'o Espadachim', destino: 'pere', glyph: 'sword', fraqueza: ['monge', 'patrulheiro', 'guerreiro'],
+  // ajuste: o que este chefe tem a mais (ou a menos) do que o chefe de base em COMBATE.vilao (ca, pv, ataque).
+  espadachim: { nome: 'Santo, o Espadachim', ajuste: { ca: 2 }, destino: 'pere', glyph: 'sword', fraqueza: ['monge', 'patrulheiro', 'guerreiro'],
     efeitos: [{ t: 'Um feixe branco abre-lhe o ombro. Ele nem se mexeu.', tipo: 'dreno', v: 2 }, { t: 'Já não está onde estava, e os seus olhos não o encontram.', tipo: 'fraco', v: 3 }],
     motivos: ['Parece uma criança, e já matou mais do que a peste. O Imperador pediu-lhe a biblioteca de Pere.', 'Nunca encontrou quem o visse mover-se. Procura alguém que valha a pena.', 'Decretou a morte de uma família inteira, e agora quer ver como ela termina.'],
     pistas: [
@@ -697,14 +697,14 @@ const MERCADOR_SECRETO_DARAAN = {
 };
 
 const ATRASOS_DARAAN = {
-  cidade: [...ATRASOS.cidade, { id: 'd_censo', titulo: 'O Censo do Imperador',
+  cidade: [...ATRASOS_GERAIS.cidade, { id: 'd_censo', titulo: 'O Censo do Imperador',
     texto: 'Os soldados fecham a rua, e chamam toda a gente para ser contada. Um escriba de mãos sujas de tinta pergunta-lhe nome, ofício e terra de origem, com uma fila enorme atrás de si.',
     opcoes: [
       { t: 'Esperar na fila', d: 'Perde um dia.', ok: { txt: 'Ao fim do dia, é um número num livro. Pelo menos, aquele número está vivo.', fx: { dia: 1 } } },
       { t: 'Pagar a quem conta', d: 'Custa 4 de Ouro.', ok: { txt: 'O escriba conta-o sem o ver.', fx: { ouro: -4 } } },
       { t: 'Inventar um ofício', d: 'Fala em nome do general.', tipo: 'social', roll: { a: 'carisma', dc: 12 }, ok: { txt: 'Sai dali, com uma vénia do escriba.', fx: {} }, ko: { txt: 'O escriba confirma com o sargento. Demora um dia a sair disto.', fx: { dia: 1, vida: -1 } } },
     ] }],
-  estrada: [...ATRASOS.estrada, { id: 'd_exercito', titulo: 'A Coluna do Império',
+  estrada: [...ATRASOS_GERAIS.estrada, { id: 'd_exercito', titulo: 'A Coluna do Império',
     texto: 'Uma coluna de soldados enche a estrada toda, e levanta poeira até ao fim da vista. Marcham devagar, com carroças de lanças e catapultas. Ninguém passa à frente deles, e ninguém lhes pergunta para onde vão.',
     opcoes: [
       { t: 'Esperar que passem', d: 'Perde um dia.', ok: { txt: 'Ao fim do dia, ainda consegue ouvi-los.', fx: { dia: 1 } } },
@@ -744,7 +744,7 @@ const LORE_DARAAN = {
   ivan: { nome: 'Ivan Galonadel', titulo: 'Ivan Galonadel, o Imperador da Espada', texto: 'Elfo sombrio, chamado Cavaleiro Negro, chegou com centenas de barcos de velas negras. Empunha a espada dos deuses, com o pomo em cinco cabeças de dragão. Tem um rosto descarnado, um sorriso de orelha a orelha, e olhos cor de esmeralda. É rancoroso. Tem problemas em esquecer as coisas.' },
   khayn: { nome: 'Khayn', titulo: 'O General Khayn Ludrione', texto: 'Impiedoso, corrupto e arrogante, de voz rouca e bigode bem feito. A espada dada pelo Imperador acende-se quando sacada, e a cicatriz que traz no rosto foi-lhe feita em plena derrota, por um feiticeiro de Abiad.' },
   profeta: { nome: 'Profeta', titulo: 'O Profeta', texto: 'Um dos Andarilhos Fantasmas, talvez o mais terrível. Elfo de manto branco e vermelho, é o confidente sombrio do Imperador, e tem a idade dele. Traz um cajado com a caveira de um dragão filhote, e um anel que manda as pessoas para a ilha.' },
-  espadachim: { nome: 'Espadachim', titulo: 'O Espadachim', texto: 'O guerreiro mais rápido de Daraan, e parece um rapaz. Dizem que nem aparenta mexer-se para atacar, e chamam-lhe o raio branco de Ivan. Salta para o céu, e desaparece.' },
+  espadachim: { nome: 'Santo', titulo: 'Santo, o Espadachim', texto: 'O guerreiro mais rápido de Daraan, e parece um rapaz. Dizem que nem aparenta mexer-se para atacar, e chamam-lhe o raio branco de Ivan. Salta para o céu, e desaparece.' },
   tevish: { nome: 'Tevish Szar', titulo: 'Tevish Szar', texto: 'O Andarilho monge. Grande parte do corpo parece metal, com um gume na lateral dos braços, e olhos incandescentes. Foi ele quem partiu em dois a espada de um príncipe, só com a mão.' },
   andarilhos: { nome: 'Andarilhos', titulo: 'Os Andarilhos Fantasmas', texto: 'Os quatro guardiões do Imperador, encapuzados e de presença aterradora. Ninguém sabe do que são capazes, e ninguém ousa testar. Dão a vida para o proteger, sempre.' },
   opositor: { nome: 'Opositor', titulo: 'O Opositor', texto: 'Um nome que corre de boca em boca, à frente da Força Rebelde. Ele diz que é uma ideia, e não um homem. Quem o conheceu fala de um velho sem nenhum sintoma de velhice, que tem sempre um mapa cheio de agulhas.' },
@@ -776,18 +776,69 @@ const LORE_DARAAN = {
   lua_crescente: { nome: 'Lua Crescente', titulo: 'O Estilo Lua Crescente', texto: 'Luta-se com uma espada longa e uma adaga, e a diferença de tamanho entre as lâminas surpreende o oponente. É a especialidade de Simony.' },
 };
 
+// A Mestra entra também como vilã de Daraan, no fim do Império, nas planícies de M'hari.
+VILOES_DARAAN.mestra = { nome: 'a Mestra', destino: 'mhari', glyph: 'fist', fraqueza: ['bardo', 'ladino', 'patrulheiro'],
+  efeitos: [{ t: 'Um vento só dela encosta-o à pedra, e deixa-o sem ar.', tipo: 'fraco', v: 3 }, { t: 'Passa os dedos pela sua arma, e o metal racha como vidro.', tipo: 'dreno', v: 2 }],
+  motivos: ['A última dos Andarilhos Fantasmas de quem ainda se conta alguma coisa. Vive por um elfo que já não é quem ela amou.', 'Não ouve, não fala, não sente. Só vê, e vê tudo.', 'Muda de corpo quando este se gasta. Quem a matou uma vez já não sabe se a reconheceria.'],
+  pistas: [
+    'Há espadas partidas em cacos pelas estradas, e os donos juram que ela só lhes tocou com um dedo.',
+    'Os pastores falam de uma mulher a quem o fogo não queima, a atravessar um incêndio sem pressa, e sem olhar para o chão.',
+    "Em M'hari, há quem a veja a fazer sinais para o vento, sozinha, ao fim da tarde. Parece estar a dizer sempre a mesma coisa.",
+  ],
+  finalTexto: 'As planícies de M\'hari não têm uma árvore, e o vento para de repente. Uma mulher de pé no meio da erva olha para si, e continua a olhar. {vilao} não diz nada, porque nunca diz. Levanta uma mão e faz um sinal, devagar, para ter a certeza de que você viu. Só muito depois lhe explicam o que quer dizer: "Desculpa."',
+  ronda: { combate: 'Ela não sente a dor, mas o corpo sente, e o joelho falha.', social: 'Faz-lhe em sinais o nome de Ezuri. É a única vez que ela pestaneja.', habilidade: 'Ela só tem os olhos. Sai-lhe do campo de visão, e o vento perde o alvo.', investigacao: 'A Transmigração tem um preço, e este corpo já lhe está a acabar.' } };
+LORE_DARAAN.mestra = { nome: 'Mestra', titulo: 'A Mestra', texto: 'Uma dos quatro Andarilhos Fantasmas, e a única de quem ninguém ouviu a voz. Perdeu a fala, a audição, o tato e o paladar a troco de quatro técnicas proibidas. Parte metal como se fosse vidro, e não há elemento que lhe faça mal.' };
+
+// Os rivais: quem espera na última porta o herói que serviu o Império (a tendência Mau).
+// Por agora troca-se só o nome e o motivo; o combate é o mesmo. Se o rival viajar consigo como aliado, deixa-o.
+const RIVAIS_DARAAN = {
+  ivan: { nome: 'Tiago, o Opositor', motivo: 'O Opositor soube de tudo o que fez pelo Império, e veio ele mesmo travá-lo.' },
+  khayn: { nome: 'Simony Lumiel', aliado: 'simony', motivo: 'O braço direito do Opositor não perdoa a quem vende os rebeldes.' },
+  tevish: { nome: 'Robert', motivo: 'Robert jurou que nenhum servo do Império voltava a pisar aquela terra.' },
+  espadachim: { nome: 'Artas Lancaster', aliado: 'artas', motivo: 'Os Andarilhos mandaram Artas Lancaster acertar as contas consigo.' },
+  profeta: { nome: 'Zhenris Voranan', aliado: 'zhenris', motivo: 'Zhenris Voranan tem contas a ajustar com o Império, e agora também consigo.' },
+  mestra: { nome: 'Geyser Punho Cego', aliado: 'geyser', motivo: 'Geyser Punho Cego viu, sem olhos, o que você fez. E veio.' },
+};
+// As cartas que pesam na tendência, marcadas à mão (mandam sobre as palavras). bem: Rebeldes e povo; ordem: lei e palavra.
+const TEND_CARTAS = {
+  'Avisar os rebeldes': { bem: 1, ordem: 0 }, 'Pelo Opositor!': { bem: 1, ordem: 0 }, 'Mostrar as suas tinturas': { bem: 1, ordem: 0 },
+  'Mandá-los para Feldon': { bem: 1, ordem: 0 }, 'Reunir mantimentos': { bem: 1, ordem: 1 }, 'Atrasar os soldados': { bem: 1, ordem: -1 },
+  'Vendê-los': { bem: -1, ordem: 0 }, 'Subornar o sargento': { bem: -1, ordem: -1 }, 'Distrair os soldados': { bem: 0, ordem: -1 },
+  'Aproveitar a multidão': { bem: 0, ordem: -1 }, 'Abrigar-se na gruta': { bem: 0, ordem: 0 }, 'Lutar': { bem: 0, ordem: 0 },
+  'Pagar para o calar': { bem: -1, ordem: 0 }, 'Ler os papéis': { bem: 0, ordem: 1 },
+  // A crueldade e a ganância.
+  'Perguntar à força': { bem: -1, ordem: 0 }, 'Apertá-lo': { bem: -1, ordem: 0 }, 'Agarrar quem as apaga': { bem: -1, ordem: 0 },
+  'Levar tudo': { bem: -1, ordem: -1 }, 'Levar-lhe a coroa': { bem: -1, ordem: 0 }, 'Fazê-lo mudar de ideias': { bem: -1, ordem: 0 },
+  // A bondade.
+  'Tratar dos feridos': { bem: 1, ordem: 0 }, 'Trazer a lenha': { bem: 1, ordem: 0 }, 'Levá-lo consigo': { bem: 1, ordem: 0 },
+  'Fazê-lo falar': { bem: 1, ordem: 0 }, 'Levantar a mão com os outros': { bem: 1, ordem: 0 }, 'Rasgar o decreto': { bem: 1, ordem: -1 },
+  // O truque, a pressa e a força.
+  'Arrombar a porta': { bem: 0, ordem: -1 }, 'Dar um nome falso': { bem: 0, ordem: -1 }, 'Inventar um ofício': { bem: 0, ordem: -1 },
+  'Saltar a muralha': { bem: 0, ordem: -1 }, 'Saltar a barreira à noite': { bem: 0, ordem: -1 }, 'Rebentar com a mesa': { bem: 0, ordem: -1 },
+  'Queimar tudo': { bem: 0, ordem: -1 }, 'Convencer o sargento': { bem: 0, ordem: -1 }, 'Revistar a carruagem intacta': { bem: 0, ordem: -1 },
+  'Levar os sacos': { bem: 0, ordem: -1 }, 'Levar as moedas, e deixar uma': { bem: 0, ordem: -1 }, 'Sair pela força': { bem: 0, ordem: -1 },
+  // A palavra, a lei e a paciência.
+  'Dizer a verdade': { bem: 0, ordem: 1 }, 'Dizer-lhe a verdade': { bem: 0, ordem: 1 }, 'Ir ao tribunal': { bem: 0, ordem: 1 },
+  'Mediar a discussão': { bem: 0, ordem: 1 }, 'Prendê-la outra vez': { bem: 0, ordem: 1 }, 'Treinar com os noviços': { bem: 0, ordem: 1 },
+  'Prestar-lhes homenagem': { bem: 0, ordem: 1 },
+};
+Object.keys(RIVAIS_DARAAN).forEach(k => { if (VILOES_DARAAN[k]) VILOES_DARAAN[k].rival = RIVAIS_DARAAN[k]; });
+
 // ---------- Os mundos ----------
 
 const MUNDOS = {
-  vesper: { glyph: 'moon', desc: 'O reino de sempre: um rei afogado, uma sacerdotisa velada, e sinos a tocar sem razão.',
-    LUGARES, ESTRADAS, MAPA, OBJETIVOS, RELIQUIAS, REFENS, VILOES, REVIRAVOLTAS, GANCHOS, ENCONTROS, CONSEQUENCIAS, SURPRESAS, BONS_ENCONTROS, MERCADOR_SECRETO, ATRASOS, FIM_MORTE, FIM_TARDE, PRESSAGIOS, LORE },
   daraan: { glyph: 'sword', desc: 'O Cavaleiro Negro venceu, e o Pacto de Aramon caiu. Junte-se ao Opositor, contra os Andarilhos Fantasmas.',
     LUGARES: LUGARES_DARAAN, ESTRADAS: ESTRADAS_DARAAN, MAPA: MAPA_DARAAN, OBJETIVOS: OBJETIVOS_DARAAN, RELIQUIAS: RELIQUIAS_DARAAN, REFENS: REFENS_DARAAN, VILOES: VILOES_DARAAN,
     REVIRAVOLTAS: REVIRAVOLTAS_DARAAN, GANCHOS: GANCHOS_DARAAN, ENCONTROS: ENCONTROS_DARAAN, CONSEQUENCIAS: CONSEQUENCIAS_DARAAN, SURPRESAS: SURPRESAS_DARAAN, BONS_ENCONTROS: BONS_ENCONTROS_DARAAN,
     MERCADOR_SECRETO: MERCADOR_SECRETO_DARAAN, ATRASOS: ATRASOS_DARAAN, FIM_MORTE: FIM_MORTE_DARAAN, FIM_TARDE: FIM_TARDE_DARAAN, PRESSAGIOS: PRESSAGIOS_DARAAN, LORE: LORE_DARAAN },
 };
 
-function ativarMundo(id) {
+function pecasDoMundo(id) {
   ({ LUGARES, ESTRADAS, MAPA, OBJETIVOS, RELIQUIAS, REFENS, VILOES, REVIRAVOLTAS, GANCHOS, ENCONTROS, CONSEQUENCIAS, SURPRESAS, BONS_ENCONTROS, MERCADOR_SECRETO, ATRASOS, FIM_MORTE, FIM_TARDE, PRESSAGIOS, LORE } = MUNDOS[id]);
+}
+function ativarMundo(id) {
+  pecasDoMundo(id);
   G.mundo = id;
 }
+// Antes da primeira partida, a mesa já mostra o mapa de Daraan.
+pecasDoMundo('daraan');

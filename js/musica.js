@@ -51,6 +51,36 @@ const musica = (() => {
     },
   };
 
+  // O prelúdio: improviso livre sobre um bordão, no modo grego da classe. Ninguém o escreveu: nasce em cada partida.
+  MODOS.preludio = { bpm: 76, compasso: 6, raiz: 50, volume: .9, improviso: true, forma: [null], acordes: {}, frases: {} };
+  // Os sete modos, em semitons, e a nota que lhes dá a cor (o índice na escala), que o improviso procura mais vezes.
+  const ESCALAS = {
+    jonio: { notas: [0, 2, 4, 5, 7, 9, 11], cor: 6 },
+    dorico: { notas: [0, 2, 3, 5, 7, 9, 10], cor: 5 },
+    frigio: { notas: [0, 1, 3, 5, 7, 8, 10], cor: 1 },
+    lidio: { notas: [0, 2, 4, 6, 7, 9, 11], cor: 3 },
+    mixolidio: { notas: [0, 2, 4, 5, 7, 9, 10], cor: 6 },
+    eolio: { notas: [0, 2, 3, 5, 7, 8, 10], cor: 5 },
+    locrio: { notas: [0, 1, 3, 5, 6, 8, 10], cor: 4 },
+  };
+  // Cada classe tem o seu modo; as que o partilham distinguem-se no instrumento, no registo e no andamento.
+  const MODO_DA_CLASSE = {
+    clerigo: { escala: 'jonio', raiz: 52, flauta: true, bpm: 70 },
+    patrulheiro: { escala: 'dorico', raiz: 50, flauta: true, bpm: 80 },
+    druida: { escala: 'dorico', raiz: 50, flauta: false, bpm: 72 },
+    monge: { escala: 'frigio', raiz: 52, flauta: true, bpm: 64 },
+    mago: { escala: 'lidio', raiz: 53, flauta: false, bpm: 72 },
+    feiticeiro: { escala: 'lidio', raiz: 53, flauta: true, bpm: 84 },
+    bardo: { escala: 'mixolidio', raiz: 50, flauta: false, bpm: 92 },
+    barbaro: { escala: 'eolio', raiz: 45, flauta: false, bpm: 88 },
+    guerreiro: { escala: 'eolio', raiz: 45, flauta: true, bpm: 76 },
+    ladino: { escala: 'locrio', raiz: 47, flauta: false, bpm: 80 },
+  };
+  // A abertura: Si menor (Eólio em Si), na harpa, devagar, enquanto o jogador ainda não começou.
+  MODOS.abertura = { ...MODOS.preludio, bpm: 62 };
+  const ABERTURA = { escala: 'eolio', raiz: 47, flauta: false, bpm: 62 };
+  let improviso = { ...MODO_DA_CLASSE.clerigo, grau: 7, compassos: 0 };
+
   let ac = null, saida = null, sala = null, medidor = null, relogio = null, grupos = {};
   let atual = 'calma', ligada = true, proxima = 0, passo = 0, seccao = 0;
   const notasCordas = new Map();
@@ -246,8 +276,41 @@ const musica = (() => {
     frase = frases.length ? frases[Math.floor(Math.random() * frases.length)] : [];
   }
 
+  // Um passo do improviso: o bordão no início de cada compasso, e por cima uma melodia que anda quase sempre
+  // por graus vizinhos, salta de vez em quando, procura a nota de cor do modo, e volta à raiz no fim de cada frase.
+  function improvisar(t, colcheia, m, g) {
+    const p = passo % m.compasso, e = ESCALAS[improviso.escala], raiz = improviso.raiz;
+    const nota = grau => raiz + 12 * Math.floor(grau / 7) + e.notas[((grau % 7) + 7) % 7];
+    if (p === 0) {
+      // No Lócrio, o bordão leva a quinta diminuta, que nunca descansa.
+      const quinta = improviso.escala === 'locrio' ? 6 : 7;
+      acordeLongo([raiz - 12, raiz - 12 + quinta, raiz], t, colcheia * m.compasso * 1.1, .12 * m.volume, g.seco, false);
+      improviso.compassos++;
+    }
+    if (resto > 0) { resto--; passo++; return; }
+    const fimDeFrase = improviso.compassos % 4 === 0 && p >= 3;
+    if (fimDeFrase) improviso.grau = improviso.grau > 10 ? 14 : 7;
+    else if (Math.random() < .14) { resto = 1 + Math.floor(Math.random() * 2); passo++; return; }
+    else {
+      const r = Math.random();
+      const passoG = r < .62 ? (Math.random() < .5 ? -1 : 1) : r < .85 ? (Math.random() < .5 ? -2 : 2) : (Math.random() < .5 ? -4 : 3);
+      improviso.grau = Math.max(3, Math.min(17, improviso.grau + passoG));
+      // A nota de cor: de vez em quando, a melodia vai lá de propósito.
+      if (Math.random() < .18) improviso.grau = 7 + e.cor;
+    }
+    const dur = fimDeFrase ? 4 : [1, 1, 1, 2, 2, 3][Math.floor(Math.random() * 6)];
+    const n = nota(improviso.grau) + 12;
+    if (improviso.flauta) flauta(n, t, colcheia * dur * .95, quase(.15 * m.volume), g.flauta);
+    else corda(n, t, quase(.4 * m.volume), g.harpa, { brilho: .7, tom: 3400, pan: (Math.random() - .5) * .3 });
+    // Por baixo, a harpa marca às vezes a raiz ou a quinta, para o ouvido não perder o centro.
+    if (p === 0 || (p === 3 && Math.random() < .5)) corda(raiz + (p === 0 ? 0 : 7), t, quase(.2 * m.volume), g.harpa, { brilho: .4, tom: 1800, pan: -.2 });
+    resto = dur - 1;
+    passo++;
+  }
+
   function tocarColcheia(t, colcheia) {
     const m = MODOS[atual], g = grupos[atual];
+    if (m.improviso) { improvisar(t, colcheia, m, g); return; }
     const p = passo % m.compasso;
     if (p === 0 && (!letra || acordeI >= m.acordes[letra].length)) novaSeccao(m);
     if (!letra) {
@@ -347,7 +410,16 @@ const musica = (() => {
       if (ligada && !relogio) relogio = setInterval(agendar, 120);
     },
     // Ao mudar de momento, a música anterior desvanece enquanto a nova entra.
-    modo(nome) {
+    // "preludio:mago" improvisa no modo da classe; os outros nomes são as músicas escritas.
+    modo(pedido) {
+      let nome = pedido;
+      if (pedido.startsWith('preludio:')) {
+        const c = MODO_DA_CLASSE[pedido.slice(9)] || MODO_DA_CLASSE.clerigo;
+        improviso = { ...c, grau: 7, compassos: 0 };
+        MODOS.preludio.bpm = c.bpm;
+        nome = 'preludio';
+      }
+      if (pedido === 'abertura') improviso = { ...ABERTURA, grau: 7, compassos: 0 };
       if (nome === atual) return;
       const antes = atual;
       atual = nome;

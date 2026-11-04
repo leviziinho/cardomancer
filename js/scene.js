@@ -369,6 +369,8 @@ function createWorld(canvasEl) {
       group: g, linkAt, rightSurface: right, luzDasPaginas, luz,
       turn: pages => emFila(() => vira(pages)),
       refaz: pages => emFila(() => refaz(pages)),
+      // Só a página da direita: para as barras do combate deslizarem sem refazer a ilustração.
+      refazDireita: pages => emFila(() => { if (!aberto) return; const o = right.material.map; poe(right, tex.rightPage(pages)); o && o.dispose(); }),
       fechar: () => emFila(fechar),
       abrir: () => emFila(abrir),
       get aberto() { return aberto; },
@@ -716,27 +718,42 @@ float qOrla = 1. - smoothstep(0., .07, qDist);
 totalEmissiveRadiance += mix(vec3(1., .35, .05), vec3(1., .85, .4), qOrla * qOrla) * qOrla * 3.;
 diffuseColor.rgb *= 1. - qOrla * .8;`);
     };
+    // A frente e o verso queimam em sentidos opostos: cada um precisa do seu programa.
+    m.customProgramCacheKey = () => `queima${sentido}`;
     return m;
   }
 
-  function desintegrar(card) {
-    const u = { value: 0 };
+  // O fogo já vem preparado quando a carta é dada (o shader compila-se aí, e não a meio da escolha).
+  // Antes de arder, a linha de fogo fica abaixo da carta, e ela parece uma carta qualquer.
+  function prepararQueima(card) {
+    if (card.queima) return;
+    const u = { value: -.3 };
     card.front.material = materialQueima(card.front.material, 1, u);
     card.backMesh.material = materialQueima(card.backMesh.material, -1, u);
     card.body.material = materialQueima(card.body.material, 1, u);
+    card.queima = u;
+  }
+
+  // A luz e as brasas do fogo ficam sempre na mesa, apagadas: uma luz nova obrigaria a recompilar
+  // todos os materiais da cena, e a carta parava antes de arder.
+  const N_BRASAS = 70, posBrasas = new Float32Array(N_BRASAS * 3).fill(-50);
+  const geoBrasas = new THREE.BufferGeometry();
+  geoBrasas.setAttribute('position', new THREE.BufferAttribute(posBrasas, 3));
+  const matBrasas = new THREE.PointsMaterial({ map: tex.glowSprite('255,150,50'), size: .3, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+  const brasasFogo = new THREE.Points(geoBrasas, matBrasas);
+  brasasFogo.renderOrder = 11; brasasFogo.frustumCulled = false;
+  scene.add(brasasFogo);
+  const luzFogo = new THREE.PointLight(0xff7a2a, 0, 12, 1.6);
+  scene.add(luzFogo);
+
+  function desintegrar(card) {
+    prepararQueima(card);
+    const u = card.queima;
     card.enabled = false;
     sfx.queimar();
     // Brasas que sobem da linha de fogo, e uma luz quente por cima da carta.
-    const n = 70, pos = new Float32Array(n * 3), sem = [];
+    const n = N_BRASAS, pos = posBrasas, sem = [], geo = geoBrasas, mat = matBrasas, luz = luzFogo;
     for (let i = 0; i < n; i++) sem.push([Math.random() - .5, Math.random(), Math.random() * .6 + .4, Math.random() * 6.28]);
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const mat = new THREE.PointsMaterial({ map: tex.glowSprite('255,150,50'), size: .3, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-    const brasas = new THREE.Points(geo, mat);
-    brasas.renderOrder = 11;
-    scene.add(brasas);
-    const luz = new THREE.PointLight(0xff7a2a, 0, 12, 1.6);
-    scene.add(luz);
     const g = card.group, base = new THREE.Vector3(), cima = new THREE.Vector3(), lado = new THREE.Vector3();
     return tween(1.6, (e, raw) => {
       u.value = raw;
@@ -757,7 +774,7 @@ diffuseColor.rgb *= 1. - qOrla * .8;`);
       geo.attributes.position.needsUpdate = true;
       mat.opacity = 1 - Math.pow(raw, 3);
     }, { ease: t => t }).then(() => {
-      scene.remove(brasas); scene.remove(luz); geo.dispose(); mat.map.dispose(); mat.dispose();
+      luz.intensity = 0; mat.opacity = 0; pos.fill(-50); geo.attributes.position.needsUpdate = true;
     });
   }
 
@@ -961,8 +978,14 @@ diffuseColor.rgb *= 1. - qOrla * .8;`);
     return m;
   }
 
+  // O brilho do dado que conta, quando rolam dois d20 com vantagem.
+  const brilhoDado = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex.glowSprite('255,210,110'), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
+  brilhoDado.renderOrder = 11; brilhoDado.visible = false;
+  scene.add(brilhoDado);
+
   function rollDice(lista, { onde = 'mesa' } = {}) {
     const n = lista.length;
+    brilhoDado.visible = false;
     // Até três dados numa fila; mais do que isso, em duas filas e mais pequenos.
     const porFila = n <= 3 ? n : n <= 6 ? 3 : 4, filas = Math.ceil(n / porFila);
     const escala = n <= 3 ? 1.1 : n <= 6 ? .9 : .75;
@@ -974,7 +997,7 @@ diffuseColor.rgb *= 1. - qOrla * .8;`);
     limpaFundo.visible = true;
     // O fundo da caixa recebe sombras: a do pino não pode cair lá dentro.
     pin.traverse(o => { if (o.isMesh) { if (o.userData.sombra === undefined) o.userData.sombra = o.castShadow; o.castShadow = false; } });
-    return Promise.all(lista.map(({ tipo, face }, i) => {
+    return Promise.all(lista.map(({ tipo, face, melhor, pior }, i) => {
       const die = DICE[tipo], f = die.faces[face], m = dadoN(tipo, vistos[tipo] = (vistos[tipo] ?? -1) + 1);
       const frame = new THREE.Matrix4().makeBasis(f.right, f.up, f.n);
       const rest = new THREE.Quaternion().setFromRotationMatrix(worldFrame.clone().multiply(frame.invert()));
@@ -999,7 +1022,17 @@ diffuseColor.rgb *= 1. - qOrla * .8;`);
         m.quaternion.copy(q).multiply(final);
         const hit = Math.floor(raw * 3.5 + .5);
         if (hit !== last && raw < .92) { last = hit; sfx.dice(); }
-      }, { ease: easeOut });
+      }, { ease: easeOut }).then(() => {
+        // Com vantagem: o d20 que conta acende-se, e o outro encolhe um pouco.
+        if (melhor) {
+          brilhoDado.position.set(tx, .3, tz);
+          brilhoDado.scale.set(3.6 * escala, 3.6 * escala, 1);
+          brilhoDado.visible = true;
+          return tween(.35, e => { brilhoDado.material.opacity = .9 * e; });
+        }
+        if (pior) return tween(.3, e => { m.scale.setScalar(escala * (1 - .22 * e)); });
+        return null;
+      });
     }));
   }
   // A caixa onde os dados rolam: fica sempre à vista, e nada lhe sai por cima das bordas.
@@ -1046,7 +1079,7 @@ diffuseColor.rgb *= 1. - qOrla * .8;`);
   const hideDice = () => {
     Object.values(DICE).forEach(d => (d.mesh.visible = false));
     Object.values(copias).forEach(l => l.forEach(m => (m.visible = false)));
-    caixa.visible = false; limpaFundo.visible = false;
+    caixa.visible = false; limpaFundo.visible = false; brilhoDado.visible = false;
     pin.traverse(o => { if (o.isMesh && o.userData.sombra !== undefined) o.castShadow = o.userData.sombra; });
   };
 
@@ -1364,7 +1397,8 @@ diffuseColor.rgb *= 1. - qOrla * .8;`);
     if (link && handlers.link) handlers.link(link);
   });
   window.addEventListener('keydown', e => {
-    if (!choice) return;
+    // Quem está a escrever (a opinião, por exemplo) não escolhe cartas sem querer.
+    if (!choice || /^(TEXTAREA|INPUT)$/.test(e.target.tagName)) return;
     const i = parseInt(e.key, 10) - 1;
     if (i >= 0 && i < choice.list.length) select(choice.list[i]);
   });
@@ -1553,7 +1587,7 @@ diffuseColor.rgb *= 1. - qOrla * .8;`);
   }
   loop();
 
-  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, revelarMesa, desintegrar, hideDice, efeitoCritico, cards, resize, handlers, fileira, veu, halo, livroDireita, retangulo, retanguloLivro,
+  return { scene, camera, renderer, tex, book, updateMap, pin, setPin, movePin, movePinTroco, mapToWorld, tornarD20, tokens, cam, createCard, removeCard, fly, choose, rollDice, revelarMesa, desintegrar, prepararQueima, hideDice, efeitoCritico, cards, resize, handlers, fileira, veu, halo, livroDireita, retangulo, retanguloLivro,
     get qualidade() { return QUALIDADES[qualidade].nome; },
     set aoMudarQualidade(f) { aoMudar = f; },
     proximaQualidade() {

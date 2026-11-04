@@ -19,6 +19,7 @@
   <div class="t-caixa">
     <h1>Cardomancer</h1>
     <p id="title-sub">Uma aventura que nunca se escolhe por inteiro.</p>
+    <p id="title-pitch">Um herói feito de cartas, uma trama selada e vinte e quatro dias para a desvendar no Império da Espada.</p>
     <button id="start">Nova Partida</button>
     <button id="title-config" class="t-menor" aria-expanded="false">Configurações</button>
     <div id="title-opcoes" hidden>
@@ -26,8 +27,11 @@
       <button data-alvo="musica-btn"></button>
       <button data-alvo="mute"></button>
       <button data-alvo="letra-btn"></button>
+      <button class="abre-teclas">Teclas</button>
     </div>
     <button id="title-ajuda" class="t-menor">Ajuda</button>
+    <button class="t-menor abre-opiniao">Dar a sua opinião</button>
+    <small id="title-nota">Versão experimental. Joga-se com o rato, com toque, ou com as teclas 1 a 4.</small>
   </div>
 </section>
 
@@ -38,6 +42,20 @@
   <h2>É a sua primeira aventura em Cardomancer?</h2>
   <p>Posso mostrar-lhe a mesa: o que é cada coisa, e onde está. O caminho, esse, fica por sua conta.</p>
   <div><button id="guia-sim">Sim, mostre-me a mesa</button><button id="guia-nao">Já conheço</button></div>
+</article></div>
+<div id="teclas" role="dialog" aria-modal="true" aria-labelledby="teclas-titulo"><article>
+  <h2 id="teclas-titulo">Teclas</h2>
+  <p>Clique numa ação e carregue na tecla que quer usar.</p>
+  <ul id="teclas-lista"></ul>
+  <p class="pequeno">As teclas 1 a 4 escolhem sempre as cartas, e Esc fecha o que estiver aberto.</p>
+  <div><button id="teclas-repor">Repor as de origem</button><button id="teclas-fechar">Fechar</button></div>
+</article></div>
+<div id="opiniao" role="dialog" aria-modal="true" aria-labelledby="opiniao-titulo"><article>
+  <h2 id="opiniao-titulo">A sua opinião</h2>
+  <p>O que achou? O que custou a perceber? Escreva à vontade.</p>
+  <textarea id="opiniao-texto" maxlength="1500" rows="6" aria-label="A sua opinião"></textarea>
+  <p class="pequeno">Vai só o texto, com a data e a hora. Abre-se o GitHub do jogo para o publicar, e lá precisa de uma conta. Sem conta, copie o texto e mande-o ao Levi.</p>
+  <div><button id="opiniao-enviar">Enviar pelo GitHub</button><button id="opiniao-copiar">Copiar o texto</button><button id="opiniao-fechar">Fechar</button></div>
 </article></div>
 <div id="guia" role="dialog" aria-modal="true"><div id="guia-foco"></div><div id="guia-caixa">
   <small id="guia-passo"></small><h3 id="guia-titulo"></h3><p id="guia-texto"></p>
@@ -63,6 +81,8 @@
     <button id="musica-btn">Música: sim</button>
     <button id="mute">Som: sim</button>
     <button id="letra-btn" title="A letra legível ajuda quem tem dislexia.">Letra: legível</button>
+    <button class="abre-teclas" title="Mudar as teclas de atalho.">Teclas</button>
+    <button class="abre-opiniao" title="Dizer ao Levi o que achou.">Opinião</button>
   </div>
 </nav>
 
@@ -85,11 +105,14 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<!-- Se o primeiro servidor falhar, tenta outro. Sem nenhum, o ecrã de espera explica o que se passa. -->
+<script>window.THREE || document.write('<script src="https://unpkg.com/three@0.158.0/build/three.min.js"><\/script>');</script>
 <script src="js/data.js"></script>
 <script src="js/historia.js"></script>
-  <script src="js/daraan.js"></script>
-<script src="js/madeira.js"></script>
+<script src="js/daraan.js"></script>
 <script src="js/etapas.js"></script>
+<!-- Os outros mundos só existem no computador do Levi: no site publicado não se pedem. -->
+<script>if (!/github\.io$/.test(location.hostname)) document.write('<script src="js/vesper.js"><\/script><script src="js/madeira.js"><\/script>');</script>
 <script src="js/regras.js"></script>
 <script src="js/partida.js"></script>
 <script src="js/tarot.js"></script>
@@ -98,5 +121,12 @@
 <script src="js/imagem.js"></script>
 <script src="js/scene.js"></script>
 <script src="js/ui.js"></script>
+<script>
+if (!window.THREE) {
+  const l = document.getElementById('loading');
+  l.innerHTML = '<div class="falha"><p>Não foi possível carregar o motor 3D.</p><small>O jogo precisa de Internet na primeira vez que abre. Verifique a ligação e tente de novo.</small><button onclick="location.reload()">Tentar de novo</button></div>';
+  l.classList.add('on');
+}
+</script>
 </body>
 </html>

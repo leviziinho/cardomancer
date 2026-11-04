@@ -4,7 +4,12 @@ const $ = id => document.getElementById(id);
 let world;
 
 const SLOT_SCALE = .56;
-let cartaSelada = null;
+let cartaSelada = null, costasSelada = null;
+// A face da carta selada: quem espera no fim, e porquê.
+function especSelada() {
+  const t = G.trama, v = VILOES[t.vilao], rev = REVIRAVOLTAS[t.reviravolta];
+  return { tema: 'destino', etiqueta: 'A Verdade', titulo: fmt('{vilao}').replace(/^./, m => m.toUpperCase()), glyph: v.glyph, desc: fmt(`${t.motivo} ${rev.nome}: ${rev.resumo}`) };
+}
 let cartaMissao = null;
 let paginaAtual = {};
 let mapaDestaque = [];
@@ -40,25 +45,68 @@ const PASSOS_GUIA = [
     texto: 'O pino é você. A estrela dourada marca a missão. O olho vermelho marca uma pista: ninguém o obriga a segui-la, mas quem a segue chega mais forte ao fim.' },
   { titulo: 'O que a missão guarda', alvo: () => world.retangulo(cantos({ x: CX + 11.2, z: -2.3, w: 5.2, h: 8.4 })),
     texto: 'A carta da missão e, ao lado, o destino selado, que só se abre no fim. Por baixo juntam-se as pistas, os talentos e os aliados.' },
-  { titulo: 'O livro', alvo: () => (ecraVertical() || !world.book.aberto ? null : world.retanguloLivro()),
+  { titulo: 'O livro', prepara: abrirLivroDoGuia, alvo: () => (ecraVertical() || !world.book.aberto ? null : world.retanguloLivro()),
     texto: 'O livro conta o que acontece em cada cena, e abre-se sozinho quando há história. As palavras a vermelho escondem mais sobre o mundo: toque ou clique nelas.' },
-  { titulo: 'As escolhas', alvo: () => zonaEmPixeis(),
-    texto: 'Aqui aparecem as cartas. Cada uma é uma maneira de agir. A barra de baixo diz o atributo usado, o número a tirar no d20 e a hipótese de correr bem.' },
-  { titulo: 'Os quatro atributos', alvo: () => null,
+  { titulo: 'As escolhas', prepara: () => mostrarExemplos(EXEMPLOS_GUIA.escolhas), alvo: () => zonaEmPixeis(),
+    texto: 'Aqui aparecem as cartas. Cada uma é uma maneira de agir. A barra de baixo diz o atributo usado, o número a tirar no d20 e a hipótese de correr bem; o selo no canto mostra-a em cor, de vermelho (difícil) a verde (fácil). Por cima da barra, o que ganha e o que perde: a moeda é Ouro, a estrela é XP, o coração é Vida.' },
+  { titulo: 'Os quatro atributos', prepara: () => tirarExemplos(), alvo: () => null,
     texto: 'Força: golpes pesados, portas e ameaças. Agilidade: armas leves, fugas e passos sem ruído; decide também quem ataca primeiro. Mente: magia, pistas e armadilhas. Carisma: conversa, mentira e música. Quanto maior o número, mais fácil é o teste. Os seus estão na Ficha.' },
-  { titulo: 'Cartas que contam mais', alvo: () => zonaEmPixeis(),
-    texto: 'As amarelas são raras: correm sempre bem, e só há uma de cada. As que têm um olho vermelho dão um fragmento de pista. As escuras pedem algo que você não tem.' },
-  { titulo: 'É tudo', alvo: () => juntar(['#ajuda']),
+  { titulo: 'Cartas que contam mais', prepara: () => mostrarExemplos(EXEMPLOS_GUIA.especiais), alvo: () => zonaEmPixeis(),
+    texto: 'As amarelas são raras: correm sempre bem, e só há uma de cada. As que têm um olho vermelho dão um fragmento de pista. As escuras pedem algo que você não tem. Quando a barra diz 2d20, rola dois dados e fica com o melhor.' },
+  { titulo: 'A sua tendência', prepara: () => mostrarExemplos(EXEMPLOS_GUIA.tendencia), alvo: () => zonaEmPixeis(),
+    texto: 'Algumas cartas trazem uma máscara no fundo. A que sorri puxa para o Bem, a que chora puxa para o Mal, e a de lábios cerrados mexe só na Ordem ou no Caos. A tendência está na Ficha, e no fim decide quem o espera do outro lado.' },
+  { titulo: 'É tudo', prepara: () => tirarExemplos(), alvo: () => juntar(['#ajuda']),
     texto: 'O resto descobre-se a jogar. Para rever esta explicação, use o botão Ajuda.' },
 ];
+
+// As cartas de exemplo do guia: não contam para nada, só mostram como são as cartas a sério.
+const EXEMPLOS_GUIA = {
+  escolhas: [
+    { tema: 'social', etiqueta: 'Social', titulo: 'Convencer o sargento', desc: 'A culpa foi claramente de outro.', glyph: 'speech', ganho: '+6 Ouro', perde: 'Se falhar: -3 Vida', rodape: 'Carisma +3  ·  12+  ·  60%', rodapeGlyph: 'speech', hipotese: .6 },
+    { tema: 'combate', etiqueta: 'Combate', titulo: 'Abrir caminho', desc: 'São lobos. Só lobos.', glyph: 'sword', ganho: 'Combate à vez', perde: 'Se fugir: fica sem o prémio', rodape: 'CA 12  ·  9 PV', rodapeGlyph: 'shield' },
+    { tema: 'investigacao', etiqueta: 'Investigação', titulo: 'Ler as cinzas', desc: 'Papel queimado ainda se lê, se souber.', glyph: 'eye', ganho: '+2 XP', perde: 'Se falhar: 1 dia', rodape: 'Mente +1  ·  15+  ·  30%', rodapeGlyph: 'eye', hipotese: .3 },
+  ],
+  especiais: [
+    { tema: 'rara', etiqueta: 'Rara', titulo: 'Fúria Bárbara', desc: 'O obstáculo deixa de ser um obstáculo.', glyph: 'axe', ganho: '+4 Ouro', rodape: 'Sucesso garantido', rodapeGlyph: 'star' },
+    { tema: 'pista', etiqueta: 'Pista', titulo: 'Seguir as marcas', desc: 'Enquanto as há.', glyph: 'eye', ganho: 'Fragmento de pista', perde: 'Se falhar: 1 dia', rodape: 'Mente +2  ·  13+  ·  50%', rodapeGlyph: 'eye', hipotese: .5, fragmento: true, rasto: true },
+    { tema: 'habilidade', etiqueta: 'Habilidade', titulo: 'Nó de Marinheiro', desc: 'Tudo se resolve com o nó certo.', glyph: 'sign', locked: true, lockText: 'Requer Marinheiro' },
+  ],
+  tendencia: [
+    { tema: 'escolha', etiqueta: 'Escolha', titulo: 'Tratar dos feridos', desc: 'Pelor ouve quem se ajoelha na lama.', glyph: 'heart', ganho: '+2 XP', rodape: 'Sem teste', mascara: 'bom' },
+    { tema: 'escolha', etiqueta: 'Escolha', titulo: 'Perguntar à força', desc: 'Há quem só responda de joelhos.', glyph: 'fist', ganho: '+4 Ouro', rodape: 'Sem teste', mascara: 'mau' },
+    { tema: 'escolha', etiqueta: 'Escolha', titulo: 'Dizer a verdade', desc: 'Não mentir à floresta.', glyph: 'speech', ganho: '+2 XP', rodape: 'Sem teste', mascara: 'neutro' },
+  ],
+};
+let exemplos = [], guiaAbriuLivro = false;
+async function mostrarExemplos(specs) {
+  await tirarExemplos();
+  const alvos = world.fileira(specs.length, zonaDaMao());
+  exemplos = specs.map(s => world.createCard(s, { at: AO_BARALHO() }));
+  exemplos.forEach((c, i) => { c.zoom = true; window.setTimeout(sfx.card, i * 120); });
+  await Promise.all(exemplos.map((c, i) => world.fly(c, alvos[i], .6, { delay: i * .12, arc: 2 })));
+}
+async function tirarExemplos() {
+  const ir = exemplos;
+  exemplos = [];
+  await Promise.all(ir.map(c => world.fly(c, { pos: AO_BARALHO(), rot: [FACE_DOWN, 0, 0], scale: .6 }, .4, { arc: 1 }).then(() => world.removeCard(c))));
+}
+async function abrirLivroDoGuia() {
+  if (ecraVertical() || world.book.aberto) return;
+  await world.book.abrir();
+  guiaAbriuLivro = true;
+  atualizaBotaoMapa();
+}
 
 async function guia() {
   const g = $('guia'), foco = $('guia-foco'), caixa = $('guia-caixa');
   const visivel = r => r && r.right - r.left > 4 && r.bottom - r.top > 4 && r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight;
-  const passos = PASSOS_GUIA.filter(p => { const r = p.alvo(); return r === null || visivel(r); });
+  // Os passos que preparam a mesa (abrem o livro, trazem cartas) contam sempre: o alvo só existe depois.
+  const passos = PASSOS_GUIA.filter(p => { if (p.prepara) return true; const r = p.alvo(); return r === null || visivel(r); });
   g.classList.add('on');
   for (let i = 0; i < passos.length; i++) {
-    const p = passos[i], r = p.alvo();
+    const p = passos[i];
+    if (p.prepara) await p.prepara();
+    const r0 = p.alvo(), r = r0 && visivel(r0) ? r0 : null;
     $('guia-passo').textContent = `${i + 1} de ${passos.length}`;
     $('guia-titulo').textContent = p.titulo;
     $('guia-texto').textContent = p.texto;
@@ -90,6 +138,8 @@ async function guia() {
     if (saltou) break;
   }
   g.classList.remove('on');
+  await tirarExemplos();
+  if (guiaAbriuLivro) { guiaAbriuLivro = false; await world.book.fechar(); atualizaBotaoMapa(); }
 }
 
 // Só se pergunta uma vez. Quem já sabe, salta.
@@ -132,13 +182,13 @@ Combate: joga-se à vez, e quem tem mais Agilidade começa. O seu d20 tem de che
 
 Jeitos de lutar: cada inimigo tem o seu, dito no início do combate e no rodapé da página. A fera recua depois de acertar, o bruto prepara um golpe a dobrar (bom momento para o escudo), o morto-vivo levanta-se uma vez, a bruxa amaldiçoa, o ladrão rouba Ouro, o duelista castiga as falhas, o soldado apara o primeiro golpe e o bando ataca duas vezes.
 
-Chefe final: tem muitos PV e duas ações por ronda, um efeito e um golpe. Os golpes variam: há os que partem a sua guarda, os que lhe cansam o braço, os que acertam sem dado, e há rondas em que ele só se defende. Os inimigos ficam mais duros a cada etapa da história, não a cada nível que sobe: o que ganha a subir fica seu. Nenhuma ronda o derruba de uma vez: perde no máximo 40% dos PV por ronda. E traz um guarda por cada aliado seu, que os aliados têm de derrubar antes de lhe chegar.
+Chefe final: tem muitos PV e duas ações por ronda, um efeito e um golpe. Os golpes variam: há os que partem a sua guarda, os que lhe cansam o braço, os que acertam sem dado, e há rondas em que ele só se defende. Os inimigos ficam mais duros a cada etapa da história, não a cada nível que sobe: o que ganha a subir fica seu. Nenhuma ronda o derruba de uma vez: perde no máximo 40% dos PV por ronda, e quando aguenta um golpe a página diz quanto dano lhe foi poupado. E traz um guarda por cada aliado seu, que os aliados têm de derrubar antes de lhe chegar.
 
-Encontros na estrada: o pino para a meio do caminho, e só chega depois de resolver o que lá houver. A Marcha Forçada (1 dia) dá com um encontro metade das vezes. Pelos Trilhos (2 dias) só um quarto das vezes: vê primeiro o que é, e se passar sem ser visto (75%) escolhe se vai ter com eles. Explorar o Caminho (3 dias) tem sempre encontro. Os dois d10 dão um número de 1 a 100: com a percentagem da carta ou menos, há encontro, e um d10 diz qual. O 10 é um inimigo lendário: mais duro, e paga muito melhor. Um perigo começa logo em combate. Nos testes é ao contrário, porque se quer um número alto: o 11+ da carta é 11 ou mais.
+Viagem: cada estrada custa um dia. Metade das vezes há alguém nela: o pino para a meio do caminho, o aviso diz quem é, e só chega depois de resolver o encontro. Se não houver ninguém, chega em segurança. Um perigo começa logo em combate; o inimigo lendário é mais duro, e paga muito melhor. Nos testes, quer-se um número alto: o 11+ da carta é 11 ou mais.
 
 Tempo e Vida: os falhanços gastam Vida, e recuperá-la gasta tempo. Os aliados lutam a seu lado, com CA e PV próprios, que se veem no livro. No combate final, os guardas do chefe recebem os golpes primeiro. O inimigo também os ataca, e quem cai em combate perde-se. Durma numa estalagem, acampe na estrada ou guarde uma poção. A trilha em baixo mostra os dias, e o fim do prazo.
 
-Classes: cada uma tem uma habilidade sua, escrita na carta do draft. O Bárbaro tem a carta Fúria, o Ladino rola dois d20 em Mente e Agilidade fora de combate, o Bardo, o Patrulheiro e o Druida começam acompanhados, e outras somam um atributo à CA ou ao dano.
+Classes: cada uma tem uma habilidade sua, escrita na carta do draft. O Bárbaro tem a carta Fúria, o Ladino rola dois d20 em Mente e Agilidade fora de combate, o Bardo, o Patrulheiro e o Druida começam acompanhados (os aliados do Bardo somam o nível dele ao dano), e outras somam um atributo à CA ou ao dano.
 
 Equipamento: cada classe só usa as armas e armaduras do seu tipo. O mercado só mostra o que a sua classe sabe usar. Adagas, cajados, capas, mantos e acessórios servem a todos.
 
@@ -146,11 +196,17 @@ Missão: a estrela dourada no mapa e o aviso no canto dizem sempre para onde ir.
 
 Pistas: são opcionais, mas muito fortes. Siga o olho vermelho no mapa. Lá, as cartas com o olho dão um fragmento se correrem bem, e até um combate pode ter o olho: há quem saiba perguntar com o machado. Se falhar uma carta com o olho, a pista muda de sítio, mas nada se perde. Com três fragmentos, a pista fica completa: poupa-lhe uma etapa e revela uma fraqueza do inimigo, que conta muito no combate final.
 
+Tendência: as escolhas definem quem é. Uma máscara no fundo da carta avisa: a que sorri puxa para o Bem, a que chora para o Mal, a de lábios cerrados para a Ordem ou o Caos. A página do resultado diz para onde pendeu, e a Ficha mostra o nome (Leal Bom, Neutro, Caótico Mau...). Quem servir o Império até ao fim encontra, na última porta, alguém dos Rebeldes.
+
+Vantagem: quando a carta diz 2d20, rola dois dados e fica com o melhor. A corda prepara-o para testes de habilidade, a lanterna para investigação; gastam-se ao usar.
+
+Segunda oportunidade: uma vez por aventura, no início da missão, quem cai a 0 de Vida não morre. Acorda depois do combate, com um terço da Vida, sem ouro, e uns dias mais tarde.
+
 Cartas raras: as amarelas. Só há uma de classe, uma de raça e uma de antecedente em cada aventura. Se não a usar, volta ao baralho.
 
-Mercado: com ouro a mais, peça ao ferreiro que aprimore a arma e a armadura.
+Estrada: nem todos os encontros são maus. Um mercador secreto vende mais barato e, com muita sorte, um mestre pode mudar a sua classe.
 
-Estrada: nem todos os encontros são maus. Um mercador secreto vende mais barato e, com muita sorte, um mestre pode mudar a sua classe.`;
+Teclas: 1 a 4 escolhem as cartas. C abre a ficha, M mostra o mapa, B bebe uma poção e H abre esta ajuda. Pode mudá-las em Teclas, nas configurações.`;
 
 const iconeCache = {};
 function icone(glyph, cor) {
@@ -446,10 +502,24 @@ const ui = {
 
   // A página que está aberta, com os números de agora. Não vira a folha.
   async refrescar(p) {
+    const antes = paginaAtual && paginaAtual.combate, c = p.combate;
     paginaAtual = p;
     desenharFolha(p);
-    await world.book.refaz({ ...p, termos: termosDe(p.texto || '') });
+    const pag = { ...p, termos: termosDe(p.texto || '') };
+    // No combate, as barras não saltam: deslizam do valor de antes até ao novo.
+    const lados = c && antes && (c.lados || []).length === (antes.lados || []).length;
+    const mudou = c && antes && world.book.aberto && (antes.pv !== c.pv || antes.vida !== c.vida || (lados && c.lados.some((l, i) => l.pv !== antes.lados[i].pv)));
+    if (!mudou) { await world.book.refaz(pag); atualizaBotaoMapa(); return; }
+    const entre = k => ({ pv: antes.pv + (c.pv - antes.pv) * k, vida: antes.vida + (c.vida - antes.vida) * k,
+      lados: lados ? c.lados.map((l, i) => antes.lados[i].pv + (l.pv - antes.lados[i].pv) * k) : null });
+    await world.book.refaz({ ...pag, combate: { ...c, mostra: entre(0) } });
     atualizaBotaoMapa();
+    const PASSOS = 8;
+    for (let i = 1; i <= PASSOS; i++) {
+      await new Promise(r => setTimeout(r, 45));
+      const k = 1 - Math.pow(1 - i / PASSOS, 2);
+      await world.book.refazDireita(i === PASSOS ? pag : { ...pag, combate: { ...c, mostra: entre(k) } });
+    }
   },
 
   async fecharLivro() {
@@ -543,14 +613,19 @@ const ui = {
     const alvos = zona();
     const origem = AO_BARALHO();
     const cards = specs.map(s => world.createCard(s, { at: origem }));
+    cards.forEach((c, i) => { if (specs[i].unica) world.prepararQueima(c); });
     maoAtual = { cards, zona };
+    document.body.classList.add('foco');
     cards.forEach((c, i) => { c.zoom = true; window.setTimeout(sfx.card, i * 140); });
     await Promise.all(cards.map((c, i) => world.fly(c, alvos[i], .7, { delay: i * .14, arc: 2 })));
     const idx = await world.choose(cards);
     maoAtual = null;
-    // A carta única da criação não volta ao baralho: desfaz-se em fogo.
+    document.body.classList.remove('foco');
+    // A carta única da criação não volta ao baralho: desfaz-se em fogo, com as outras ainda ao lado.
+    // Só quando acaba de arder é que as outras voltam.
     const arde = specs[idx].unica ? cards[idx] : null;
-    await Promise.all(cards.map(c => (c === arde ? world.desintegrar(c) : world.fly(c, { pos: origem, rot: [FACE_DOWN, 0, 0], scale: .6 }, .45, { arc: 1 })).then(() => world.removeCard(c))));
+    if (arde) { await world.desintegrar(arde); world.removeCard(arde); }
+    await Promise.all(cards.filter(c => c !== arde).map(c => world.fly(c, { pos: origem, rot: [FACE_DOWN, 0, 0], scale: .6 }, .45, { arc: 1 }).then(() => world.removeCard(c))));
     return idx;
   },
 
@@ -564,6 +639,7 @@ const ui = {
     const alvos = zona();
     const origem = AO_BARALHO();
     const cards = specs.map(s => world.createCard(s, { at: origem }));
+    cards.forEach((c, i) => { if (specs[i].unica) world.prepararQueima(c); });
     maoAtual = { cards, zona };
     cards.forEach((c, i) => { c.hoverScale = .05; c.hoverLift = .1; world.halo(c); window.setTimeout(sfx.card, i * 170); });
     await Promise.all(cards.map((c, i) => world.fly(c, alvos[i], .75, { delay: i * .17, arc: 1 })));
@@ -604,10 +680,8 @@ const ui = {
       drawGlyph(x, 'eye', c.width / 2, c.height / 2, 210, '#d99a8a');
       return toTexture(c, world.renderer);
     })();
-    cartaSelada = world.createCard({
-      tema: 'destino', etiqueta: 'A Verdade', titulo: fmt(v.nome).replace(/^./, m => m.toUpperCase()), glyph: v.glyph,
-      desc: fmt(`${t.motivo} ${rev.nome}: ${rev.resumo}`),
-    }, { back: backC });
+    costasSelada = backC;
+    cartaSelada = world.createCard(especSelada(), { back: backC });
     sfx.card();
     await world.fly(cartaSelada, { pos: [CX + 3, 3, 1], rot: [FACE_DOWN, 0, 0], scale: 1.4 }, .9, { arc: 3 });
     await wait(.5);
@@ -623,6 +697,16 @@ const ui = {
     cartaMissao.inspectable = true; cartaMissao.zoom = true;
     ui.sync();
     if (guiaPendente) { guiaPendente = false; await guia(); }
+  },
+
+  // Quando o chefe muda de lado, a carta selada passa a dizer a verdade nova, no mesmo sítio.
+  async trocarSelada() {
+    if (!cartaSelada) return;
+    const velha = cartaSelada;
+    cartaSelada = world.createCard(especSelada(), { back: costasSelada });
+    await world.fly(cartaSelada, { ...LUGAR_SELADA, rot: [FACE_UP, 0, .02] }, .01);
+    cartaSelada.inspectable = true; cartaSelada.zoom = true;
+    world.removeCard(velha);
   },
 
   async revelar() {
@@ -671,11 +755,13 @@ const ui = {
     $('r-nivel').textContent = topo ? 'Máx' : G.nivel;
     $('r-ouro').textContent = G.ouro;
     $('r-ca').textContent = G.cls ? caJogador() : '-';
+    acertarVida();
     const missaoOn = !!G.trama && !G.emCombate;
     $('objetivo').classList.toggle('on', missaoOn);
     if (missaoOn) {
-      $('objetivo-agora').textContent = `${objetivoAgora()}.`;
-      $('objetivo-pista').textContent = pistaAgora() ? `${pistaAgora()}.` : (G.pistas >= PISTAS_PRECISAS ? 'Tem as três pistas.' : '');
+      // Os nomes vêm dos dados do jogo, nunca do jogador; por isso podem ir em HTML.
+      $('objetivo-agora').innerHTML = `${objetivoAgora(true)}.`;
+      $('objetivo-pista').innerHTML = pistaAgora(true) ? `${pistaAgora(true)}.` : (G.pistas >= PISTAS_PRECISAS ? 'Tem as três pistas.' : '');
     }
     const trilha = $('trilha');
     if (G.trama) {
@@ -726,12 +812,12 @@ function desenharPainel() {
     : '<li class="slot vazio"><span class="nome">Viaja sozinho, por agora.</span></li>';
 
   const pistas = G.diario.map((d, i) => `<li class="slot"><span class="rotulo">Pista ${i + 1}: ${FRAQUEZAS[d.fraqueza].nome}</span><span class="desc">${FRAQUEZAS[d.fraqueza].desc} ${d.texto}</span></li>`).join('');
-  const rumo = pistaAgora() ? `${pistaAgora()}.` : '';
+  const rumo = pistaAgora(true) ? `${pistaAgora(true)}.` : '';
 
-  const missao = G.trama ? `<section><h3>Missão</h3><p class="missao">${fmt(OBJETIVOS[G.trama.objetivo].titulo)}</p><p class="pequeno"><b>Agora:</b> ${objetivoAgora()}.</p><p class="pequeno">Dia ${G.dia} de ${G.prazo}. Pistas: ${G.pistas} de ${PISTAS_PRECISAS}.${pressao() ? ` O tempo aperta: +${pressao()} em todos os testes.` : ''}</p></section>` : '';
+  const missao = G.trama ? `<section><h3>Missão</h3><p class="missao">${fmt(OBJETIVOS[G.trama.objetivo].titulo)}</p><p class="pequeno"><b>Agora:</b> ${objetivoAgora(true)}.</p><p class="pequeno">Dia ${G.dia} de ${G.prazo}. Pistas: ${G.pistas} de ${PISTAS_PRECISAS}.${pressao() ? ` O tempo aperta: +${pressao()} em todos os testes.` : ''}</p></section>` : '';
 
   $('painel-corpo').innerHTML = `
-    <header><h2>${pele}</h2><p>Nível ${G.nivel}${prox !== null ? ` · ${G.xp}/${prox} XP` : ' · nível máximo'} · CA ${caJogador()}</p><div class="barra"><i style="width:${barra}%"></i></div></header>
+    <header><h2>${pele}</h2><p>${nomeTendencia()} · Nível ${G.nivel}${prox !== null ? ` · ${G.xp}/${prox} XP` : ' · nível máximo'} · CA ${caJogador()}</p><div class="barra"><i style="width:${barra}%"></i></div></header>
     ${missao}
     ${G.trama ? `<section><h3>Pistas</h3><ul>${pistas || '<li class="slot vazio"><span class="nome">Ainda nenhuma.</span></li>'}</ul><p class="pequeno">${rumo}</p></section>` : ''}
     <section><h3>Atributos</h3><ul class="grelha">${atributos}${tipos}</ul></section>
@@ -845,9 +931,71 @@ async function main() {
     e.target.textContent = m ? 'Som: não' : 'Som: sim';
   });
   $('lore').addEventListener('click', () => $('lore').classList.remove('on'));
+  // As teclas de atalho: o jogador pode mudá-las em Configurações, e ficam guardadas neste aparelho.
+  const TECLAS_BASE = { ficha: 'c', mapa: 'm', pocao: 'b', ajuda: 'h' };
+  const NOME_ACAO = { ficha: 'Abrir e fechar a ficha', mapa: 'Ver o mapa', pocao: 'Beber uma poção da mochila', ajuda: 'Como se joga' };
+  let teclas = { ...TECLAS_BASE };
+  try { Object.assign(teclas, JSON.parse(localStorage.getItem('cardomancer-teclas') || '{}')); } catch (e) { /* fica com as de origem */ }
+  const guardarTeclas = () => { try { localStorage.setItem('cardomancer-teclas', JSON.stringify(teclas)); } catch (e) { /* só nesta visita */ } };
+  const nomeTecla = k => (k === ' ' ? 'Espaço' : k.length === 1 ? k.toUpperCase() : k);
+  let aMudar = null;
+  const desenharTeclas = () => {
+    $('teclas-lista').innerHTML = Object.keys(NOME_ACAO).map(a => `<li><span>${NOME_ACAO[a]}</span><button data-acao="${a}" class="${aMudar === a ? 'espera' : ''}">${aMudar === a ? 'Carregue numa tecla' : nomeTecla(teclas[a])}</button></li>`).join('');
+  };
+  const abrirTeclas = () => { aMudar = null; desenharTeclas(); $('teclas').classList.add('on'); };
+  const fecharTeclas = () => { aMudar = null; $('teclas').classList.remove('on'); };
+  document.querySelectorAll('.abre-teclas').forEach(b => b.addEventListener('click', abrirTeclas));
+
+  // A opinião do jogador: só o texto, a data e a hora, numa issue do GitHub do jogo.
+  const textoOpiniao = () => {
+    const agora = new Date();
+    const quando = `${agora.toLocaleDateString('pt-PT')} ${agora.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}`;
+    return { quando, corpo: `${$('opiniao-texto').value.trim()}
+
+---
+Enviado do jogo a ${quando}.` };
+  };
+  const fecharOpiniao = () => $('opiniao').classList.remove('on');
+  document.querySelectorAll('.abre-opiniao').forEach(b => b.addEventListener('click', () => { $('opiniao').classList.add('on'); $('opiniao-texto').focus(); }));
+  $('opiniao-fechar').addEventListener('click', fecharOpiniao);
+  $('opiniao-enviar').addEventListener('click', () => {
+    if (!$('opiniao-texto').value.trim()) { $('opiniao-texto').focus(); return; }
+    const { quando, corpo } = textoOpiniao();
+    const url = `https://github.com/leviziinho/cardomancer/issues/new?labels=opiniao&title=${encodeURIComponent(`Opinião de ${quando}`)}&body=${encodeURIComponent(corpo)}`;
+    window.open(url, '_blank', 'noopener');
+  });
+  $('opiniao-copiar').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(textoOpiniao().corpo); $('opiniao-copiar').textContent = 'Copiado'; } catch (e) { $('opiniao-texto').select(); }
+    setTimeout(() => { $('opiniao-copiar').textContent = 'Copiar o texto'; }, 1600);
+  });
+  $('teclas-fechar').addEventListener('click', fecharTeclas);
+  $('teclas-repor').addEventListener('click', () => { teclas = { ...TECLAS_BASE }; guardarTeclas(); aMudar = null; desenharTeclas(); });
+  $('teclas-lista').addEventListener('click', e => { const a = e.target.dataset && e.target.dataset.acao; if (a) { aMudar = a; desenharTeclas(); } });
+  const ACOES = {
+    ficha: () => $('painel').classList.toggle('on'),
+    mapa: () => $('peek-map').click(),
+    ajuda: () => $('ajuda').click(),
+    pocao: () => { if (G && usarItem('pocao')) { sfx.coin(); ui.sync(); } },
+  };
   window.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { $('lore').classList.remove('on'); $('painel').classList.remove('on'); }
-    if (e.key === 'c' || e.key === 'C') $('painel').classList.toggle('on');
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (aMudar) {
+      e.preventDefault();
+      // Os números ficam para as cartas, e o Esc para fechar.
+      if (e.key !== 'Escape' && !/^[0-9]$/.test(e.key) && e.key.length === 1) {
+        const k = e.key.toLowerCase();
+        Object.keys(teclas).forEach(a => { if (teclas[a] === k) teclas[a] = teclas[aMudar]; });
+        teclas[aMudar] = k;
+        guardarTeclas();
+      }
+      aMudar = null; desenharTeclas();
+      return;
+    }
+    if (e.key === 'Escape') { $('lore').classList.remove('on'); $('painel').classList.remove('on'); fecharTeclas(); fecharOpiniao(); return; }
+    // A escrever a opinião, as letras são texto e não atalhos.
+    if ($('teclas').classList.contains('on') || $('opiniao').classList.contains('on') || !G || !G.cls) return;
+    const acao = Object.keys(teclas).find(a => teclas[a] === e.key.toLowerCase());
+    if (acao) ACOES[acao]();
   });
   $('painel-corpo').addEventListener('click', e => {
     const id = e.target.dataset && e.target.dataset.usar;
@@ -855,7 +1003,7 @@ async function main() {
   });
 
   // As configurações da abertura são as mesmas do painel da direita.
-  const opcoesAbertura = [...$('title-opcoes').children];
+  const opcoesAbertura = [...$('title-opcoes').children].filter(b => b.dataset.alvo);
   const rotulos = () => opcoesAbertura.forEach(b => { b.textContent = $(b.dataset.alvo).textContent; });
   rotulos();
   opcoesAbertura.forEach(b => b.addEventListener('click', async () => { await $(b.dataset.alvo).click(); setTimeout(rotulos, 50); }));
@@ -867,11 +1015,16 @@ async function main() {
   });
   $('title-ajuda').addEventListener('click', () => { abrirLore('Como se joga', COMO_JOGAR); $('rever-guia').hidden = true; });
 
+  // A música da abertura (Si menor) entra no primeiro toque: os navegadores não deixam tocar antes disso.
+  const tocarAbertura = () => { musica.modo('abertura'); musica.ligar(); };
+  ['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, tocarAbertura, { once: true }));
   await new Promise(resolve => $('start').addEventListener('click', resolve, { once: true }));
+  ['pointerdown', 'keydown'].forEach(ev => window.removeEventListener(ev, tocarAbertura));
   pedirEcraInteiro();
   await perguntarPrimeiraVez();
   sfx.card();
   musica.ligar();
+  musica.modo('calma');
   // O preto desvanece enquanto a câmara desce sobre a mesa.
   $('title').classList.add('sai');
   await world.revelarMesa();
