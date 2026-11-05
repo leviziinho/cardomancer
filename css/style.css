@@ -1,4 +1,4 @@
-:root { --f-titulo: "IM Fell English SC", Georgia, serif; --f-texto: "IM Fell English", Georgia, serif; }
+:root { --f-titulo: "EB Garamond", "IM Fell English SC", Georgia, serif; --f-texto: "EB Garamond", "IM Fell English", Georgia, serif; }
 /* A Andika vem com o jogo (licença em fonts/OFL.txt), 20% mais pequena do que de origem: assim cabe onde a outra cabia. */
 @font-face { font-family: 'Andika Cardo'; src: url(../fonts/andika-400.woff2) format('woff2'); font-weight: 400; font-style: normal; font-display: swap; size-adjust: 80%; }
 @font-face { font-family: 'Andika Cardo'; src: url(../fonts/andika-700.woff2) format('woff2'); font-weight: 700; font-style: normal; font-display: swap; size-adjust: 80%; }

@@ -903,7 +903,8 @@ function desenharPainel() {
 // A letra: a legível (Andika) é a de origem, a medieval (IM Fell English) fica para quem a preferir.
 const LETRAS = {
   legivel: { titulo: '"Andika Cardo", Verdana, sans-serif', texto: '"Andika Cardo", Verdana, sans-serif', nome: 'legível' },
-  classica: { titulo: '"IM Fell English SC", Georgia, serif', texto: '"IM Fell English", Georgia, serif', nome: 'medieval' },
+  // A EB Garamond só traz os algarismos (os da IM Fell descem abaixo da linha); o resto é IM Fell.
+  classica: { titulo: '"EB Garamond", "IM Fell English SC", Georgia, serif', texto: '"EB Garamond", "IM Fell English", Georgia, serif', nome: 'medieval' },
 };
 function usarLetra(nome) {
   const l = LETRAS[nome] || LETRAS.legivel;
@@ -917,7 +918,7 @@ try { letra = localStorage.getItem('cardomancer-letra') || 'legivel'; } catch (e
 
 async function main() {
   try {
-    await Promise.all(['40px "IM Fell English SC"', '40px "IM Fell English"', 'italic 40px "IM Fell English"', '40px "Andika Cardo"', '700 40px "Andika Cardo"', 'italic 40px "Andika Cardo"'].map(f => document.fonts.load(f, 'Áçã')));
+    await Promise.all(['40px "IM Fell English SC"', '40px "IM Fell English"', 'italic 40px "IM Fell English"', '40px "Andika Cardo"', '700 40px "Andika Cardo"', 'italic 40px "Andika Cardo"'].map(f => document.fonts.load(f, 'Áçã')).concat(['40px "EB Garamond"', '600 40px "EB Garamond"', 'italic 40px "EB Garamond"'].map(f => document.fonts.load(f, '0123456789'))));
   } catch (e) { /* sem fontes, usa Georgia */ }
   usarLetra(letra);
 
