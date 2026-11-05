@@ -305,8 +305,8 @@ function sincronizarTabuleiro() {
   };
   const quer = {
     classe: G.cls ? especClasse() : null,
-    raca: G.raca ? { chave: G.raca, spec: { tema: 'raca', titulo: RACAS[G.raca].nome, glyph: RACAS[G.raca].glyph, desc: RACAS[G.raca].desc } } : null,
-    antecedente: G.bg ? { chave: G.bg, spec: { tema: 'antecedente', titulo: ANTECEDENTES[G.bg].nome, glyph: ANTECEDENTES[G.bg].glyph, desc: ANTECEDENTES[G.bg].desc } } : null,
+    raca: G.raca ? { chave: G.raca, spec: { tema: 'raca', titulo: RACAS[G.raca].nome, glyph: RACAS[G.raca].glyph, desc: RACAS[G.raca].desc, arte: `racas/${G.raca}` } } : null,
+    antecedente: G.bg ? { chave: G.bg, spec: { tema: 'antecedente', titulo: ANTECEDENTES[G.bg].nome, glyph: ANTECEDENTES[G.bg].glyph, desc: ANTECEDENTES[G.bg].desc, arte: `antecedentes/${G.bg}` } } : null,
     arma: corpo('arma'), armadura: corpo('armadura'), acessorio: corpo('acessorio'),
   };
   Object.keys(quer).forEach(l => {
@@ -357,7 +357,7 @@ function sincronizarMochila() {
 function sincronizarExtras() {
   const quer = [
     ...talentosAtivos().map(t => ({ chave: t.id, spec: { tema: 'talento', titulo: t.nome, glyph: t.glyph || 'star', desc: t.desc } })),
-    ...G.aliados.map(id => ({ chave: ALIADOS[id].nome, spec: { tema: 'social', etiqueta: 'Aliado', titulo: ALIADOS[id].nome, glyph: 'person', desc: `${resumoAliado(fichaAliado(id))}. ${extraAliado(id)}` } })),
+    ...G.aliados.map(id => ({ chave: ALIADOS[id].nome, spec: { tema: 'social', etiqueta: 'Aliado', titulo: ALIADOS[id].nome, glyph: 'person', arte: `aliados/${id}`, desc: `${resumoAliado(fichaAliado(id))}. ${extraAliado(id)}` } })),
   ];
   Object.keys(cartasExtra).forEach(k => { if (!quer.some(q => q.chave === k)) trocarCarta(cartasExtra, k, null); });
   quer.forEach((q, i) => {
@@ -555,7 +555,8 @@ const ui = {
     dica('livro');
     paginaAtual = p;
     desenharFolha(p);
-    await world.book.turn({ ...p, termos: termosDe(p.texto || '') });
+    // O lugar onde o herói está escolhe a pintura da página, quando há uma.
+    await world.book.turn({ lugar: G && (G.lugar || G.cidade), ...p, termos: termosDe(p.texto || '') });
     atualizaBotaoMapa();
   },
 
@@ -587,7 +588,7 @@ const ui = {
   },
 
   pino() {
-    world.setPin(CLASSES[G.cls].cor, CLASSES[G.cls].glyph, G.cidade);
+    world.setPin(CLASSES[G.cls].cor, CLASSES[G.cls].glyph, G.cidade, G.cls);
   },
 
   // Uma pista encontrada vira carta na mesa, e pode ler-se a qualquer momento.
@@ -728,7 +729,7 @@ const ui = {
     const t = G.trama, obj = OBJETIVOS[t.objetivo], v = VILOES[t.vilao], rev = REVIRAVOLTAS[t.reviravolta];
     ui.prompt('A sua missão', 'Isto é o que sabe. Há uma parte que continua selada.');
     // As cartas flutuam acima do pino, que está de pé no mapa e não pode ficar à frente delas.
-    cartaMissao = world.createCard({ tema: 'classe', etiqueta: 'Missão', titulo: fmt(obj.titulo), glyph: obj.glyph, desc: obj.desc });
+    cartaMissao = world.createCard({ tema: 'classe', etiqueta: 'Missão', titulo: fmt(obj.titulo), glyph: obj.glyph, desc: fmt(obj.desc) });
     sfx.card();
     await world.fly(cartaMissao, { pos: [CX - 3, 3, 1], rot: [TILT, 0, 0], scale: 1.4 }, .9, { arc: 3 });
 
@@ -900,7 +901,7 @@ function desenharPainel() {
     <section><h3>Aliados</h3><ul>${aliados}</ul></section>`;
 }
 
-// A letra: a legível (Andika) é a de origem, a medieval (IM Fell English) fica para quem a preferir.
+// A letra: a medieval (IM Fell English) é a padrão desde 5 nov.; a legível (Andika) fica para quem a preferir.
 const LETRAS = {
   legivel: { titulo: '"Andika Cardo", Verdana, sans-serif', texto: '"Andika Cardo", Verdana, sans-serif', nome: 'legível' },
   // A EB Garamond só traz os algarismos (os da IM Fell descem abaixo da linha); o resto é IM Fell.
@@ -913,13 +914,23 @@ function usarLetra(nome) {
   document.body.classList.toggle('legivel', l === LETRAS.legivel);
   $('letra-btn').textContent = `Letra: ${l.nome}`;
 }
-let letra = 'legivel';
-try { letra = localStorage.getItem('cardomancer-letra') || 'legivel'; } catch (e) { /* sem memória, fica a legível */ }
+// A chave mudou de nome quando a medieval passou a padrão, para valer também para quem já tinha escolhido.
+let letra = 'classica';
+try { letra = localStorage.getItem('cardomancer-letra2') || 'classica'; } catch (e) { /* sem memória, fica a medieval */ }
 
 async function main() {
   try {
     await Promise.all(['40px "IM Fell English SC"', '40px "IM Fell English"', 'italic 40px "IM Fell English"', '40px "Andika Cardo"', '700 40px "Andika Cardo"', 'italic 40px "Andika Cardo"'].map(f => document.fonts.load(f, 'Áçã')).concat(['40px "EB Garamond"', '600 40px "EB Garamond"', 'italic 40px "EB Garamond"'].map(f => document.fonts.load(f, '0123456789'))));
   } catch (e) { /* sem fontes, usa Georgia */ }
+  // A mesa, o tabuleiro e o mapa desenham-se uma vez ao abrir: as imagens pintadas têm de estar prontas antes.
+  // Espera só pelas que ainda não carregaram, e nunca mais de 4 segundos.
+  if (typeof ARTE !== 'undefined') {
+    const faltam = Object.values(ARTE.img).filter(i => !i.complete);
+    await Promise.race([
+      Promise.all(faltam.map(i => new Promise(r => { i.addEventListener('load', r, { once: true }); i.addEventListener('error', r, { once: true }); }))),
+      new Promise(r => setTimeout(r, 4000)),
+    ]);
+  }
   usarLetra(letra);
 
   if (typeof THREE === 'undefined') {
@@ -954,6 +965,20 @@ async function main() {
     sfx.page();
   };
 
+  // O logótipo pintado toma o lugar do título em letra, quando existe.
+  if (typeof ARTE !== 'undefined' && ARTE.logo) {
+    const h = $('title').querySelector('h1'), logo = new Image();
+    logo.src = ARTE.logo; logo.alt = 'Cardomancer';
+    h.replaceChildren(logo); h.classList.add('com-logo');
+  }
+  // A placa pintada dos botões (veludo e moldura dourada), em peças que o CSS estica.
+  if (typeof ARTE !== 'undefined' && ARTE.botao) {
+    const r = document.documentElement.style;
+    r.setProperty('--botao', `url(${ARTE.botao})`);
+    r.setProperty('--botao-liso', `url(${ARTE.botaoLiso})`);
+    r.setProperty('--botao-orn', `url(${ARTE.botaoOrn})`);
+    document.documentElement.classList.add('placas');
+  }
   $('loading').classList.remove('on');
   $('title').classList.add('on');
 
@@ -990,7 +1015,7 @@ async function main() {
   // Muda já o que está à vista: o livro e o mapa. As cartas novas saem com a letra nova.
   $('letra-btn').addEventListener('click', async () => {
     letra = letra === 'legivel' ? 'classica' : 'legivel';
-    try { localStorage.setItem('cardomancer-letra', letra); } catch (e) { /* fica só nesta visita */ }
+    try { localStorage.setItem('cardomancer-letra2', letra); } catch (e) { /* fica só nesta visita */ }
     usarLetra(letra);
     mapaChave = '';
     refazerMapa();

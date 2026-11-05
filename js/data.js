@@ -2,10 +2,10 @@
 // A história (cenas, tramas e textos de contexto) está em historia.js.
 
 const ATTR = {
-  forca: { nome: 'Força', glyph: 'hammer' },
-  agilidade: { nome: 'Agilidade', glyph: 'feather' },
-  mente: { nome: 'Mente', glyph: 'eye' },
-  carisma: { nome: 'Carisma', glyph: 'speech' },
+  forca: { nome: 'Força', glyph: 'punho' },
+  agilidade: { nome: 'Agilidade', glyph: 'pesAlados' },
+  mente: { nome: 'Mente', glyph: 'cerebro' },
+  carisma: { nome: 'Carisma', glyph: 'labios' },
 };
 
 const TIPOS = {
@@ -19,7 +19,7 @@ const TIPOS = {
 
 const CLASSES = {
   barbaro: { nome: 'Bárbaro', glyph: 'axe', cor: 0x9c1414, vida: 12, attrs: { forca: 2, agilidade: 2, carisma: -1, mente: -1 }, raridade: 'lendaria', habilidade: 'Fúria: +3 Força, um ataque a mais por ronda, -2 CA, e não foge.', desc: 'Resolve portas, grilhões e discussões da mesma maneira: com força.' },
-  ladino: { nome: 'Ladino', glyph: 'dagger', cor: 0x2b2b33, vida: 8, attrs: { agilidade: 4, mente: 2, carisma: 1, forca: -1 }, raridade: 'rara', vantagem: ['mente', 'agilidade'], vePrimeiro: true, habilidade: 'Fora de combate, testes de Mente e Agilidade com dois d20: fica o melhor. Nunca é apanhado de surpresa: na estrada vê primeiro, e pode passar à larga.', desc: 'Vê a armadilha antes de a pisar e a saída antes de precisar dela.' },
+  ladino: { nome: 'Ladino', glyph: 'dagger', cor: 0x2b2b33, vida: 8, attrs: { agilidade: 4, mente: 2, carisma: 1, forca: -1 }, raridade: 'rara', vantagem: ['mente', 'agilidade'], vePrimeiro: true, habilidade: 'Fora de combate, testes de Agilidade e Mente com dois d20: fica o melhor. Vê sempre os perigos da estrada, e pode passar à larga.', desc: 'Vê a armadilha antes de a pisar e a saída antes de precisar dela.' },
   bardo: { nome: 'Bardo', glyph: 'note', cor: 0xb0701c, vida: 7, attrs: { carisma: 4, mente: 1 }, raridade: 'rara', aliadoInicial: true, aliadosNivel: true, habilidade: 'Começa com um aliado, e os aliados somam o seu nível ao dano.', desc: 'Convence um inimigo de que nunca houve motivo para lutar.' },
   mago: { nome: 'Mago', glyph: 'star', cor: 0x3a2a8c, vida: 12, attrs: { mente: 3, carisma: 1 }, raridade: 'incomum', caDe: 'mente', habilidade: 'Soma a Mente à CA.', desc: 'Lê as runas que os outros tomam por riscos na pedra.' },
   clerigo: { nome: 'Clérigo', glyph: 'sun', cor: 0xd8c27a, vida: 10, attrs: { mente: 3, carisma: 2 }, raridade: 'incomum', curaSempre: 'curar', habilidade: 'Em combate, tem sempre à mão Curar Feridas.', desc: 'Sara feridas e manda de volta o que devia continuar morto.' },

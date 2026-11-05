@@ -7,7 +7,7 @@ const sinal = v => `${v >= 0 ? '+' : ''}${v}`;
 function especItem(id, extra = {}) {
   const it = ITENS[id];
   const nomes = { arma: 'Arma', armadura: 'Armadura', acessorio: 'Acessório', mochila: 'Mochila' };
-  return { tema: G.melhorias[id] ? 'rara' : 'equipamento', etiqueta: nomes[it.slot], titulo: nomeItem(id), glyph: it.glyph, desc: descItem(id), itemId: id, ...extra };
+  return { tema: G.melhorias[id] ? 'rara' : 'equipamento', etiqueta: nomes[it.slot], titulo: nomeItem(id), glyph: it.glyph, desc: descItem(id), itemId: id, arte: `itens/${id}`, ...extra };
 }
 
 function rotuloReq(req) {
@@ -1116,8 +1116,14 @@ async function jogarFinal(ui) {
 // Na carta da classe: os atributos que traz, e a habilidade que é só dela.
 function descClasse(k) {
   const c = CLASSES[k];
-  const at = Object.keys(c.attrs || {}).filter(a => c.attrs[a]).sort((a, b) => c.attrs[b] - c.attrs[a]).map(a => `${sinal(c.attrs[a])} ${ATTR[a].nome}`).join(', ');
-  return [at && `${at}.`, c.habilidade || c.desc].filter(Boolean).join(' ');
+  return c.habilidade || c.desc;
+}
+
+// O rodapé da carta de classe: a Vida e os bónus de atributo, com os seus símbolos.
+function selosClasse(k) {
+  const c = CLASSES[k];
+  const at = Object.keys(c.attrs || {}).filter(a => c.attrs[a]).sort((a, b) => c.attrs[b] - c.attrs[a]);
+  return [['heart', `${c.vida}`, '#e8564a'], ...at.map(a => [ATTR[a].glyph, sinal(c.attrs[a]), c.attrs[a] < 0 ? '#c9a58a' : null])];
 }
 
 // O Patrulheiro e o Druida trazem um animal; o Bardo, alguém que ouviu as suas canções.
@@ -1150,20 +1156,20 @@ async function fazerDraft(ui) {
 
   const cls = tirar(doMundo(CLASSES), 3);
   G.cls = cls[await ui.draft('Escolha a sua classe', 'O baralho oferece três. As outras voltam ao monte.', cls.map(k => ({
-    tema: 'classe', etiqueta: ARCANOS[k], tarot: k, titulo: CLASSES[k].nome, glyph: CLASSES[k].glyph, desc: descClasse(k), rodape: `Vida ${CLASSES[k].vida}`, rodapeGlyph: 'heart', cls: k,
+    tema: 'classe', etiqueta: ARCANOS[k], tarot: k, titulo: CLASSES[k].nome, glyph: CLASSES[k].glyph, desc: descClasse(k), selos: selosClasse(k), cls: k,
   })), { lugar: 'classe' })];
   companhiaInicial();
   ui.sync();
 
   const bgs = tirar(doMundo(ANTECEDENTES), 3);
   G.bg = bgs[await ui.draft('Escolha o seu antecedente', 'De onde você vem muda o que consegue fazer.', bgs.map(k => ({
-    tema: 'antecedente', titulo: ANTECEDENTES[k].nome, glyph: ANTECEDENTES[k].glyph, desc: ANTECEDENTES[k].desc,
+    tema: 'antecedente', titulo: ANTECEDENTES[k].nome, glyph: ANTECEDENTES[k].glyph, desc: ANTECEDENTES[k].desc, arte: `antecedentes/${k}`,
   })), { lugar: 'antecedente' })];
   ui.sync();
 
   const racas = tirar(doMundo(RACAS), 3);
   G.raca = racas[await ui.draft('Escolha a sua raça', 'Algumas portas só se abrem para certos povos.', racas.map(k => ({
-    tema: 'raca', titulo: RACAS[k].nome, glyph: RACAS[k].glyph, desc: RACAS[k].desc,
+    tema: 'raca', titulo: RACAS[k].nome, glyph: RACAS[k].glyph, desc: RACAS[k].desc, arte: `racas/${k}`,
   })), { lugar: 'raca' })];
   ui.sync();
 

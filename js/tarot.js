@@ -294,15 +294,24 @@ const ARCANOS_DESENHO = {
 };
 
 // Pinta o arcano no retângulo, com a cabeça em arco como nos baralhos antigos.
-function desenharArcano(x, chave, X, Y, W, H, moldura) {
+// Serve também às outras cartas com ilustração pintada: vem em "pintada", e não há arcano.
+function arteDe(chave) {
+  const p = typeof ARTE !== 'undefined' && ARTE.img[chave];
+  return p && p.complete && p.naturalWidth ? p : null;
+}
+function desenharArcano(x, chave, X, Y, W, H, moldura, pintada = null) {
   const a = ARCANOS_DESENHO[chave];
-  if (!a) return;
+  if (!a && !pintada) return;
   x.save();
   x.beginPath(); x.moveTo(X, Y + H); x.lineTo(X, Y + 60); x.quadraticCurveTo(X, Y, X + 60, Y); x.lineTo(X + W - 60, Y); x.quadraticCurveTo(X + W, Y, X + W, Y + 60); x.lineTo(X + W, Y + H); x.closePath();
   x.clip();
   const ceu = x.createLinearGradient(0, Y, 0, Y + H);
-  ceu.addColorStop(0, a.ceu[0]); ceu.addColorStop(1, a.ceu[1]);
+  ceu.addColorStop(0, a ? a.ceu[0] : '#3a2a1a'); ceu.addColorStop(1, a ? a.ceu[1] : '#1a120a');
   x.fillStyle = ceu; x.fillRect(X, Y, W, H);
+  // Se já há ilustração pintada para esta classe, é ela que ocupa a janela.
+  const pintura = pintada || arteDe(`classes/${chave}`);
+  if (pintura) x.drawImage(pintura, X, Y, W, H);
+  else {
   // A cena faz-se num quadro de 1000x1000, encostada ao fundo da moldura.
   const e = Math.min(W, H) / 1000;
   x.save();
@@ -314,8 +323,9 @@ function desenharArcano(x, chave, X, Y, W, H, moldura) {
   x.globalAlpha = .07; x.strokeStyle = '#201008'; x.lineWidth = 1.5;
   for (let i = Y; i < Y + H; i += 7) { x.beginPath(); x.moveTo(X, i); x.lineTo(X + W, i); x.stroke(); }
   x.globalAlpha = 1;
+  }
   const papel = x.createRadialGradient(X + W / 2, Y + H / 2, H * .2, X + W / 2, Y + H / 2, H * .8);
-  papel.addColorStop(0, 'rgba(240,210,150,0)'); papel.addColorStop(1, 'rgba(70,40,15,.42)');
+  papel.addColorStop(0, 'rgba(240,210,150,0)'); papel.addColorStop(1, pintura ? 'rgba(50,28,10,.3)' : 'rgba(70,40,15,.42)');
   x.fillStyle = papel; x.fillRect(X, Y, W, H);
   x.restore();
   x.strokeStyle = moldura; x.lineWidth = 10;

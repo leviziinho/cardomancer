@@ -78,7 +78,7 @@ const sfx = (() => {
   };
 })();
 
-const CARD = { w: 3.3, h: 4.62 };
+const CARD = { w: 3.3, h: 4.62, raio: .31 };
 const NITIDEZ = { fpsMinimo: 24 };
 const TILT = -1.15;
 const FACE_DOWN = Math.PI / 2;
@@ -226,19 +226,20 @@ function createWorld(canvasEl) {
     // A metade esquerda roda sobre a lombada para o livro fechar.
     const hinge = new THREE.Group();
     g.add(hinge);
-    const coverMat = couro(leatherRed);
+    const coverMat = couro(tex.leather('#17120f'));
+    // A face de fora da metade esquerda é a capa, com o logótipo; vê-se quando o livro fecha.
+    // Com o livro fechado, a face de baixo da caixa fica rodada meia volta: a textura roda com ela.
+    const capaTex = tex.capaLivro();
+    capaTex.center.set(.5, .5); capaTex.rotation = Math.PI;
+    const capaMat = new THREE.MeshStandardMaterial({ map: capaTex, normalMap: grao, normalScale: new THREE.Vector2(.5, .5), roughness: .7 });
     const coverHalf = sign => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(W + 0.28, 0.16, H + 0.42), coverMat);
+      const mat = sign < 0 ? [coverMat, coverMat, coverMat, capaMat, coverMat, coverMat] : coverMat;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(W + 0.28, 0.16, H + 0.42), mat);
       m.position.set(sign * (W + 0.28) / 2, 0.08, 0);
       return m;
     };
     g.add(coverHalf(1));
     hinge.add(coverHalf(-1));
-    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => {
-      const corner = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.18, 0.62), brass);
-      corner.position.set(a * (W + 0.03), 0.08, b * (H / 2 - 0.1));
-      (a < 0 ? hinge : g).add(corner);
-    });
 
     const edge = tex.pageEdge();
     edge.wrapS = edge.wrapT = THREE.RepeatWrapping;
@@ -292,11 +293,6 @@ function createWorld(canvasEl) {
     const fBack = new THREE.Mesh(fGeoB, pageMat());
     flip.add(fFront, fBack);
     g.add(flip);
-
-    // Fita a marcar a página, a sair por baixo do livro.
-    const fita = new THREE.Mesh(new THREE.BoxGeometry(.3, .02, .7), new THREE.MeshStandardMaterial({ color: 0x8f1d1a, roughness: .55 }));
-    fita.position.set(.5, .2, H / 2 + .3);
-    g.add(fita);
 
     g.rotation.x = Math.PI / 2;
     g.position.set(0, LIVRO.y, -LIVRO.d);
@@ -471,9 +467,25 @@ function createWorld(canvasEl) {
     scene.add(g);
     return g;
   })();
-  function setPin(cor, glyph, lugar) {
-    pinLac.color.set(cor);
-    pinFace.map = tex.pinFace(glyph, '#' + cor.toString(16).padStart(6, '0'));
+  // Com uma miniatura pintada da classe (arte/miniaturas), o pino passa a ser a figura de pé na sua base;
+  // sem ela, fica o pino de laca com o símbolo.
+  function setPin(cor, glyph, lugar, classe) {
+    const mini = typeof ARTE !== 'undefined' && ARTE.img['miniaturas/' + classe];
+    const [corpo, colar, face] = pin.children;
+    if (mini && mini.complete && mini.naturalWidth) {
+      const t = new THREE.Texture(mini);
+      t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); t.needsUpdate = true;
+      pinFace.map = t;
+      const alto = 2.1;
+      face.center.set(.5, 0); face.position.y = 0;
+      face.scale.set(alto * mini.naturalWidth / mini.naturalHeight, alto, 1);
+      corpo.visible = colar.visible = false;
+    } else {
+      pinLac.color.set(cor);
+      pinFace.map = tex.pinFace(glyph, '#' + cor.toString(16).padStart(6, '0'));
+      face.center.set(.5, .5); face.position.y = 1.35; face.scale.set(.95, .95, 1);
+      corpo.visible = colar.visible = true;
+    }
     pinFace.needsUpdate = true;
     pin.position.copy(mapToWorld(lugar));
     pin.visible = true;
@@ -646,7 +658,7 @@ function createWorld(canvasEl) {
   })();
 
   // ---- Cartas ----
-  const cardShape = roundedRect(CARD.w, CARD.h, .17);
+  const cardShape = roundedRect(CARD.w, CARD.h, CARD.raio);
   const faceGeo = new THREE.ShapeGeometry(cardShape, 8);
   {
     const p = faceGeo.attributes.position, uv = faceGeo.attributes.uv;
@@ -657,7 +669,8 @@ function createWorld(canvasEl) {
   const bodyMat = new THREE.MeshStandardMaterial({ color: 0xcdbb92, roughness: .8 });
   const superficieNormal = tex.superficieCarta(), superficieTarot = tex.superficieCarta(true);
   const backTex = tex.cardBack();
-  const backMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: .5, envMapIntensity: .6 });
+  // O verso é fosco: quase não reflete a luz.
+  const backMat = new THREE.MeshStandardMaterial({ map: backTex, roughness: .95, envMapIntensity: .15 });
 
   const hitMat = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
   const cards = new Set();
@@ -666,7 +679,8 @@ function createWorld(canvasEl) {
     const g = new THREE.Group();
     const map = tex.cardFace(spec);
     // Onde há folha de ouro a luz reflete, e as cartas raras mudam de cor conforme o ângulo.
-    const superficie = spec.tarot ? superficieTarot : superficieNormal;
+    // As cartas com ilustração não têm medalhão: o anel de ouro em relevo ficaria a brilhar por cima da imagem.
+    const superficie = spec.tarot || (spec.arte && arteDe(spec.arte)) ? superficieTarot : superficieNormal;
     const base = { map, normalMap: superficie.normal, normalScale: new THREE.Vector2(.35, .35), roughnessMap: superficie.brilho, metalnessMap: superficie.brilho, roughness: 1, metalness: 1, envMapIntensity: .85 };
     const frontMat = (spec.tema === 'pista' || spec.tema === 'rara') && !LEVE
       ? new THREE.MeshPhysicalMaterial({ ...base, iridescence: .55, iridescenceIOR: 1.4, iridescenceThicknessRange: [180, 420] })

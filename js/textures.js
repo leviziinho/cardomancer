@@ -73,7 +73,86 @@ function toTexture(c, renderer, opts = {}) {
   return t;
 }
 
+// Os símbolos dos atributos são pintados a cores, num quadro de 100x100, com contorno a tinta.
+const TINTA_ICONE = '#2a140a';
+function pintaIcone(ctx, partes) {
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  partes.forEach(([d, fundo, linha = TINTA_ICONE, largura = 3]) => {
+    const p = new Path2D(d);
+    if (fundo) {
+      if (Array.isArray(fundo)) { const g = ctx.createLinearGradient(0, 0, 0, 100); fundo.forEach((c, i) => g.addColorStop(i / (fundo.length - 1), c)); ctx.fillStyle = g; }
+      else ctx.fillStyle = fundo;
+      ctx.fill(p);
+    }
+    if (linha) { ctx.strokeStyle = linha; ctx.lineWidth = largura; ctx.stroke(p); }
+  });
+}
+const PELE = ['#f2c9a0', '#d39a6c', '#a86e45'];
+const ICONES_COR = {
+  // Mente: um cérebro azul, de perfil.
+  cerebro: [
+    ['M18 58C8 50 10 32 24 26 28 14 46 10 56 16 66 8 86 14 88 30 96 38 94 56 84 62 80 72 66 74 60 70L57 82C55 88 47 88 47 82L49 70C38 74 24 70 18 58z', ['#b9d4f6', '#6d9ad8', '#2f5a9e'], '#16264a', 3.5],
+    ['M24 50C34 45 44 52 56 47 64 44 71 51 80 49', null, '#16264a', 2.4],
+    ['M31 29C35 35 28 40 34 46', null, '#16264a', 2.2],
+    ['M47 19C43 27 52 31 46 40', null, '#16264a', 2.2],
+    ['M63 21C58 29 67 33 61 41', null, '#16264a', 2.2],
+    ['M78 28C73 34 81 38 75 45', null, '#16264a', 2.2],
+    ['M34 56C40 60 36 65 44 67', null, '#16264a', 2.2],
+    ['M64 55C70 59 65 64 72 65', null, '#16264a', 2.2],
+    ['M30 24C36 20 42 21 46 24', null, 'rgba(255,255,255,.6)', 2],
+  ],
+  // Força: um punho fechado, de frente.
+  punho: [
+    ['M33 80h34v16H33z', ['#9a6234', '#6b3d1c'], TINTA_ICONE, 3],
+    ['M20 40h60v22c0 14-10 22-24 22H44C30 84 20 76 20 62z', PELE, TINTA_ICONE, 3],
+    ['M21 30a8 8 0 0 1 16 0v14a8 8 0 0 1-16 0z', PELE, TINTA_ICONE, 3],
+    ['M36 24a8 8 0 0 1 16 0v18a8 8 0 0 1-16 0z', PELE, TINTA_ICONE, 3],
+    ['M51 24a8 8 0 0 1 16 0v18a8 8 0 0 1-16 0z', PELE, TINTA_ICONE, 3],
+    ['M66 30a8 8 0 0 1 16 0v14a8 8 0 0 1-16 0z', PELE, TINTA_ICONE, 3],
+    ['M19 52C26 44 46 44 58 52 62 56 60 63 53 63 43 61 31 61 22 66z', PELE, TINTA_ICONE, 3],
+    ['M26 26c2-2 5-2 7 0 M41 20c2-2 5-2 7 0 M56 20c2-2 5-2 7 0 M71 26c2-2 5-2 7 0', null, 'rgba(255,245,225,.8)', 2],
+  ],
+  // Agilidade: dois pés com asas no calcanhar.
+  pesAlados: [
+    ['M46 26V54C46 60 49 64 56 64H90C96 64 98 60 96 56 98 54 96 50 92 50L68 44C62 41 60 34 60 26z', ['#e0b28a', '#b98458', '#8c5a34'], TINTA_ICONE, 3],
+    ['M48 40C42 28 32 18 20 14 24 22 26 26 30 28 24 28 22 30 20 34 28 36 32 36 36 36 30 38 28 42 26 46 34 46 42 44 48 46z', ['#ffffff', '#e4d8bc'], TINTA_ICONE, 2.6],
+    ['M46 38C38 32 30 26 24 22 M46 42C38 40 30 38 24 36', null, 'rgba(110,85,55,.8)', 1.6],
+    ['M26 50V78C26 84 29 88 36 88H70C76 88 78 84 76 80 78 78 76 74 72 74L48 68C42 65 40 58 40 50z', PELE, TINTA_ICONE, 3],
+    ['M64 80V87 M58 79V87 M70 81V87', null, 'rgba(90,50,25,.7)', 1.6],
+    ['M28 64C22 52 12 42 0 38 4 46 6 50 10 52 4 52 2 54 0 58 8 60 12 60 16 60 10 62 8 66 6 70 14 70 22 68 28 70z', ['#ffffff', '#ece2c8'], TINTA_ICONE, 2.6],
+    ['M26 62C18 56 10 50 4 46 M26 66C18 64 10 62 4 60', null, 'rgba(110,85,55,.8)', 1.6],
+  ],
+  // Carisma: uns lábios pintados, a sorrir.
+  labios: [
+    ['M6 42C24 52 38 55 50 55 62 55 76 52 94 42 86 62 70 74 50 74 30 74 14 62 6 42z', ['#f05a62', '#c4202e', '#7e0d18'], '#3a0610', 3],
+    ['M6 42C17 36 29 27 40 31 45 33 48 36 50 33 52 36 55 33 60 31 71 27 83 36 94 42 77 49 62 52 50 52 38 52 23 49 6 42z', ['#f2707a', '#d0283a', '#8f1424'], '#3a0610', 3],
+    ['M6 42C24 51 38 53 50 53 62 53 76 51 94 42', null, '#3a0610', 3],
+    ['M44 63C50 61 60 61 66 64', null, 'rgba(255,240,240,.75)', 3],
+    ['M30 38C34 36 38 36 41 37', null, 'rgba(255,230,230,.6)', 2],
+  ],
+};
+
+// Ícone pintado à mão (arte/icones), quando existe: tem as suas cores e ignora a cor pedida.
+function iconePintado(name) {
+  const i = typeof ARTE !== 'undefined' && ARTE.img['icones/' + name];
+  return i && i.complete && i.naturalWidth ? i : null;
+}
+function desenhaPintado(ctx, img, x, y, size) {
+  const e = size / Math.max(img.naturalWidth, img.naturalHeight);
+  ctx.drawImage(img, x - img.naturalWidth * e / 2, y - img.naturalHeight * e / 2, img.naturalWidth * e, img.naturalHeight * e);
+}
+
 function drawGlyph(ctx, name, x, y, size, color) {
+  const pintado = iconePintado(name);
+  if (pintado) return desenhaPintado(ctx, pintado, x, y, size);
+  if (ICONES_COR[name]) {
+    ctx.save();
+    ctx.translate(x - size / 2, y - size / 2);
+    ctx.scale(size / 100, size / 100);
+    pintaIcone(ctx, ICONES_COR[name]);
+    ctx.restore();
+    return;
+  }
   ctx.save();
   ctx.translate(x - size / 2, y - size / 2);
   ctx.scale(size / 100, size / 100);
@@ -165,6 +244,7 @@ function desenharMascara(x, tipo, cx, cy, s) {
 
 // Símbolo com volume: sombra por baixo, cor em degradé e um fio de luz por cima.
 function drawGlyphRico(ctx, name, x, y, size, escuro, claro) {
+  if (ICONES_COR[name] || iconePintado(name)) return drawGlyph(ctx, name, x, y, size);
   const caminho = new Path2D(GLYPHS[name] || GLYPHS.star);
   ctx.save();
   ctx.translate(x - size / 2, y - size / 2);
@@ -267,7 +347,10 @@ function fitText(ctx, text, x, y, maxW, maxH, size, minSize, family, color, alig
   ctx.fillStyle = color;
   ctx.textAlign = align;
   ctx.textBaseline = 'alphabetic';
-  lines.forEach((l, i) => ctx.fillText(l, x, y + size + i * lh));
+  // A IM Fell tem traço fino e perde-se no papel manchado: um contorno da mesma cor engrossa-a um pouco.
+  const engrossa = family === FONT_BODY && /IM Fell/.test(family);
+  if (engrossa) { ctx.strokeStyle = color; ctx.lineWidth = Math.max(1, size * .035); ctx.lineJoin = 'round'; }
+  lines.forEach((l, i) => { ctx.fillText(l, x, y + size + i * lh); if (engrossa) ctx.strokeText(l, x, y + size + i * lh); });
   return lines.length * lh;
 }
 
@@ -277,6 +360,11 @@ function textures(renderer) {
   const RES_CARTA = eTelemovel() ? .85 : 1;
   // O medalhão é pequeno para a letra poder ser grande: as cartas têm de se ler sem as aproximar.
   const MEDALHAO = { y: 355, r: 170 };
+  // O raio dos cantos da carta, em pontos da textura. A carta 3D usa o mesmo (scene.js, CARD.raio).
+  const RAIO = 96;
+  // Um retângulo de cantos redondos a d pontos da borda, a seguir a curva do canto da carta.
+  const contorno = (x, d) => { x.beginPath(); x.roundRect(d, d, CARD_W - 2 * d, CARD_H - 2 * d, Math.max(6, RAIO - d)); };
+  const traca = (x, d) => { contorno(x, d); x.stroke(); };
 
   function wood() {
     const S = 2048;
@@ -370,6 +458,12 @@ function textures(renderer) {
     }
     const [m, mx] = canvas(1024, 1024);
     mx.drawImage(b, 0, 0, 1024, 1024);
+    // Tampo pintado (arte/mesa.png): passa a ser a cor, e o relevo vem dos seus próprios veios.
+    const pintada = typeof ARTE !== 'undefined' && ARTE.img.mesa;
+    if (pintada && pintada.complete && pintada.naturalWidth) {
+      x.drawImage(pintada, 0, 0, S, S);
+      mx.filter = 'grayscale(1) contrast(1.4)'; mx.drawImage(pintada, 0, 0, 1024, 1024); mx.filter = 'none';
+    }
     const map = toTexture(c, renderer);
     const normal = normaisDe(m, renderer, 1.5);
     const rough = toTexture(r, renderer, { linear: true });
@@ -446,7 +540,7 @@ function textures(renderer) {
     }
     ox.fillStyle = 'rgb(0,240,0)'; ox.fillRect(0, 0, W, H);
     const traco = (ctx, cor, l, f) => { ctx.strokeStyle = cor; ctx.lineWidth = l * k; f(ctx); };
-    const moldura = ctx => { ctx.strokeRect(50 * k, 50 * k, (CARD_W - 100) * k, (CARD_H - 100) * k); };
+    const moldura = ctx => { ctx.beginPath(); ctx.roundRect(50 * k, 50 * k, (CARD_W - 100) * k, (CARD_H - 100) * k, (RAIO - 50) * k); ctx.stroke(); };
     const anel = ctx => { ctx.beginPath(); ctx.arc(CARD_W / 2 * k, MEDALHAO.y * k, MEDALHAO.r * k, 0, 7); ctx.stroke(); };
     traco(ax, '#f0f0f0', 12, moldura);
     traco(ox, 'rgb(0,115,255)', 9, moldura);
@@ -455,7 +549,10 @@ function textures(renderer) {
     return cartaBase[semAnel];
   }
 
+  // Verso escuro e fosco com o logótipo pintado. Sem logótipo, fica o verso antigo, vermelho com o olho.
   function cardBack(band = '#3a1414') {
+    const logo = typeof ARTE !== 'undefined' && ARTE.img.logo;
+    if (logo) return versoComLogo(logo);
     const [c, x] = canvas(CARD_W, CARD_H);
     const fundo = x.createRadialGradient(CARD_W / 2, CARD_H / 2, 80, CARD_W / 2, CARD_H / 2, CARD_H * .7);
     fundo.addColorStop(0, '#6a2019'); fundo.addColorStop(.55, band); fundo.addColorStop(1, '#180806');
@@ -473,8 +570,8 @@ function textures(renderer) {
     x.fillStyle = 'rgba(232,196,110,.5)';
     for (let i = 0; i < 12; i++) for (let j = 0; j < 17; j++) losango(x, (i + (j % 2) * .5) * passo, j * passo / 2 + 2, 7);
     x.restore();
-    x.lineWidth = 12; x.strokeStyle = ouroEm(x, 0, 0, CARD_W, CARD_H); x.strokeRect(46, 46, CARD_W - 92, CARD_H - 92);
-    x.lineWidth = 3; x.strokeRect(70, 70, CARD_W - 140, CARD_H - 140);
+    x.lineWidth = 12; x.strokeStyle = ouroEm(x, 0, 0, CARD_W, CARD_H); traca(x, 46);
+    x.lineWidth = 3; traca(x, 70);
     [[70, 70], [CARD_W - 70, 70], [70, CARD_H - 70], [CARD_W - 70, CARD_H - 70]].forEach(([a, b]) => {
       x.fillStyle = ouroEm(x, a - 30, b - 30, a + 30, b + 30); losango(x, a, b, 30);
       x.fillStyle = band; losango(x, a, b, 13);
@@ -494,9 +591,48 @@ function textures(renderer) {
     return toTexture(c, renderer);
   }
 
+  function versoComLogo(logo) {
+    const [c, x] = canvas(CARD_W, CARD_H);
+    // Fundo de carvão, com grão fino e manchas suaves, como cartão pintado a negro e gasto ao toque.
+    x.fillStyle = '#16100c'; x.fillRect(0, 0, CARD_W, CARD_H);
+    for (let i = 0; i < 40; i++) {
+      const px = Math.random() * CARD_W, py = Math.random() * CARD_H, r = 120 + Math.random() * 320;
+      const g = x.createRadialGradient(px, py, 0, px, py, r), tom = Math.random() < .5 ? '0,0,0' : '70,50,36';
+      g.addColorStop(0, `rgba(${tom},.16)`); g.addColorStop(1, `rgba(${tom},0)`);
+      x.fillStyle = g; x.fillRect(0, 0, CARD_W, CARD_H);
+    }
+    speckle(x, CARD_W, CARD_H, 30000, .12);
+    speckle(x, CARD_W, CARD_H, 9000, .05, false);
+    const sombra = x.createRadialGradient(CARD_W / 2, CARD_H / 2, CARD_W * .3, CARD_W / 2, CARD_H / 2, CARD_H * .75);
+    sombra.addColorStop(0, 'rgba(0,0,0,0)'); sombra.addColorStop(1, 'rgba(0,0,0,.55)');
+    x.fillStyle = sombra; x.fillRect(0, 0, CARD_W, CARD_H);
+    // Moldura de ouro baço, fina, para não roubar o logótipo.
+    x.globalAlpha = .55;
+    x.lineWidth = 8; x.strokeStyle = ouroEm(x, 0, 0, CARD_W, CARD_H); traca(x, 46);
+    x.lineWidth = 2; traca(x, 66);
+    x.globalAlpha = 1;
+    desgasteBorda(x, '170,150,120');
+    const desenha = () => {
+      const w = CARD_W - 110, h = w * logo.naturalHeight / logo.naturalWidth;
+      x.drawImage(logo, (CARD_W - w) / 2, (CARD_H - h) / 2, w, h);
+    };
+    const t = toTexture(c, renderer);
+    if (logo.complete && logo.naturalWidth) desenha();
+    else logo.addEventListener('load', () => { desenha(); t.needsUpdate = true; }, { once: true });
+    return t;
+  }
+
   // O papel das cartas desenha-se uma vez, e cada carta vira-o à sua maneira.
   let papelCarta = null;
+  // O papel velho pintado, quando existe, serve de fundo e volta por cima no fim,
+  // em multiplicação, para as manchas e o desgaste apanharem também a moldura.
+  const papelPintado = () => { const p = typeof ARTE !== 'undefined' && ARTE.img.papel; return p && p.complete && p.naturalWidth ? p : null; };
   function pintaPapelCarta(x) {
+    if (!papelCarta && papelPintado()) {
+      const [p, px] = canvas(CARD_W, CARD_H);
+      px.drawImage(papelPintado(), 0, 0, CARD_W, CARD_H);
+      papelCarta = p;
+    }
     if (!papelCarta) {
       const [p, px] = canvas(CARD_W, CARD_H);
       paintParchment(px, CARD_W, CARD_H);
@@ -506,6 +642,66 @@ function textures(renderer) {
     if (Math.random() < .5) { x.translate(CARD_W, 0); x.scale(-1, 1); }
     if (Math.random() < .5) { x.translate(0, CARD_H); x.scale(1, -1); }
     x.drawImage(papelCarta, 0, 0);
+    x.restore();
+  }
+
+  // Uma carta muito manuseada: a beira escurece de sujidade, esfola-se e mostra o cartão claro por baixo
+  // (mais nos cantos), e a moldura ganha riscos finos.
+  function desgasteBorda(x, claro = '236,220,188') {
+    const W = CARD_W, H = CARD_H, r = RAIO;
+    // distância de um ponto à beira da carta (positiva para dentro)
+    const beira = (px, py) => {
+      const qx = Math.abs(px - W / 2) - (W / 2 - r), qy = Math.abs(py - H / 2) - (H / 2 - r);
+      return -(Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r);
+    };
+    x.save();
+    contorno(x, 0); x.clip();
+    // sujidade junto à beira
+    x.lineJoin = 'round';
+    [[56, .1], [30, .14], [12, .2]].forEach(([l, a]) => { x.lineWidth = l; x.strokeStyle = `rgba(38,18,6,${a})`; contorno(x, 0); x.stroke(); });
+    // a beira esfregada: traços claros partidos, colados à aresta, como cartão gasto pelos dedos
+    const tracos = () => Array.from({ length: 60 }, (_, i) => i % 2 ? 6 + Math.random() * 70 : 10 + Math.random() * 90);
+    [[2, 7, .42], [4, 4, .3], [7, 2.5, .2]].forEach(([d, l, a]) => {
+      x.setLineDash(tracos()); x.lineDashOffset = Math.random() * 500;
+      x.lineWidth = l; x.strokeStyle = `rgba(${claro},${a})`; contorno(x, d); x.stroke();
+    });
+    x.setLineDash([]);
+    // os cantos gastam-se mais: arredondam e ficam quase brancos
+    [[r, r], [W - r, r], [r, H - r], [W - r, H - r]].forEach(([cx, cy]) => {
+      const ang = Math.atan2(cy - H / 2, cx - W / 2);
+      for (let k = 0; k < 3; k++) {
+        x.lineWidth = 9 - k * 3; x.strokeStyle = `rgba(${claro},${.22 + k * .12})`;
+        x.beginPath(); x.arc(cx, cy, r - 3 - k * 2, ang - .55 - Math.random() * .3, ang + .55 + Math.random() * .3); x.stroke();
+      }
+    });
+    // pequenas falhas soltas, só muito junto à aresta
+    for (let i = 0; i < 9000; i++) {
+      const px = Math.random() * W, py = Math.random() * H, e = beira(px, py);
+      if (e < 0 || e > 14 || Math.random() > Math.exp(-e / 4)) continue;
+      x.fillStyle = `rgba(${claro},${.2 + Math.random() * .35})`;
+      x.fillRect(px, py, 1 + Math.random() * 2.5, 1 + Math.random() * 2.5);
+    }
+    // riscos finos, sobretudo na moldura
+    x.lineCap = 'round';
+    for (let i = 0; i < 40; i++) {
+      const px = Math.random() * W, py = Math.random() * H;
+      if (beira(px, py) > 150 && Math.random() < .7) continue;
+      const a = Math.random() * 6.28, l = 18 + Math.random() * 90;
+      x.strokeStyle = `rgba(${claro},${.08 + Math.random() * .14})`; x.lineWidth = .7 + Math.random() * 1.4;
+      x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + Math.cos(a + .3) * l / 2, py + Math.sin(a + .3) * l / 2, px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke();
+    }
+    x.restore();
+  }
+
+  // As páginas do livro usam o mesmo papel velho das cartas; a da direita vai espelhada,
+  // para as manchas não se repetirem lado a lado.
+  function pintaPapelPagina(x, w, h, espelho) {
+    const p = papelPintado();
+    if (!p) return paintParchment(x, w, h, '#e9dbb8');
+    x.save();
+    if (espelho) { x.translate(w, 0); x.scale(-1, 1); }
+    const sh = p.naturalWidth * h / w;
+    x.drawImage(p, 0, (p.naturalHeight - sh) / 2, p.naturalWidth, sh, 0, 0, w, h);
     x.restore();
   }
 
@@ -519,7 +715,11 @@ function textures(renderer) {
 
     // A máscara da tendência: enorme e inclinada, como se a carta fosse uma janela e ela estivesse do outro lado.
     // A moldura, a faixa e o medalhão pintam-se por cima. A inclinação sai do título, para cada carta ter a sua.
-    if (spec.mascara && !spec.tarot) {
+    // Cartas com ilustração pintada (classes, e raças, antecedentes, objetos e aliados que já a tenham)
+    // usam a janela grande em arco, como o tarô, em vez do medalhão.
+    const pintada = !spec.tarot && spec.arte ? arteDe(spec.arte) : null;
+    const grande = !!(spec.tarot || pintada);
+    if (spec.mascara && !grande) {
       const semente = [...(spec.titulo || '')].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 9973, 7);
       const lado = semente % 2 ? 1 : -1, giro = lado * (.28 + (semente % 17) / 17 * .22);
       x.save();
@@ -533,11 +733,13 @@ function textures(renderer) {
     // moldura: uma faixa da cor do tipo, um filete de ouro e cantos trabalhados
     const bandaCor = x.createLinearGradient(0, 0, 0, CARD_H);
     bandaCor.addColorStop(0, th.band); bandaCor.addColorStop(.5, th.band); bandaCor.addColorStop(1, 'rgba(20,10,5,.92)');
-    x.strokeStyle = th.band; x.lineWidth = 34; x.strokeRect(17, 17, CARD_W - 34, CARD_H - 34);
-    x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 3; x.strokeRect(34, 34, CARD_W - 68, CARD_H - 68);
-    x.strokeStyle = ouro; x.lineWidth = 7; x.strokeRect(50, 50, CARD_W - 100, CARD_H - 100);
-    x.strokeStyle = 'rgba(60,35,12,.4)'; x.lineWidth = 2; x.strokeRect(60, 60, CARD_W - 120, CARD_H - 120);
-    [[50, 50], [CARD_W - 50, 50], [50, CARD_H - 50], [CARD_W - 50, CARD_H - 50]].forEach(([a, b]) => {
+    x.strokeStyle = th.band; x.lineWidth = 36; traca(x, 16);
+    x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 3; traca(x, 34);
+    x.strokeStyle = ouro; x.lineWidth = 7; traca(x, 50);
+    x.strokeStyle = 'rgba(60,35,12,.4)'; x.lineWidth = 2; traca(x, 60);
+    // os losangos dos cantos assentam na curva do filete de ouro
+    const q = RAIO - (RAIO - 50) * Math.SQRT1_2;
+    [[q, q], [CARD_W - q, q], [q, CARD_H - q], [CARD_W - q, CARD_H - q]].forEach(([a, b]) => {
       x.fillStyle = ouro; losango(x, a, b, 24);
       x.fillStyle = th.band; losango(x, a, b, 12);
     });
@@ -546,8 +748,10 @@ function textures(renderer) {
     const pista = spec.tema === 'pista', alturaFaixa = pista ? 124 : 104;
     const faixa = x.createLinearGradient(0, 50, 0, 50 + alturaFaixa);
     faixa.addColorStop(0, th.band); faixa.addColorStop(1, 'rgba(10,5,2,.5)');
+    x.save(); contorno(x, 53); x.clip();
     x.fillStyle = th.band; x.fillRect(53, 53, CARD_W - 106, alturaFaixa);
     x.fillStyle = faixa; x.fillRect(53, 53, CARD_W - 106, alturaFaixa);
+    x.restore();
     x.fillStyle = ouro; x.fillRect(53, 53 + alturaFaixa, CARD_W - 106, 6);
     x.textAlign = 'center';
     const label = (spec.etiqueta || th.label).toUpperCase();
@@ -559,7 +763,8 @@ function textures(renderer) {
 
     // medalhão com o símbolo
     const cx0 = CARD_W / 2, my = MEDALHAO.y, mr = MEDALHAO.r;
-    if (spec.tarot) desenharArcano(x, spec.tarot, 92, 176, CARD_W - 184, 700, ouro);
+    // A janela é quadrada, como as imagens geradas, para se ver a ilustração inteira.
+    if (grande) desenharArcano(x, spec.tarot, 112, 166, 800, 800, ouro, pintada);
     else {
     x.save();
     x.shadowColor = 'rgba(40,20,5,.55)'; x.shadowBlur = 26; x.shadowOffsetY = 8;
@@ -625,8 +830,8 @@ function textures(renderer) {
     x.save();
     x.shadowColor = 'rgba(255,245,215,.85)'; x.shadowBlur = 0; x.shadowOffsetY = 2;
     // No tarô, a gravura ocupa mais da carta, e o texto fica por baixo.
-    const yTitulo = spec.tarot ? 882 : 535, yFilete = spec.tarot ? 980 : 668;
-    fitText(x, spec.titulo, CARD_W / 2, yTitulo, CARD_W - 150, spec.tarot ? 92 : 128, spec.tarot ? 76 : 86, 48, FONT_TITLE, '#2a1a0d');
+    const yTitulo = grande ? 966 : 535, yFilete = grande ? 1054 : 668;
+    fitText(x, spec.titulo, CARD_W / 2, yTitulo, CARD_W - 150, grande ? 92 : 128, grande ? 76 : 86, 48, FONT_TITLE, '#2a1a0d');
     x.restore();
     const filete = x.createLinearGradient(150, 0, CARD_W - 150, 0);
     filete.addColorStop(0, 'rgba(150,110,40,0)'); filete.addColorStop(.25, '#a87c2a'); filete.addColorStop(.5, '#f4d986'); filete.addColorStop(.75, '#a87c2a'); filete.addColorStop(1, 'rgba(150,110,40,0)');
@@ -637,8 +842,8 @@ function textures(renderer) {
     // brilho dourado das cartas raras
     if (spec.tema === 'rara' || spec.tema === 'pista') {
       x.save();
-      const estrelas = spec.tarot ? 0 : 40;
-      x.strokeStyle = ouroEm(x, 0, CARD_H, CARD_W, 0); x.lineWidth = 12; x.strokeRect(24, 24, CARD_W - 48, CARD_H - 48);
+      const estrelas = grande ? 0 : 40;
+      x.strokeStyle = ouroEm(x, 0, CARD_H, CARD_W, 0); x.lineWidth = 12; traca(x, 24);
       for (let i = 0; i < estrelas; i++) {
         const a = Math.random() * 6.28, d = mr + 18 + Math.random() * 110;
         drawGlyph(x, 'star', cx0 + Math.cos(a) * d, my + Math.sin(a) * d * .55, 10 + Math.random() * 18, 'rgba(216,160,50,.7)');
@@ -652,8 +857,8 @@ function textures(renderer) {
     }
 
     // descrição
-    if (spec.tarot) fitText(x, spec.desc || '', CARD_W / 2, 994, CARD_W - 150, spec.rodape ? 250 : 350, 72, 44, FONT_BODY, '#33230f');
-    else fitText(x, spec.desc || '', CARD_W / 2, 684, CARD_W - 170, spec.ganho && spec.perde ? 430 : spec.ganho || spec.perde ? 500 : spec.rodape ? 560 : 660, 96, 56, FONT_BODY, '#33230f');
+    if (grande) fitText(x, spec.desc || '', CARD_W / 2, 1060, CARD_W - 180, spec.rodape || spec.selos ? 196 : 290, 64, 38, FONT_BODY, '#1c1006');
+    else fitText(x, spec.desc || '', CARD_W / 2, 684, CARD_W - 170, spec.ganho && spec.perde ? 430 : spec.ganho || spec.perde ? 500 : spec.rodape ? 560 : 660, 96, 56, FONT_BODY, '#1c1006');
 
     // o que a escolha rende, e por baixo o que custa falhar: sempre nesta ordem
     const linha = (t, y, cor) => {
@@ -666,15 +871,40 @@ function textures(renderer) {
     if (spec.perde) linha(spec.perde, CARD_H - 192, '#7a1f12');
 
     // rodapé
-    if (spec.rodape) {
+    if (spec.rodape || spec.selos) {
       const pe = x.createLinearGradient(0, CARD_H - 170, 0, CARD_H - 50);
       pe.addColorStop(0, 'rgba(10,5,2,.45)'); pe.addColorStop(.5, 'rgba(10,5,2,0)');
+      x.save(); contorno(x, 53); x.clip();
       x.fillStyle = th.band; x.fillRect(53, CARD_H - 170, CARD_W - 106, 117);
       x.fillStyle = pe; x.fillRect(53, CARD_H - 170, CARD_W - 106, 117);
+      x.restore();
       x.fillStyle = ouro; x.fillRect(53, CARD_H - 176, CARD_W - 106, 6);
+    }
+    // Os selos: a Vida e os bónus de atributo, cada um com o seu símbolo, lado a lado no rodapé.
+    if (spec.selos) {
+      const n = spec.selos.length, largura = (CARD_W - 160) / n;
+      spec.selos.forEach(([glyph, valor, cor], i) => {
+        const cx = 80 + largura * (i + .5);
+        x.font = `700 60px ${FONT_TITLE}`;
+        const w = x.measureText(valor).width, ic = 82, total = ic + 10 + w;
+        drawGlyph(x, glyph, cx - total / 2 + ic / 2, CARD_H - 112, ic, cor || th.texto || '#f6dc8c');
+        x.textAlign = 'left'; x.fillStyle = th.texto || '#f2e3bd';
+        x.fillText(valor, cx - total / 2 + ic + 10, CARD_H - 90);
+      });
+    } else if (spec.rodape) {
       if (spec.rodapeGlyph) drawGlyph(x, spec.rodapeGlyph, 118, CARD_H - 110, 80, th.texto || '#f6dc8c');
       fitText(x, spec.rodape, CARD_W / 2 + (spec.rodapeGlyph ? 36 : 0), CARD_H - 156, CARD_W - 226, 104, 66, 38, FONT_TITLE, th.texto || '#f2e3bd');
     }
+
+    // o desgaste do papel por cima de tudo
+    if (papelPintado()) {
+      x.save();
+      x.globalCompositeOperation = 'multiply'; x.globalAlpha = .3;
+      x.drawImage(papelCarta, 0, 0);
+      x.restore();
+    }
+
+    desgasteBorda(x);
 
     // carta bloqueada: escurece e carimba o símbolo de quem a pode usar
     if (spec.locked) {
@@ -798,7 +1028,7 @@ function textures(renderer) {
   // Página esquerda: capítulo, título e desenho.
   function leftPage(p) {
     const [c, x] = canvas(PAGE_W, PAGE_H);
-    paintParchment(x, PAGE_W, PAGE_H, '#e9dbb8');
+    pintaPapelPagina(x, PAGE_W, PAGE_H, false);
     gutter(x, PAGE_W, PAGE_H, 'right');
     x.textAlign = 'center';
     x.fillStyle = '#6d1f1a';
@@ -809,11 +1039,17 @@ function textures(renderer) {
     risco.addColorStop(0, 'rgba(109,31,26,0)'); risco.addColorStop(.5, '#6d1f1a'); risco.addColorStop(1, 'rgba(109,31,26,0)');
     x.fillStyle = risco; x.fillRect(190, 409, PAGE_W - 420, 3);
     x.fillStyle = '#6d1f1a'; losango(x, PAGE_W / 2 - 20, 410, 11);
+    // A pintura do lugar só serve quando a cena se passa no terreno dele; senão, vale a pintura do terreno.
+    const noLugar = p.lugar && LUGARES[p.lugar] && LUGARES[p.lugar].terreno === p.arte;
+    const pintura = p.arte && ((noLugar && arteDe(`regioes/${p.lugar}`)) || arteDe(`terrenos/${p.arte}`));
     if (p.arte) {
       x.save();
       x.beginPath(); x.rect(112, 474, PAGE_W - 264, 600); x.clip();
-      aguarela(x, p.arte, 112, 474, PAGE_W - 264, 600);
-      inkScene(x, p.arte, PAGE_W / 2 - 20, 750, PAGE_W - 230, 560);
+      if (pintura) x.drawImage(pintura, 112, 474, PAGE_W - 264, 600);
+      else {
+        aguarela(x, p.arte, 112, 474, PAGE_W - 264, 600);
+        inkScene(x, p.arte, PAGE_W / 2 - 20, 750, PAGE_W - 230, 560);
+      }
       const sombra = x.createRadialGradient(PAGE_W / 2 - 20, 774, 210, PAGE_W / 2 - 20, 774, 520);
       sombra.addColorStop(0, 'rgba(50,28,8,0)'); sombra.addColorStop(1, 'rgba(50,28,8,.42)');
       x.fillStyle = sombra; x.fillRect(112, 474, PAGE_W - 264, 600);
@@ -833,7 +1069,7 @@ function textures(renderer) {
   // Página direita: narração e, depois de uma escolha, o resultado.
   function rightPage(p) {
     const [c, x] = canvas(PAGE_W, PAGE_H);
-    paintParchment(x, PAGE_W, PAGE_H, '#e9dbb8');
+    pintaPapelPagina(x, PAGE_W, PAGE_H, true);
     gutter(x, PAGE_W, PAGE_H, 'left');
     const marginL = 120, marginR = 90, maxW = PAGE_W - marginL - marginR;
     let y = 100;
@@ -1051,174 +1287,180 @@ function textures(renderer) {
     const [c, x] = canvas(MAP_W, MAP_H);
     paintParchment(x, MAP_W, MAP_H, '#dcc899');
     const W = MAP_W, H = MAP_H;
-
-    // Manchas de aguarela na terra, para o papel não parecer vazio.
-    [['rgba(120,136,70,.12)', 26], ['rgba(170,120,60,.1)', 22], ['rgba(95,120,80,.1)', 16]].forEach(([cor, n]) => {
-      for (let i = 0; i < n; i++) {
-        const px = Math.random() * W, py = Math.random() * H, r = 120 + Math.random() * 300;
-        const g = x.createRadialGradient(px, py, 0, px, py, r);
-        g.addColorStop(0, cor); g.addColorStop(.7, cor); g.addColorStop(1, 'rgba(120,136,70,0)');
-        x.fillStyle = g; x.beginPath(); x.ellipse(px, py, r, r * .7, Math.random() * 3, 0, 7); x.fill();
-      }
-    });
-
-    // O mar. Só os pontos na costa tremem: os da moldura ficam onde estão.
-    const costa = new Path2D();
-    const contorno = [];
-    MAPA.mar.forEach(([a, b]) => {
-      const borda = a === 0 || a === 1 || b === 0 || b === 1;
-      contorno.push([W * a + (borda ? 0 : (Math.random() - .5) * 16), H * b + (borda ? 0 : (Math.random() - .5) * 16), borda]);
-    });
-    // A costa ganha reentrâncias entre os pontos dados, para não parecer uma régua.
-    contorno.forEach(([a, b, borda], i) => {
-      if (!i) { costa.moveTo(a, b); return; }
-      const [pa, pb, pborda] = contorno[i - 1];
-      if (!borda && !pborda) {
-        for (let k = 1; k < 7; k++) {
-          const t = k / 7, d = Math.hypot(a - pa, b - pb);
-          costa.lineTo(pa + (a - pa) * t + (Math.random() - .5) * d * .05, pb + (b - pb) * t + (Math.random() - .5) * d * .05);
+    // Com o mapa pintado à mão, o terreno vem da pintura; sem ele, desenha-se aqui.
+    const img = typeof ARTE !== 'undefined' && MAPA.pintura && ARTE.img[MAPA.pintura];
+    const pintado = !!(img && img.complete && img.naturalWidth);
+    if (pintado) {
+      x.drawImage(img, 0, 0, W, H);
+    } else {
+      // Manchas de aguarela na terra, para o papel não parecer vazio.
+      [['rgba(120,136,70,.12)', 26], ['rgba(170,120,60,.1)', 22], ['rgba(95,120,80,.1)', 16]].forEach(([cor, n]) => {
+        for (let i = 0; i < n; i++) {
+          const px = Math.random() * W, py = Math.random() * H, r = 120 + Math.random() * 300;
+          const g = x.createRadialGradient(px, py, 0, px, py, r);
+          g.addColorStop(0, cor); g.addColorStop(.7, cor); g.addColorStop(1, 'rgba(120,136,70,0)');
+          x.fillStyle = g; x.beginPath(); x.ellipse(px, py, r, r * .7, Math.random() * 3, 0, 7); x.fill();
         }
-      }
-      costa.lineTo(a, b);
-    });
-    costa.closePath();
-    const fundoMar = x.createLinearGradient(0, 0, W, H);
-    fundoMar.addColorStop(0, 'rgba(62,108,118,.62)'); fundoMar.addColorStop(1, 'rgba(38,84,104,.72)');
-    x.fillStyle = fundoMar; x.fill(costa);
-    x.save(); x.clip(costa);
-    // Linhas de água junto à costa, como nas cartas antigas.
-    [[120, .08], [86, .1], [56, .13], [30, .18]].forEach(([l, a]) => { x.lineWidth = l; x.strokeStyle = `rgba(214,226,206,${a})`; x.stroke(costa); });
-    x.strokeStyle = 'rgba(20,50,62,.36)'; x.lineWidth = 2.6;
-    for (let r = 0; r < 260; r++) {
-      const px = Math.random() * W, py = Math.random() * H;
-      x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + 18, py - 10, px + 36, py); x.quadraticCurveTo(px + 54, py + 10, px + 72, py); x.stroke();
-    }
-    x.restore();
-    x.lineWidth = 7; x.strokeStyle = '#2f1c0e'; x.lineJoin = 'round'; x.stroke(costa);
-    // Barcos onde houver mar aberto.
-    let barcos = 0;
-    for (let i = 0; i < 400 && barcos < 2; i++) {
-      const px = W * (.05 + Math.random() * .9), py = H * (.08 + Math.random() * .84);
-      const longe = Object.values(LUGARES).every(l => Math.hypot(l.x * W - px, l.y * H - py) > 260);
-      const fundo = [[-90, 0], [90, 0], [0, -90], [0, 60]].every(([a, b]) => x.isPointInPath(costa, px + a, py + b));
-      if (longe && fundo) { barco(x, px, py, 1.15 + Math.random() * .4); barcos++; }
-    }
-
-    // Ilhas e lagos
-    (MAPA.ilhas || []).forEach(i => {
-      x.beginPath(); x.ellipse(W * i.x, H * i.y, W * i.rx, H * i.ry, .3, 0, 7);
-      x.fillStyle = i.cor; x.fill();
-      x.lineWidth = 7; x.strokeStyle = '#2f1c0e'; x.stroke();
-    });
-    (MAPA.lagos || []).forEach(l => {
-      x.beginPath(); x.ellipse(W * l.x, H * l.y, W * l.rx, H * l.ry, 0, 0, 7);
-      x.fillStyle = 'rgba(62,108,118,.7)'; x.fill();
-      x.lineWidth = 5; x.strokeStyle = '#2f1c0e'; x.stroke();
-      x.lineWidth = 2; x.strokeStyle = 'rgba(214,226,206,.5)';
-      x.beginPath(); x.ellipse(W * l.x, H * l.y, W * l.rx * .7, H * l.ry * .62, 0, 0, 7); x.stroke();
-    });
-    (MAPA.rios || []).forEach(rio => {
-      x.beginPath();
-      rio.forEach(([a, b], i) => (i ? x.lineTo(W * a, H * b) : x.moveTo(W * a, H * b)));
-      x.lineCap = 'round'; x.lineJoin = 'round';
-      x.lineWidth = 15; x.strokeStyle = '#2f1c0e'; x.stroke();
-      x.lineWidth = 9; x.strokeStyle = '#6f99a2'; x.stroke();
-    });
-
-    // Serras: o lado da luz é claro, o da sombra é tracejado, e os picos altos têm neve.
-    const mountain = (mx, my, s) => {
-      const topo = my - s * 1.25, dx = s * (.05 + Math.random() * .12);
-      x.fillStyle = 'rgba(40,24,10,.16)';
-      x.beginPath(); x.ellipse(mx + s * .3, my + 3, s * 1.05, s * .2, 0, 0, 7); x.fill();
-      x.fillStyle = '#e2cfa0';
-      x.beginPath(); x.moveTo(mx - s, my); x.lineTo(mx + dx, topo); x.lineTo(mx + s, my); x.closePath(); x.fill();
-      x.fillStyle = '#9b8259';
-      x.beginPath(); x.moveTo(mx + dx, topo); x.lineTo(mx + s, my); x.lineTo(mx + s * .12, my); x.lineTo(mx + dx - s * .08, my - s * .62); x.closePath(); x.fill();
-      if (s > 66) {
-        x.fillStyle = '#f7f2e4';
-        x.beginPath(); x.moveTo(mx + dx, topo); x.lineTo(mx + dx + s * .26, topo + s * .34); x.lineTo(mx + dx + s * .06, topo + s * .26); x.lineTo(mx + dx - s * .08, topo + s * .4); x.lineTo(mx + dx - s * .25, topo + s * .32); x.closePath(); x.fill();
-      }
-      x.strokeStyle = '#2f1c0e'; x.lineWidth = 4.6; x.lineJoin = 'round';
-      x.beginPath(); x.moveTo(mx - s, my); x.lineTo(mx + dx, topo); x.lineTo(mx + s, my); x.stroke();
-      x.lineWidth = 2;
-      for (let i = 1; i < s / 8; i++) { x.beginPath(); x.moveTo(mx + dx + i * 3.6, topo + i * 9); x.lineTo(mx + dx + i * 6.8, my - 4); x.stroke(); }
-    };
-    MAPA.serras.forEach(z => {
-      const ridge = [];
-      for (let i = 0; i < z.n; i++) ridge.push([W * (z.x + Math.random() * z.w), H * (z.y + Math.random() * z.h)]);
-      ridge.sort((a, b) => a[1] - b[1]).forEach(([a, b]) => mountain(a, b + 60, 46 + Math.random() * 44));
-    });
-
-    // Florestas: um chão verde, e árvores com lado de luz e de sombra.
-    const tree = (tx, ty, s) => {
-      x.fillStyle = 'rgba(25,30,12,.3)';
-      x.beginPath(); x.ellipse(tx + s * .2, ty + 2, s * .5, s * .13, 0, 0, 7); x.fill();
-      const verde = ['#567a3d', '#4a6c37', '#60823f'][Math.floor(Math.random() * 3)];
-      x.fillStyle = '#3b2412'; x.fillRect(tx - 2.5, ty - s * .12, 5, s * .14);
-      [[1, 0, .48], [.72, -.3, .38], [.46, -.56, .27]].forEach(([k, sobe, larg]) => {
-        const by = ty + s * sobe * .55 - s * .06;
-        x.fillStyle = verde;
-        x.beginPath(); x.moveTo(tx, by - s * k * .68); x.lineTo(tx - s * larg, by); x.lineTo(tx + s * larg, by); x.closePath(); x.fill();
-        x.fillStyle = 'rgba(20,34,14,.42)';
-        x.beginPath(); x.moveTo(tx, by - s * k * .68); x.lineTo(tx + s * larg, by); x.lineTo(tx + s * larg * .1, by); x.closePath(); x.fill();
-        x.strokeStyle = '#1f2e18'; x.lineWidth = 2.2;
-        x.beginPath(); x.moveTo(tx - s * larg, by); x.lineTo(tx, by - s * k * .68); x.lineTo(tx + s * larg, by); x.stroke();
       });
-    };
-    MAPA.florestas.forEach(z => {
-      const chao = x.createRadialGradient(W * z.x, H * z.y, 0, W * z.x, H * z.y, W * z.rx * 1.25);
-      chao.addColorStop(0, 'rgba(80,110,50,.42)'); chao.addColorStop(.75, 'rgba(80,110,50,.26)'); chao.addColorStop(1, 'rgba(80,110,50,0)');
-      x.fillStyle = chao;
-      x.save(); x.translate(W * z.x, H * z.y); x.scale(1, (H * z.ry) / (W * z.rx)); x.translate(-W * z.x, -H * z.y);
-      x.beginPath(); x.arc(W * z.x, H * z.y, W * z.rx * 1.25, 0, 7); x.fill(); x.restore();
-      const forest = [];
-      for (let i = 0; i < z.n; i++) {
-        const a = Math.random() * 6.28, r = Math.sqrt(Math.random());
-        forest.push([W * (z.x + Math.cos(a) * r * z.rx), H * (z.y + Math.sin(a) * r * z.ry)]);
-      }
-      forest.sort((a, b) => a[1] - b[1]).forEach(([a, b]) => tree(a, b, 40 + Math.random() * 24));
-    });
 
-    // Pântanos
-    MAPA.pantanos.forEach(z => {
-      x.save(); x.translate(W * z.x, H * z.y); x.scale(1, (H * z.ry) / (W * z.rx));
-      const g = x.createRadialGradient(0, 0, 0, 0, 0, W * z.rx);
-      g.addColorStop(0, 'rgba(50,70,44,.5)'); g.addColorStop(.7, 'rgba(50,70,44,.3)'); g.addColorStop(1, 'rgba(50,70,44,0)');
-      x.fillStyle = g; x.beginPath(); x.arc(0, 0, W * z.rx, 0, 7); x.fill(); x.restore();
-      x.strokeStyle = '#27341f'; x.lineWidth = 3;
-      for (let i = 0; i < z.n; i++) {
-        const a = Math.random() * 6.28, r = Math.sqrt(Math.random());
-        const px = W * (z.x + Math.cos(a) * r * z.rx), py = H * (z.y + Math.sin(a) * r * z.ry);
-        x.beginPath(); x.moveTo(px - 14, py); x.lineTo(px + 14, py); x.moveTo(px - 5, py); x.lineTo(px - 9, py - 16); x.moveTo(px + 4, py); x.lineTo(px + 8, py - 18); x.stroke();
+      // O mar. Só os pontos na costa tremem: os da moldura ficam onde estão.
+      const costa = new Path2D();
+      const contorno = [];
+      MAPA.mar.forEach(([a, b]) => {
+        const borda = a === 0 || a === 1 || b === 0 || b === 1;
+        contorno.push([W * a + (borda ? 0 : (Math.random() - .5) * 16), H * b + (borda ? 0 : (Math.random() - .5) * 16), borda]);
+      });
+      // A costa ganha reentrâncias entre os pontos dados, para não parecer uma régua.
+      contorno.forEach(([a, b, borda], i) => {
+        if (!i) { costa.moveTo(a, b); return; }
+        const [pa, pb, pborda] = contorno[i - 1];
+        if (!borda && !pborda) {
+          for (let k = 1; k < 7; k++) {
+            const t = k / 7, d = Math.hypot(a - pa, b - pb);
+            costa.lineTo(pa + (a - pa) * t + (Math.random() - .5) * d * .05, pb + (b - pb) * t + (Math.random() - .5) * d * .05);
+          }
+        }
+        costa.lineTo(a, b);
+      });
+      costa.closePath();
+      const fundoMar = x.createLinearGradient(0, 0, W, H);
+      fundoMar.addColorStop(0, 'rgba(62,108,118,.62)'); fundoMar.addColorStop(1, 'rgba(38,84,104,.72)');
+      x.fillStyle = fundoMar; x.fill(costa);
+      x.save(); x.clip(costa);
+      // Linhas de água junto à costa, como nas cartas antigas.
+      [[120, .08], [86, .1], [56, .13], [30, .18]].forEach(([l, a]) => { x.lineWidth = l; x.strokeStyle = `rgba(214,226,206,${a})`; x.stroke(costa); });
+      x.strokeStyle = 'rgba(20,50,62,.36)'; x.lineWidth = 2.6;
+      for (let r = 0; r < 260; r++) {
+        const px = Math.random() * W, py = Math.random() * H;
+        x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo(px + 18, py - 10, px + 36, py); x.quadraticCurveTo(px + 54, py + 10, px + 72, py); x.stroke();
       }
-    });
+      x.restore();
+      x.lineWidth = 7; x.strokeStyle = '#2f1c0e'; x.lineJoin = 'round'; x.stroke(costa);
+      // Barcos onde houver mar aberto.
+      let barcos = 0;
+      for (let i = 0; i < 400 && barcos < 2; i++) {
+        const px = W * (.05 + Math.random() * .9), py = H * (.08 + Math.random() * .84);
+        const longe = Object.values(LUGARES).every(l => Math.hypot(l.x * W - px, l.y * H - py) > 260);
+        const fundo = [[-90, 0], [90, 0], [0, -90], [0, 60]].every(([a, b]) => x.isPointInPath(costa, px + a, py + b));
+        if (longe && fundo) { barco(x, px, py, 1.15 + Math.random() * .4); barcos++; }
+      }
 
-    // Uma árvore enorme, quando o mapa do mundo a tem.
-    if (MAPA.arvore) {
-      const ax = W * MAPA.arvore.x, ay = H * MAPA.arvore.y;
-      const brilho = x.createRadialGradient(ax, ay - 90, 20, ax, ay - 90, 300);
-      brilho.addColorStop(0, 'rgba(238,214,120,.55)'); brilho.addColorStop(1, 'rgba(238,214,120,0)');
-      x.fillStyle = brilho; x.beginPath(); x.arc(ax, ay - 90, 300, 0, 7); x.fill();
-      x.fillStyle = 'rgba(25,14,6,.3)'; x.beginPath(); x.ellipse(ax + 26, ay + 8, 150, 26, 0, 0, 7); x.fill();
-      x.strokeStyle = '#17100a'; x.lineCap = 'round'; x.lineJoin = 'round';
-      const pontas = [];
-      const galho = (px, py, ang, comp, grossura, n) => {
-        const fx = px + Math.cos(ang) * comp, fy = py + Math.sin(ang) * comp;
-        x.lineWidth = grossura;
-        x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo((px + fx) / 2 + (Math.random() - .5) * comp * .3, (py + fy) / 2, fx, fy); x.stroke();
-        if (n <= 0) { pontas.push([fx, fy]); return; }
-        const filhos = 2 + (Math.random() < .35 ? 1 : 0);
-        for (let i = 0; i < filhos; i++) galho(fx, fy, ang + (i - (filhos - 1) / 2) * .62 + (Math.random() - .5) * .2, comp * (.68 + Math.random() * .1), grossura * .62, n - 1);
+      // Ilhas e lagos
+      (MAPA.ilhas || []).forEach(i => {
+        x.beginPath(); x.ellipse(W * i.x, H * i.y, W * i.rx, H * i.ry, .3, 0, 7);
+        x.fillStyle = i.cor; x.fill();
+        x.lineWidth = 7; x.strokeStyle = '#2f1c0e'; x.stroke();
+      });
+      (MAPA.lagos || []).forEach(l => {
+        x.beginPath(); x.ellipse(W * l.x, H * l.y, W * l.rx, H * l.ry, 0, 0, 7);
+        x.fillStyle = 'rgba(62,108,118,.7)'; x.fill();
+        x.lineWidth = 5; x.strokeStyle = '#2f1c0e'; x.stroke();
+        x.lineWidth = 2; x.strokeStyle = 'rgba(214,226,206,.5)';
+        x.beginPath(); x.ellipse(W * l.x, H * l.y, W * l.rx * .7, H * l.ry * .62, 0, 0, 7); x.stroke();
+      });
+      (MAPA.rios || []).forEach(rio => {
+        x.beginPath();
+        rio.forEach(([a, b], i) => (i ? x.lineTo(W * a, H * b) : x.moveTo(W * a, H * b)));
+        x.lineCap = 'round'; x.lineJoin = 'round';
+        x.lineWidth = 15; x.strokeStyle = '#2f1c0e'; x.stroke();
+        x.lineWidth = 9; x.strokeStyle = '#6f99a2'; x.stroke();
+      });
+
+      // Serras: o lado da luz é claro, o da sombra é tracejado, e os picos altos têm neve.
+      const mountain = (mx, my, s) => {
+        const topo = my - s * 1.25, dx = s * (.05 + Math.random() * .12);
+        x.fillStyle = 'rgba(40,24,10,.16)';
+        x.beginPath(); x.ellipse(mx + s * .3, my + 3, s * 1.05, s * .2, 0, 0, 7); x.fill();
+        x.fillStyle = '#e2cfa0';
+        x.beginPath(); x.moveTo(mx - s, my); x.lineTo(mx + dx, topo); x.lineTo(mx + s, my); x.closePath(); x.fill();
+        x.fillStyle = '#9b8259';
+        x.beginPath(); x.moveTo(mx + dx, topo); x.lineTo(mx + s, my); x.lineTo(mx + s * .12, my); x.lineTo(mx + dx - s * .08, my - s * .62); x.closePath(); x.fill();
+        if (s > 66) {
+          x.fillStyle = '#f7f2e4';
+          x.beginPath(); x.moveTo(mx + dx, topo); x.lineTo(mx + dx + s * .26, topo + s * .34); x.lineTo(mx + dx + s * .06, topo + s * .26); x.lineTo(mx + dx - s * .08, topo + s * .4); x.lineTo(mx + dx - s * .25, topo + s * .32); x.closePath(); x.fill();
+        }
+        x.strokeStyle = '#2f1c0e'; x.lineWidth = 4.6; x.lineJoin = 'round';
+        x.beginPath(); x.moveTo(mx - s, my); x.lineTo(mx + dx, topo); x.lineTo(mx + s, my); x.stroke();
+        x.lineWidth = 2;
+        for (let i = 1; i < s / 8; i++) { x.beginPath(); x.moveTo(mx + dx + i * 3.6, topo + i * 9); x.lineTo(mx + dx + i * 6.8, my - 4); x.stroke(); }
       };
-      [[-1.2, 18], [1.1, -14], [-.5, 8], [.6, -6]].forEach(([d, k]) => {
-        x.lineWidth = 12;
-        x.beginPath(); x.moveTo(ax + k, ay - 40); x.quadraticCurveTo(ax + k * 2, ay - 2, ax + k + d * 56, ay + 8); x.stroke();
+      MAPA.serras.forEach(z => {
+        const ridge = [];
+        for (let i = 0; i < z.n; i++) ridge.push([W * (z.x + Math.random() * z.w), H * (z.y + Math.random() * z.h)]);
+        ridge.sort((a, b) => a[1] - b[1]).forEach(([a, b]) => mountain(a, b + 60, 46 + Math.random() * 44));
       });
-      galho(ax, ay + 6, -Math.PI / 2, 92, 36, 5);
-      pontas.forEach(([a, b]) => {
-        x.fillStyle = ['rgba(23,16,10,.92)', 'rgba(36,28,14,.88)', 'rgba(14,10,6,.95)'][Math.floor(Math.random() * 3)];
-        x.beginPath(); x.ellipse(a, b, 17 + Math.random() * 15, 12 + Math.random() * 11, Math.random() * 3, 0, 7); x.fill();
+
+      // Florestas: um chão verde, e árvores com lado de luz e de sombra.
+      const tree = (tx, ty, s) => {
+        x.fillStyle = 'rgba(25,30,12,.3)';
+        x.beginPath(); x.ellipse(tx + s * .2, ty + 2, s * .5, s * .13, 0, 0, 7); x.fill();
+        const verde = ['#567a3d', '#4a6c37', '#60823f'][Math.floor(Math.random() * 3)];
+        x.fillStyle = '#3b2412'; x.fillRect(tx - 2.5, ty - s * .12, 5, s * .14);
+        [[1, 0, .48], [.72, -.3, .38], [.46, -.56, .27]].forEach(([k, sobe, larg]) => {
+          const by = ty + s * sobe * .55 - s * .06;
+          x.fillStyle = verde;
+          x.beginPath(); x.moveTo(tx, by - s * k * .68); x.lineTo(tx - s * larg, by); x.lineTo(tx + s * larg, by); x.closePath(); x.fill();
+          x.fillStyle = 'rgba(20,34,14,.42)';
+          x.beginPath(); x.moveTo(tx, by - s * k * .68); x.lineTo(tx + s * larg, by); x.lineTo(tx + s * larg * .1, by); x.closePath(); x.fill();
+          x.strokeStyle = '#1f2e18'; x.lineWidth = 2.2;
+          x.beginPath(); x.moveTo(tx - s * larg, by); x.lineTo(tx, by - s * k * .68); x.lineTo(tx + s * larg, by); x.stroke();
+        });
+      };
+      MAPA.florestas.forEach(z => {
+        const chao = x.createRadialGradient(W * z.x, H * z.y, 0, W * z.x, H * z.y, W * z.rx * 1.25);
+        chao.addColorStop(0, 'rgba(80,110,50,.42)'); chao.addColorStop(.75, 'rgba(80,110,50,.26)'); chao.addColorStop(1, 'rgba(80,110,50,0)');
+        x.fillStyle = chao;
+        x.save(); x.translate(W * z.x, H * z.y); x.scale(1, (H * z.ry) / (W * z.rx)); x.translate(-W * z.x, -H * z.y);
+        x.beginPath(); x.arc(W * z.x, H * z.y, W * z.rx * 1.25, 0, 7); x.fill(); x.restore();
+        const forest = [];
+        for (let i = 0; i < z.n; i++) {
+          const a = Math.random() * 6.28, r = Math.sqrt(Math.random());
+          forest.push([W * (z.x + Math.cos(a) * r * z.rx), H * (z.y + Math.sin(a) * r * z.ry)]);
+        }
+        forest.sort((a, b) => a[1] - b[1]).forEach(([a, b]) => tree(a, b, 40 + Math.random() * 24));
       });
+
+      // Pântanos
+      MAPA.pantanos.forEach(z => {
+        x.save(); x.translate(W * z.x, H * z.y); x.scale(1, (H * z.ry) / (W * z.rx));
+        const g = x.createRadialGradient(0, 0, 0, 0, 0, W * z.rx);
+        g.addColorStop(0, 'rgba(50,70,44,.5)'); g.addColorStop(.7, 'rgba(50,70,44,.3)'); g.addColorStop(1, 'rgba(50,70,44,0)');
+        x.fillStyle = g; x.beginPath(); x.arc(0, 0, W * z.rx, 0, 7); x.fill(); x.restore();
+        x.strokeStyle = '#27341f'; x.lineWidth = 3;
+        for (let i = 0; i < z.n; i++) {
+          const a = Math.random() * 6.28, r = Math.sqrt(Math.random());
+          const px = W * (z.x + Math.cos(a) * r * z.rx), py = H * (z.y + Math.sin(a) * r * z.ry);
+          x.beginPath(); x.moveTo(px - 14, py); x.lineTo(px + 14, py); x.moveTo(px - 5, py); x.lineTo(px - 9, py - 16); x.moveTo(px + 4, py); x.lineTo(px + 8, py - 18); x.stroke();
+        }
+      });
+
+      // Uma árvore enorme, quando o mapa do mundo a tem.
+      if (MAPA.arvore) {
+        const ax = W * MAPA.arvore.x, ay = H * MAPA.arvore.y;
+        const brilho = x.createRadialGradient(ax, ay - 90, 20, ax, ay - 90, 300);
+        brilho.addColorStop(0, 'rgba(238,214,120,.55)'); brilho.addColorStop(1, 'rgba(238,214,120,0)');
+        x.fillStyle = brilho; x.beginPath(); x.arc(ax, ay - 90, 300, 0, 7); x.fill();
+        x.fillStyle = 'rgba(25,14,6,.3)'; x.beginPath(); x.ellipse(ax + 26, ay + 8, 150, 26, 0, 0, 7); x.fill();
+        x.strokeStyle = '#17100a'; x.lineCap = 'round'; x.lineJoin = 'round';
+        const pontas = [];
+        const galho = (px, py, ang, comp, grossura, n) => {
+          const fx = px + Math.cos(ang) * comp, fy = py + Math.sin(ang) * comp;
+          x.lineWidth = grossura;
+          x.beginPath(); x.moveTo(px, py); x.quadraticCurveTo((px + fx) / 2 + (Math.random() - .5) * comp * .3, (py + fy) / 2, fx, fy); x.stroke();
+          if (n <= 0) { pontas.push([fx, fy]); return; }
+          const filhos = 2 + (Math.random() < .35 ? 1 : 0);
+          for (let i = 0; i < filhos; i++) galho(fx, fy, ang + (i - (filhos - 1) / 2) * .62 + (Math.random() - .5) * .2, comp * (.68 + Math.random() * .1), grossura * .62, n - 1);
+        };
+        [[-1.2, 18], [1.1, -14], [-.5, 8], [.6, -6]].forEach(([d, k]) => {
+          x.lineWidth = 12;
+          x.beginPath(); x.moveTo(ax + k, ay - 40); x.quadraticCurveTo(ax + k * 2, ay - 2, ax + k + d * 56, ay + 8); x.stroke();
+        });
+        galho(ax, ay + 6, -Math.PI / 2, 92, 36, 5);
+        pontas.forEach(([a, b]) => {
+          x.fillStyle = ['rgba(23,16,10,.92)', 'rgba(36,28,14,.88)', 'rgba(14,10,6,.95)'][Math.floor(Math.random() * 3)];
+          x.beginPath(); x.ellipse(a, b, 17 + Math.random() * 15, 12 + Math.random() * 11, Math.random() * 3, 0, 7); x.fill();
+        });
+      }
     }
 
     // Estradas, com um fio claro por baixo para se destacarem do fundo.
@@ -1232,23 +1474,26 @@ function textures(renderer) {
     }
     x.setLineDash([]);
 
-    // Moldura de carta antiga: filetes e uma faixa aos quadrados.
-    x.strokeStyle = '#2f1c0e'; x.lineWidth = 10; x.strokeRect(44, 44, W - 88, H - 88);
-    x.lineWidth = 3; x.strokeRect(84, 84, W - 168, H - 168);
-    const quadrados = (ax, ay, bx, by) => {
-      const d = Math.hypot(bx - ax, by - ay), n = Math.round(d / 76), ux = (bx - ax) / n, uy = (by - ay) / n;
-      for (let i = 0; i < n; i++) {
-        x.fillStyle = i % 2 ? '#2f1c0e' : '#ecdcb4';
-        x.fillRect(ax + ux * i + (uy ? -13 : 0), ay + uy * i + (ux ? -13 : 0), ux || 26, uy || 26);
-      }
-    };
-    quadrados(84, 64, W - 84, 64); quadrados(84, H - 64, W - 84, H - 64);
-    quadrados(64, 84, 64, H - 84); quadrados(W - 64, 84, W - 64, H - 84);
-    [[64, 64], [W - 64, 64], [64, H - 64], [W - 64, H - 64]].forEach(([a, b]) => {
-      x.fillStyle = '#ecdcb4'; x.fillRect(a - 24, b - 24, 48, 48);
-      x.strokeStyle = '#2f1c0e'; x.lineWidth = 3; x.strokeRect(a - 24, b - 24, 48, 48);
-      x.fillStyle = '#6d1f1a'; losango(x, a, b, 18);
-    });
+    // Moldura de carta antiga: só no mapa desenhado, porque o pintado já traz as bordas gastas.
+    if (!pintado) {
+      x.strokeStyle = '#2f1c0e'; x.lineWidth = 10; x.strokeRect(44, 44, W - 88, H - 88);
+      x.lineWidth = 3; x.strokeRect(84, 84, W - 168, H - 168);
+      const quadrados = (ax, ay, bx, by) => {
+        const d = Math.hypot(bx - ax, by - ay), n = Math.round(d / 76), ux = (bx - ax) / n, uy = (by - ay) / n;
+        for (let i = 0; i < n; i++) {
+          x.fillStyle = i % 2 ? '#2f1c0e' : '#ecdcb4';
+          x.fillRect(ax + ux * i + (uy ? -13 : 0), ay + uy * i + (ux ? -13 : 0), ux || 26, uy || 26);
+        }
+      };
+      quadrados(84, 64, W - 84, 64); quadrados(84, H - 64, W - 84, H - 64);
+      quadrados(64, 84, 64, H - 84); quadrados(W - 64, 84, W - 64, H - 84);
+      [[64, 64], [W - 64, 64], [64, H - 64], [W - 64, H - 64]].forEach(([a, b]) => {
+        x.fillStyle = '#ecdcb4'; x.fillRect(a - 24, b - 24, 48, 48);
+        x.strokeStyle = '#2f1c0e'; x.lineWidth = 3; x.strokeRect(a - 24, b - 24, 48, 48);
+        x.fillStyle = '#6d1f1a'; losango(x, a, b, 18);
+      });
+
+    }
 
     // Rosa dos ventos
     rosaDosVentos(x, W * .92, H * .19, 160);
@@ -1368,6 +1613,28 @@ function textures(renderer) {
   }
 
   // Textura com os números de um dado, uma célula por face.
+  // Dados muito rolados: sujidade nas arestas de cada face, riscos, e a tinta dos números a falhar.
+  function desgasteDado(x, labels, cols, cell, cor) {
+    labels.forEach((l, i) => {
+      const cx = (i % cols + .5) * cell, cy = (Math.floor(i / cols) + .5) * cell;
+      const g = x.createRadialGradient(cx, cy, cell * .22, cx, cy, cell * .62);
+      g.addColorStop(0, 'rgba(20,10,4,0)'); g.addColorStop(1, 'rgba(20,10,4,.38)');
+      x.fillStyle = g; x.fillRect(cx - cell / 2, cy - cell / 2, cell, cell);
+      // falhas na tinta: pintadas com a cor do dado por cima do número
+      for (let k = 0; k < 70; k++) {
+        x.fillStyle = cor; x.globalAlpha = .5 + Math.random() * .5;
+        x.beginPath(); x.ellipse(cx + (Math.random() - .5) * 90, cy + (Math.random() - .5) * 80, .8 + Math.random() * 2.4, .6 + Math.random() * 1.4, Math.random() * 3, 0, 7); x.fill();
+      }
+      x.globalAlpha = 1;
+      x.lineCap = 'round';
+      for (let k = 0; k < 5; k++) {
+        const px = cx + (Math.random() - .5) * cell, py = cy + (Math.random() - .5) * cell, a = Math.random() * 6.28, len = 10 + Math.random() * 50;
+        x.strokeStyle = `rgba(255,240,220,${.06 + Math.random() * .1})`; x.lineWidth = .7 + Math.random() * 1.2;
+        x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * len, py + Math.sin(a) * len); x.stroke();
+      }
+    });
+  }
+
   function diceAtlas(labels, color, ink, cols, rows) {
     const cell = 200;
     const [c, x] = canvas(cols * cell, rows * cell);
@@ -1389,6 +1656,7 @@ function textures(renderer) {
       x.fillStyle = ink; x.fillText(l, px, py);
       if (l === '6' || l === '9') x.fillRect(px - 20, py + 38, 40, 7);
     });
+    desgasteDado(x, labels, cols, cell, color);
     return toTexture(c, renderer);
   }
 
@@ -1438,6 +1706,7 @@ function textures(renderer) {
       b.shadowBlur = 0;
       if (l === '6' || l === '9') { [x, b].forEach(ctx => { ctx.fillStyle = tema.brilho; ctx.fillRect(px - 20, py + 38, 40, 7); }); }
     });
+    desgasteDado(x, labels, cols, cell, tema.perola[0]);
     return { map: toTexture(c, renderer), brilho: toTexture(cb, renderer) };
   }
 
@@ -1529,7 +1798,28 @@ function textures(renderer) {
     x.fillStyle = fundo; x.fillRect(0, 0, c.width, c.height);
     speckle(x, c.width, c.height, 26000, .3);
     ax.fillStyle = '#a0a0a0'; ax.fillRect(0, 0, c.width, c.height);
-    x.strokeStyle = ouroEm(x, 0, 0, c.width, c.height); x.lineWidth = 7; x.strokeRect(26, 26, c.width - 52, c.height - 52);
+    // Veios da madeira, riscos e mossas de muitas partidas.
+    for (let i = 0; i < 260; i++) {
+      const y0 = Math.random() * c.height, amp = 2 + Math.random() * 9, f = .002 + Math.random() * .005, fase = Math.random() * 9;
+      x.strokeStyle = Math.random() < .7 ? `rgba(0,0,0,${.08 + Math.random() * .14})` : `rgba(150,96,52,${.05 + Math.random() * .08})`;
+      x.lineWidth = .8 + Math.random() * 2.4;
+      x.beginPath();
+      for (let px = 0; px <= c.width; px += 24) x.lineTo(px, y0 + Math.sin(px * f + fase) * amp);
+      x.stroke();
+    }
+    x.lineCap = 'round';
+    for (let i = 0; i < 90; i++) {
+      const px = Math.random() * c.width, py = Math.random() * c.height, a = Math.random() * 6.28, l = 20 + Math.random() * 160;
+      x.strokeStyle = `rgba(200,150,100,${.05 + Math.random() * .1})`; x.lineWidth = .8 + Math.random() * 1.8;
+      x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke();
+    }
+    // A moldura de ouro gastou-se onde as mãos pousam: falha aos bocados.
+    const ouroGasto = (f, alfa = .75) => {
+      x.save(); x.globalAlpha = alfa;
+      x.setLineDash(Array.from({ length: 40 }, (_, i) => i % 2 ? 2 + Math.random() * 30 : 30 + Math.random() * 160));
+      x.lineDashOffset = Math.random() * 300; f(); x.restore();
+    };
+    ouroGasto(() => { x.strokeStyle = ouroEm(x, 0, 0, c.width, c.height); x.lineWidth = 7; x.strokeRect(26, 26, c.width - 52, c.height - 52); });
     // Cada lugar é uma cova escavada na tábua, mais funda e mais escura.
     const cova = (px, py, cw, ch, raio) => {
       const fim = new Path2D();
@@ -1542,7 +1832,7 @@ function textures(renderer) {
       x.shadowColor = 'rgba(0,0,0,.9)'; x.shadowBlur = 26; x.shadowOffsetY = 12;
       x.lineWidth = 10; x.strokeStyle = 'rgba(0,0,0,.8)'; x.stroke(fim);
       x.restore();
-      x.lineWidth = 3; x.strokeStyle = 'rgba(216,180,94,.55)'; x.stroke(fim);
+      ouroGasto(() => { x.lineWidth = 3; x.strokeStyle = 'rgba(216,180,94,.55)'; x.stroke(fim); }, 1);
       ax.save();
       ax.shadowColor = '#000'; ax.shadowBlur = 6;
       ax.fillStyle = '#505050'; ax.fill(fim);
@@ -1553,12 +1843,83 @@ function textures(renderer) {
     lugares.forEach(l => {
       const px = (l.x - ox) * escala, py = (l.z - oz) * escala;
       cova(px, py, cw, ch, 16);
-      drawGlyphRico(x, l.glyph, px, py - 34, 170, '#8a6a2e', '#d8b45e');
-      x.fillStyle = 'rgba(242,227,189,.86)'; x.textAlign = 'center';
-      x.font = `600 40px ${FONT_TITLE}`;
-      x.fillText(l.nome, px, py + 128);
+      // O ícone e o nome pintam-se à parte, para a tinta poder estalar e falhar antes de ir para a tábua.
+      const [t, tx] = canvas(Math.round(cw), Math.round(ch));
+      tx.translate(cw / 2, ch / 2);
+      drawGlyphRico(tx, l.glyph, 0, -34, 170, '#8a6a2e', '#d8b45e');
+      tx.fillStyle = 'rgba(242,227,189,.86)'; tx.textAlign = 'center';
+      tx.font = `600 40px ${FONT_TITLE}`;
+      tx.fillText(l.nome, 0, 128);
+      tx.setTransform(1, 0, 0, 1, 0, 0);
+      tx.globalCompositeOperation = 'destination-out';
+      for (let i = 0; i < 900; i++) {
+        tx.fillStyle = `rgba(0,0,0,${.3 + Math.random() * .7})`;
+        tx.beginPath(); tx.ellipse(Math.random() * cw, Math.random() * ch, .6 + Math.random() * 2.6, .5 + Math.random() * 1.4, Math.random() * 3, 0, 7); tx.fill();
+      }
+      x.globalAlpha = .9; x.drawImage(t, px - cw / 2, py - ch / 2); x.globalAlpha = 1;
     });
     return { map: toTexture(c, renderer), normal: normaisDe(a, renderer, 3) };
+  }
+
+  // Capa do livro. Se houver capa pintada (arte/capa.png), é ela o fundo; senão, couro desenhado aqui.
+  // O logótipo vem sempre por cima. As imagens podem acabar de carregar depois: a capa refaz-se então.
+  function capaLivro(hex = '#17120f') {
+    const W = 1024, H = 1330;
+    const [c, x] = canvas(W, H);
+    const t = toTexture(c, renderer);
+    const img = k => { const i = typeof ARTE !== 'undefined' && ARTE.img[k]; return i && i.complete && i.naturalWidth ? i : null; };
+    const fundoDesenhado = () => {
+      x.fillStyle = hex; x.fillRect(0, 0, W, H);
+      for (let i = 0; i < 90; i++) {
+        const px = Math.random() * W, py = Math.random() * H, r = 60 + Math.random() * 220;
+        const g = x.createRadialGradient(px, py, 0, px, py, r), tom = Math.random() < .6 ? '0,0,0' : '255,200,160';
+        g.addColorStop(0, `rgba(${tom},${.03 + Math.random() * .09})`); g.addColorStop(1, `rgba(${tom},0)`);
+        x.fillStyle = g; x.fillRect(0, 0, W, H);
+      }
+      speckle(x, W, H, 36000, .22);
+      speckle(x, W, H, 9000, .05, false);
+      // Riscos e esfoladelas claras, de anos a deslizar na mesa.
+      x.lineCap = 'round';
+      for (let i = 0; i < 70; i++) {
+        const px = Math.random() * W, py = Math.random() * H, a = Math.random() * 6.28, l = 20 + Math.random() * 120;
+        x.strokeStyle = `rgba(230,180,140,${.04 + Math.random() * .08})`; x.lineWidth = .8 + Math.random() * 2.2;
+        x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke();
+      }
+      // As beiras gastam-se mais: escurecem e perdem o vermelho.
+      const beira = x.createRadialGradient(W / 2, H / 2, W * .35, W / 2, H / 2, H * .72);
+      beira.addColorStop(0, 'rgba(20,6,2,0)'); beira.addColorStop(1, 'rgba(20,6,2,.6)');
+      x.fillStyle = beira; x.fillRect(0, 0, W, H);
+      // Filetes gravados: um sulco escuro com o ouro gasto por cima.
+      const filete = (d, l) => {
+        x.strokeStyle = 'rgba(10,2,0,.55)'; x.lineWidth = l + 4; x.strokeRect(d, d, W - 2 * d, H - 2 * d);
+        x.globalAlpha = .55; x.strokeStyle = ouroEm(x, 0, 0, W, H); x.lineWidth = l; x.strokeRect(d, d, W - 2 * d, H - 2 * d); x.globalAlpha = 1;
+      };
+      filete(54, 6); filete(78, 2);
+      [[78, 78], [W - 78, 78], [78, H - 78], [W - 78, H - 78]].forEach(([a, b]) => {
+        x.globalAlpha = .6; x.fillStyle = ouroEm(x, a - 26, b - 26, a + 26, b + 26); losango(x, a, b, 24); x.globalAlpha = 1;
+        x.fillStyle = hex; losango(x, a, b, 10);
+      });
+    };
+    const pinta = () => {
+      const pintada = img('capa'), logo = img('logo');
+      x.clearRect(0, 0, W, H);
+      if (pintada) {
+        const e = Math.max(W / pintada.naturalWidth, H / pintada.naturalHeight);
+        const w = pintada.naturalWidth * e, h = pintada.naturalHeight * e;
+        x.drawImage(pintada, (W - w) / 2, (H - h) / 2, w, h);
+      } else fundoDesenhado();
+      if (logo) {
+        const w = W - 170, h = w * logo.naturalHeight / logo.naturalWidth;
+        x.save(); x.globalAlpha = .92; x.drawImage(logo, (W - w) / 2, (H - h) / 2 - 30, w, h); x.restore();
+      }
+      t.needsUpdate = true;
+    };
+    pinta();
+    ['capa', 'logo'].forEach(k => {
+      const i = typeof ARTE !== 'undefined' && ARTE.img[k];
+      if (i && !img(k)) i.addEventListener('load', pinta, { once: true });
+    });
+    return t;
   }
 
   function pageEdge() {
@@ -1568,5 +1929,5 @@ function textures(renderer) {
     return toTexture(c, renderer);
   }
 
-  return { characterBoard, wood, leather, relevoCouro, relevoMapa, superficieCarta, cardBack, cardFace, leftPage, rightPage, mapTexture, diceAtlas, diceAtlasTema, glowSprite, chama, pena, moeda, sombraSuave, pinFace, pageEdge, CARD_W, CARD_H };
+  return { characterBoard, wood, leather, capaLivro, relevoCouro, relevoMapa, superficieCarta, cardBack, cardFace, leftPage, rightPage, mapTexture, diceAtlas, diceAtlasTema, glowSprite, chama, pena, moeda, sombraSuave, pinFace, pageEdge, CARD_W, CARD_H };
 }

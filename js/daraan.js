@@ -118,10 +118,10 @@ Object.assign(CARTAS_UNICAS.cls, {
 // ---------- Só em Daraan ----------
 
 Object.assign(RACAS, {
-  elfosombrio: { nome: 'Elfo Sombrio', mundo: 'daraan', glyph: 'moon', attrs: { agilidade: 1, carisma: 1 }, desc: 'Como o Imperador, e toda a gente repara. +1 Agilidade, +1 Carisma.' },
+  elfosombrio: { nome: 'Elfo Sombrio', mundo: 'daraan', glyph: 'moon', attrs: { agilidade: 1, carisma: 1 }, desc: 'Vem das profundezas, e toda a gente repara. +1 Agilidade, +1 Carisma.' },
 });
 Object.assign(CARTAS_UNICAS.raca, {
-  elfosombrio: { t: 'A Cara do Imperador', d: 'Só Elfos Sombrios. Ninguém se atreve a perguntar de que lado está.', tipo: 'social', ok: { txt: 'Os soldados afastam-se e baixam os olhos. Ninguém sabe quem é, e ninguém quer ser o primeiro a errar.', fx: { ouro: 5, xp: 3 } } },
+  elfosombrio: { t: 'Olhos das Profundezas', d: 'Só Elfos Sombrios. Ninguém se atreve a perguntar de que lado está.', tipo: 'social', ok: { txt: 'Os soldados afastam-se e baixam os olhos. Ninguém sabe quem é, e ninguém quer ser o primeiro a errar.', fx: { ouro: 5, xp: 3 } } },
 });
 
 Object.assign(ANTECEDENTES, {
@@ -186,7 +186,7 @@ const ESTRADAS_DARAAN = [
 ];
 
 const MAPA_DARAAN = {
-  titulo: 'Daraan, o Império da Espada', tituloX: .22,
+  titulo: 'Daraan, o Império da Espada', tituloX: .22, pintura: 'mapa',
   mar: [[.34, 0], [.36, .04], [.46, .05], [.58, .06], [.70, .08], [.84, .10], [.92, .20], [.93, .34], [.90, .42], [.92, .50], [.89, .62], [.85, .70], [.81, .84], [.75, .90], [.72, 1], [1, 1], [1, 0]],
   ilhas: [{ x: .90, y: .83, rx: .058, ry: .075, cor: 'rgba(120,45,32,.72)' }],
   lagos: [{ x: .41, y: .47, rx: .04, ry: .028 }],
