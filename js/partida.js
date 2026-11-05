@@ -24,7 +24,7 @@ function textoGanho(o) {
   const fx = (o.ok && o.ok.fx) || {}, ko = (o.ko && o.ko.fx) || {};
   const tempo = d => (d > 0 ? `${d} ${d === 1 ? 'dia' : 'dias'}` : '');
   if (o.roll && o.roll.pv && o.tipo === 'combate') {
-    return { ganho: G.rastro ? 'Combate à vez  ·  Fragmento de pista' : 'Combate à vez', perde: 'Se fugir: fica sem o prémio' };
+    return { ganho: o.rasto ? 'Combate à vez  ·  Fragmento de pista' : 'Combate à vez', perde: 'Se fugir: fica sem o prémio' };
   }
   const bom = [];
   if (o.rasto) bom.push('Fragmento de pista');
