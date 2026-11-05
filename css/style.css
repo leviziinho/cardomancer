@@ -1,4 +1,4 @@
-:root { --f-titulo: "Cinzel", Georgia, serif; --f-texto: "EB Garamond", Georgia, serif; }
+:root { --f-titulo: "IM Fell English SC", Georgia, serif; --f-texto: "IM Fell English", Georgia, serif; }
 /* A Andika vem com o jogo (licença em fonts/OFL.txt), 20% mais pequena do que de origem: assim cabe onde a outra cabia. */
 @font-face { font-family: 'Andika Cardo'; src: url(../fonts/andika-400.woff2) format('woff2'); font-weight: 400; font-style: normal; font-display: swap; size-adjust: 80%; }
 @font-face { font-family: 'Andika Cardo'; src: url(../fonts/andika-700.woff2) format('woff2'); font-weight: 700; font-style: normal; font-display: swap; size-adjust: 80%; }
@@ -47,7 +47,7 @@ button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 #loading .falha { display: grid; gap: 12px; justify-items: center; max-width: 30ch; padding: 0 16px; text-align: center; }
 #loading .falha p { margin: 0; }
 #loading .falha small { font: 16px/1.4 var(--f-texto, Georgia, serif); letter-spacing: 0; color: #e8d6ae; }
-#start { min-width: 220px; font-size: 18px; padding: 8px 18px; }
+#start, #start-guiada { min-width: 220px; font-size: 18px; padding: 8px 18px; }
 
 #prompt { position: fixed; top: 14px; left: calc(50% - var(--rail) / 2); transform: translateX(-50%); text-align: center; pointer-events: none; opacity: 0; transition: opacity .35s; text-shadow: 0 1px 3px #000; width: min(760px, 80vw); padding: 8px 22px 10px; background: linear-gradient(rgba(38, 21, 12, .94), rgba(16, 9, 5, .94)); border: 1px solid var(--gold); border-radius: 3px; box-shadow: inset 0 0 0 3px rgba(16, 9, 5, .9), inset 0 0 0 4px var(--line), 0 6px 20px rgba(0, 0, 0, .6); }
 #prompt.on { opacity: 1; }
@@ -286,7 +286,7 @@ body.foco #objetivo { opacity: .55; }
   :root { --rail: 66px; --trilha: 20px; }
   #title h1 { font-size: clamp(36px, 15vh, 64px); }
   #title p { margin: 6px 0 12px; font-size: 16px; }
-  #start { font-size: 16px; }
+  #start, #start-guiada { font-size: 16px; }
   #rail { gap: 2px; padding: 5px 4px; }
   .r-barras { min-height: 56px; }
   .r-barra { width: 24px; gap: 1px; }
@@ -341,3 +341,20 @@ body.foco #objetivo { opacity: .55; }
 
 @keyframes rise { from { opacity: 0; transform: translateY(18px); } }
 @media (prefers-reduced-motion: reduce) { #title .t-caixa { animation: none; } #title { transition: none; } #critico.on { animation-duration: .01s; opacity: 1; } }
+
+/* Modo Tutorial */
+#tutorial { position: fixed; inset: 0; z-index: 6; pointer-events: none; }
+#tutorial[hidden] { display: none; }
+#tutorial .t-moldura { position: absolute; inset: 0; border: 4px solid var(--gold); box-shadow: inset 0 0 28px rgba(255, 200, 90, .4); }
+#tutorial .t-selo { position: absolute; left: 14px; top: 0; display: flex; align-items: center; gap: 10px; padding: 3px 6px 5px 14px; background: linear-gradient(#5a3612, #2a170c); border: 2px solid var(--gold); border-top: 0; border-radius: 0 0 8px 8px; font: 700 14px var(--f-titulo); letter-spacing: .12em; text-transform: uppercase; color: #ffd97a; pointer-events: auto; }
+#tutorial .t-selo button { font-size: 12px; padding: 3px 10px; letter-spacing: 0; text-transform: none; }
+#tdica { position: absolute; left: 14px; top: 44px; width: min(330px, 34vw); padding: 12px 16px; color: #2a1a0d; background: #e9dbb8; border: 3px double #6e4a1e; border-radius: 3px; box-shadow: 0 0 0 2px rgba(230, 180, 80, .5), 0 14px 40px rgba(0, 0, 0, .7); pointer-events: auto; animation: tdica-entra .35s ease-out; }
+#tdica[hidden] { display: none; }
+#tdica h3 { margin: 0 0 6px; font: 700 19px/1.2 var(--f-titulo); color: #6d1f1a; }
+#tdica p { margin: 0 0 10px; font-size: 16px; line-height: 1.35; }
+#tdica button { float: right; font-size: 14px; padding: 5px 14px; }
+@keyframes tdica-entra { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+@media (max-width: 760px), (max-height: 499px) {
+  #tdica { top: auto; bottom: calc(var(--trilha) + 8px); left: 8px; right: 8px; width: auto; padding: 8px 12px; }
+  #tdica p { font-size: 14px; }
+}

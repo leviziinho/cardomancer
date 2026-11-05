@@ -6,7 +6,7 @@
 <title>Cardomancer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -21,6 +21,7 @@
     <p id="title-sub">Uma aventura que nunca se escolhe por inteiro.</p>
     <p id="title-pitch">Um herói feito de cartas, uma trama selada e vinte e quatro dias para a desvendar no Império da Espada.</p>
     <button id="start">Nova Partida</button>
+    <button id="start-guiada">Partida Guiada</button>
     <button id="title-config" class="t-menor" aria-expanded="false">Configurações</button>
     <div id="title-opcoes" hidden>
       <button data-alvo="imagem-btn"></button>
@@ -38,10 +39,16 @@
 <div id="virar" aria-live="polite"><svg viewBox="0 0 100 100" width="96" height="96" aria-hidden="true"><rect x="32" y="12" width="36" height="76" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="50" cy="78" r="3.5" fill="currentColor"/></svg><p>Vire o telemóvel para jogar.</p><small>Deitado vê-se melhor a mesa toda.</small><button id="vertical-btn">Quero jogar na vertical</button></div>
 <div id="folha" aria-live="polite"></div>
 <div id="dica-toque"></div>
+<!-- O Modo Tutorial: uma moldura à volta do ecrã, o selo com Sair, e as dicas, que nunca bloqueiam o jogo. -->
+<div id="tutorial" hidden>
+  <div class="t-moldura"></div>
+  <div class="t-selo"><span>Modo Tutorial</span><button id="tutorial-sair">Sair do tutorial</button></div>
+  <aside id="tdica" hidden><h3 id="tdica-titulo"></h3><p id="tdica-texto"></p><button id="tdica-ok">Entendi</button></aside>
+</div>
 <div id="pergunta" role="dialog" aria-modal="true"><article>
   <h2>É a sua primeira aventura em Cardomancer?</h2>
-  <p>Posso mostrar-lhe a mesa: o que é cada coisa, e onde está. O caminho, esse, fica por sua conta.</p>
-  <div><button id="guia-sim">Sim, mostre-me a mesa</button><button id="guia-nao">Já conheço</button></div>
+  <p>Posso jogar a primeira etapa consigo: explico cada coisa quando aparecer, e as escolhas são suas. Pode sair do tutorial a qualquer momento.</p>
+  <div><button id="guia-sim">Sim, jogar a partida guiada</button><button id="guia-nao">Já conheço</button></div>
 </article></div>
 <div id="teclas" role="dialog" aria-modal="true" aria-labelledby="teclas-titulo"><article>
   <h2 id="teclas-titulo">Teclas</h2>

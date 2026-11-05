@@ -1,8 +1,8 @@
 // Tudo o que se vê é desenhado em código: madeira, pergaminho, mapa, cartas e páginas.
 // Assim as cartas têm alta resolução sem precisar de nenhum ficheiro de imagem.
 
-let FONT_TITLE = '"Cinzel", Georgia, serif';
-let FONT_BODY = '"EB Garamond", Georgia, serif';
+let FONT_TITLE = '"IM Fell English SC", Georgia, serif';
+let FONT_BODY = '"IM Fell English", Georgia, serif';
 
 const GLYPHS = {
   fist: 'M20 44h12V24h11v20h5V16h11v28h5V24h11v20h5c4 0 6 3 6 7v9c0 22-14 36-34 36S20 82 20 60z',

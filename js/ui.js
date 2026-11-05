@@ -99,6 +99,7 @@ async function abrirLivroDoGuia() {
 
 async function guia() {
   const g = $('guia'), foco = $('guia-foco'), caixa = $('guia-caixa');
+  $('tdica').hidden = true;
   const visivel = r => r && r.right - r.left > 4 && r.bottom - r.top > 4 && r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight;
   // Os passos que preparam a mesa (abrem o livro, trazem cartas) contam sempre: o alvo só existe depois.
   const passos = PASSOS_GUIA.filter(p => { if (p.prepara) return true; const r = p.alvo(); return r === null || visivel(r); });
@@ -142,16 +143,70 @@ async function guia() {
   if (guiaAbriuLivro) { guiaAbriuLivro = false; await world.book.fechar(); atualizaBotaoMapa(); }
 }
 
+// ---------- A partida guiada ----------
+// O tutorial acompanha a primeira etapa da partida a sério: cada coisa explica-se quando aparece, uma vez,
+// numa dica que não bloqueia nada. As escolhas são sempre do jogador. Sair desliga tudo de uma vez.
+let tutorial = false;
+const dicasVistas = new Set();
+const DICAS_TUTORIAL = {
+  classe: ['A sua classe', 'Estas cartas são classes. Cada uma diz o que sabe fazer e com quanta Vida começa. Passe o rato (ou toque) para ler de perto, e escolha a que quiser: as outras voltam ao monte.'],
+  antecedente: ['De onde vem', 'O antecedente é a vida antes da aventura. Dá atributos, às vezes ouro ou XP, e uma carta rara que só aparece uma vez.'],
+  raca: ['O seu povo', 'A raça dá atributos e abre portas que outros não abrem. Também traz a sua carta rara.'],
+  arma: ['A arma', 'O dado da arma é o dano de cada golpe. Cada classe só usa as armas do seu tipo.'],
+  levar: ['O que levar', 'Armadura, acessórios ou coisas para a mochila. Uma poção salva-o sozinha se a Vida chegar a zero.'],
+  partida: ['De onde parte', 'A cidade onde a história começa. Pode ser longe ou perto da missão.'],
+  livro: ['O livro', 'O livro conta o que acontece. As palavras a vermelho escondem mais sobre o mundo: clique nelas. Para seguir, use o botão em baixo.'],
+  missao: ['A missão', 'Isto é o que tem de fazer. A carta selada guarda um segredo que só se abre no fim. Clique na missão para a iniciar.'],
+  cena: ['Uma escolha', 'Cada carta é uma maneira de agir. O selo no canto é a hipótese de correr bem (verde é fácil, vermelho é difícil). Por cima da barra, o que ganha e o que perde. Não há resposta certa: escolha a que quiser.'],
+  mascara: ['Uma máscara', 'Esta carta tem uma máscara no fundo: mexe na sua tendência. A que sorri puxa para o Bem, a que chora para o Mal, a de lábios cerrados para a Ordem ou o Caos.'],
+  dado: ['O d20', 'O dado mais o atributo tem de chegar ao número da carta. Um 20 é sempre crítico, um 1 é sempre falha. Com 2d20, fica o melhor dos dois.'],
+  cidade: ['Na cidade', 'Aqui escolhe o que fazer: seguir viagem, ir ao mercado, descansar (recupera Vida, mas gasta um dia) ou investigar. A estrela dourada no mapa é a missão; o olho vermelho é uma pista.'],
+  estrada: ['A viagem', 'Cada estrada custa um dia. Veja os dias na trilha em baixo: a ampulheta é o fim do prazo.'],
+  encontro: ['Alguém na estrada', 'Cada estrada custa um dia. Desta vez, o pino parou a meio do caminho: há um encontro. Resolva-o, e só depois chega.'],
+  combate: ['Combate', 'Joga-se à vez. A carta de ataque mostra a CA dele: é o número a tirar no d20. Os PV de cada um estão no livro. Pode fugir, mas perde o prémio.'],
+  mercado: ['O mercado', 'Só aparece o que a sua classe sabe usar. O preço está no rodapé de cada carta.'],
+  pista: ['Uma pista', 'Ganhou um fragmento. Com três, a pista fica completa: poupa uma etapa e revela uma fraqueza do inimigo final.'],
+  talento: ['Subiu de nível', 'Escolha um talento. Fica seu até ao fim, e aparece por baixo da missão.'],
+  fim: ['Agora é consigo', 'Chegou à segunda etapa: já viu o essencial. O resto descobre-se a jogar, e a Ajuda tem as regras todas. Boa viagem!'],
+};
+function dica(chave) {
+  if (!tutorial || dicasVistas.has(chave) || !DICAS_TUTORIAL[chave]) return;
+  dicasVistas.add(chave);
+  const [titulo, texto] = DICAS_TUTORIAL[chave];
+  $('tdica-titulo').textContent = titulo;
+  $('tdica-texto').textContent = texto;
+  $('tdica').hidden = false;
+  if (chave === 'fim') { $('tdica-ok').textContent = 'Jogar sozinho'; $('tdica-ok').onclick = sairTutorial; }
+}
+function ligarTutorial() {
+  tutorial = true;
+  dicasVistas.clear();
+  $('tdica-ok').textContent = 'Entendi';
+  $('tdica-ok').onclick = null;
+  guiaPendente = true;
+}
+// O contorno e o selo aparecem quando a primeira carta (a classe) chega à mesa.
+function mostrarTutorial() { if (tutorial) $('tutorial').hidden = false; }
+function sairTutorial() {
+  tutorial = false;
+  guiaPendente = false;
+  $('tutorial').hidden = true;
+  $('tdica').hidden = true;
+  // Se a visita à mesa estiver aberta, fecha-se como se tivesse carregado em Saltar.
+  if ($('guia').classList.contains('on')) $('guia-saltar').click();
+}
+
 // Só se pergunta uma vez. Quem já sabe, salta.
 async function perguntarPrimeiraVez() {
   let visto = false;
   try { visto = !!localStorage.getItem('cardomancer-primeira'); } catch (e) { /* sem memória do navegador, pergunta-se sempre */ }
   if (visto) return;
   $('pergunta').classList.add('on');
-  guiaPendente = await new Promise(resolve => {
+  const sim = await new Promise(resolve => {
     $('guia-sim').onclick = () => resolve(true);
     $('guia-nao').onclick = () => resolve(false);
   });
+  if (sim) ligarTutorial();
   $('pergunta').classList.remove('on');
   try { localStorage.setItem('cardomancer-primeira', '1'); } catch (e) { /* idem */ }
 }
@@ -205,6 +260,8 @@ Segunda oportunidade: uma vez por aventura, no início da missão, quem cai a 0 
 Cartas raras: as amarelas. Só há uma de classe, uma de raça e uma de antecedente em cada aventura. Se não a usar, volta ao baralho.
 
 Estrada: nem todos os encontros são maus. Um mercador secreto vende mais barato e, com muita sorte, um mestre pode mudar a sua classe.
+
+Partida guiada: o botão Partida Guiada, na abertura, joga a primeira etapa consigo. Cada coisa explica-se quando aparece, as escolhas são suas, e pode sair do tutorial a qualquer momento.
 
 Teclas: 1 a 4 escolhem as cartas. C abre a ficha, M mostra o mapa, B bebe uma poção e H abre esta ajuda. Pode mudá-las em Teclas, nas configurações.`;
 
@@ -478,6 +535,7 @@ const ui = {
 
   // Dados em cima do mapa: o livro nunca os pode tapar.
   async dados(lista, opcoes = {}) {
+    if (lista.some(d => d.tipo === 'd20')) dica('dado');
     if (opcoes.onde === 'mapa') await ui.fecharLivro();
     return world.rollDice(lista, opcoes);
   },
@@ -494,6 +552,7 @@ const ui = {
   },
 
   async livro(p) {
+    dica('livro');
     paginaAtual = p;
     desenharFolha(p);
     await world.book.turn({ ...p, termos: termosDe(p.texto || '') });
@@ -533,6 +592,7 @@ const ui = {
 
   // Uma pista encontrada vira carta na mesa, e pode ler-se a qualquer momento.
   async pista(i) {
+    dica('pista');
     const d = G.diario[i];
     const f = FRAQUEZAS[d.fraqueza];
     const c = world.createCard({ tema: 'investigacao', etiqueta: `Pista ${i + 1}`, titulo: f.nome, glyph: 'eye', desc: `${f.desc} ${d.texto}` });
@@ -562,6 +622,7 @@ const ui = {
   },
 
   async andar(trajeto) {
+    dica('estrada');
     await ui.fecharLivro();
     await world.movePin(trajeto);
     await wait(.35);
@@ -569,6 +630,7 @@ const ui = {
 
   // A viagem em duas metades: o pino espera na estrada, e só depois chega.
   async meioCaminho(de, para) {
+    dica('encontro');
     await ui.fecharLivro();
     await world.movePinTroco(de, para, 0, .5);
   },
@@ -582,6 +644,8 @@ const ui = {
   // A carta escolhida vai para o seu lugar no tabuleiro. As que não têm lugar voltam ao monte.
   async draft(titulo, sub, specs, { lugar = null } = {}) {
     ui.prompt(titulo, sub);
+    mostrarTutorial();
+    dica(lugar || { 'Escolha a sua arma': 'arma', 'Escolha o que levar': 'levar', 'Escolha a cidade de partida': 'partida' }[titulo]);
     const zona = () => world.fileira(specs.length, { topo: .66, base: -.8, esq: -.92, dir: .92, y: 4.5, grelha: ecraVertical() });
     const alvos = zona();
     const cards = specs.map(s => world.createCard(s));
@@ -608,6 +672,8 @@ const ui = {
 
   // Dá as cartas para a mão e devolve o índice da escolhida.
   async escolha(specs, { ctx } = {}) {
+    dica(ctx);
+    if (ctx === 'cena' && specs.some(s => s.mascara)) window.setTimeout(() => dica('mascara'), 200);
     if (ctx === 'talento') return ui.escolhaEmDestaque(specs);
     const zona = () => world.fileira(specs.length, zonaDaMao());
     const alvos = zona();
@@ -658,6 +724,7 @@ const ui = {
   },
 
   async missao() {
+    dica('missao');
     const t = G.trama, obj = OBJETIVOS[t.objetivo], v = VILOES[t.vilao], rev = REVIRAVOLTAS[t.reviravolta];
     ui.prompt('A sua missão', 'Isto é o que sabe. Há uma parte que continua selada.');
     // As cartas flutuam acima do pino, que está de pé no mapa e não pode ficar à frente delas.
@@ -686,7 +753,7 @@ const ui = {
     await world.fly(cartaSelada, { pos: [CX + 3, 3, 1], rot: [FACE_DOWN, 0, 0], scale: 1.4 }, .9, { arc: 3 });
     await wait(.5);
 
-    ui.prompt('A sua missão', 'Há uma parte que continua selada. Clique na missão para a aceitar.');
+    ui.prompt('A sua missão', 'Há uma parte que continua selada. Clique na missão para Iniciar a Missão.');
     cartaMissao.hoverScale = .1; cartaMissao.hoverLift = 1.1;
     await world.choose([cartaMissao]);
     ui.prompt('');
@@ -737,6 +804,8 @@ const ui = {
     $('rail').classList.add('on');
     world.resize();
     if (!G) return;
+    // A partida guiada acaba na segunda etapa.
+    if (tutorial && G.fio >= 1) dica('fim');
     const max = G.cls ? vidaMax() : 0;
     const prox = G.cls ? xpParaProximo() : null;
     const base = NIVEIS[G.nivel - 1] || 0;
@@ -831,10 +900,10 @@ function desenharPainel() {
     <section><h3>Aliados</h3><ul>${aliados}</ul></section>`;
 }
 
-// A letra: a legível (Andika) é a de origem, a clássica fica para quem a preferir.
+// A letra: a legível (Andika) é a de origem, a medieval (IM Fell English) fica para quem a preferir.
 const LETRAS = {
   legivel: { titulo: '"Andika Cardo", Verdana, sans-serif', texto: '"Andika Cardo", Verdana, sans-serif', nome: 'legível' },
-  classica: { titulo: '"Cinzel", Georgia, serif', texto: '"EB Garamond", Georgia, serif', nome: 'clássica' },
+  classica: { titulo: '"IM Fell English SC", Georgia, serif', texto: '"IM Fell English", Georgia, serif', nome: 'medieval' },
 };
 function usarLetra(nome) {
   const l = LETRAS[nome] || LETRAS.legivel;
@@ -848,7 +917,7 @@ try { letra = localStorage.getItem('cardomancer-letra') || 'legivel'; } catch (e
 
 async function main() {
   try {
-    await Promise.all(['40px "Cinzel"', '600 40px "Cinzel"', '700 40px "Cinzel"', '40px "EB Garamond"', 'italic 40px "EB Garamond"', '40px "Andika Cardo"', '700 40px "Andika Cardo"', 'italic 40px "Andika Cardo"'].map(f => document.fonts.load(f, 'Áçã')));
+    await Promise.all(['40px "IM Fell English SC"', '40px "IM Fell English"', 'italic 40px "IM Fell English"', '40px "Andika Cardo"', '700 40px "Andika Cardo"', 'italic 40px "Andika Cardo"'].map(f => document.fonts.load(f, 'Áçã')));
   } catch (e) { /* sem fontes, usa Georgia */ }
   usarLetra(letra);
 
@@ -1014,14 +1083,22 @@ Enviado do jogo a ${quando}.` };
     rotulos();
   });
   $('title-ajuda').addEventListener('click', () => { abrirLore('Como se joga', COMO_JOGAR); $('rever-guia').hidden = true; });
+  $('tutorial-sair').addEventListener('click', sairTutorial);
+  $('tdica-ok').addEventListener('click', () => { if (tutorial) $('tdica').hidden = true; });
 
   // A música da abertura (Si menor) entra no primeiro toque: os navegadores não deixam tocar antes disso.
   const tocarAbertura = () => { musica.modo('abertura'); musica.ligar(); };
   ['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, tocarAbertura, { once: true }));
-  await new Promise(resolve => $('start').addEventListener('click', resolve, { once: true }));
+  const guiada = await new Promise(resolve => {
+    $('start').addEventListener('click', () => resolve(false), { once: true });
+    $('start-guiada').addEventListener('click', () => resolve(true), { once: true });
+  });
   ['pointerdown', 'keydown'].forEach(ev => window.removeEventListener(ev, tocarAbertura));
   pedirEcraInteiro();
-  await perguntarPrimeiraVez();
+  if (guiada) {
+    ligarTutorial();
+    try { localStorage.setItem('cardomancer-primeira', '1'); } catch (e) { /* sem memória */ }
+  } else await perguntarPrimeiraVez();
   sfx.card();
   musica.ligar();
   musica.modo('calma');
