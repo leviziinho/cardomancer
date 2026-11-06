@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cardomancer: partituras</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/abcjs-audio.css">
+<style>
+ body { margin: 0 auto; max-width: 980px; padding: 24px 16px 60px; font: 16px/1.5 Georgia, serif; color: #1e1208; background: #f4ead2; }
+ h1 { margin: 0 0 4px; font-size: 30px; } h2 { margin: 40px 0 2px; font-size: 24px; border-bottom: 2px solid #6e4a1e; }
+ .meta { margin: 0 0 6px; color: #5a3d1c; } .nota { font-size: 14px; color: #5a3d1c; }
+ .pauta { background: #fffaf0; border: 1px solid #c9b48a; padding: 8px; overflow-x: auto; }
+ .tocar { margin: 6px 0 10px; }
+ @media print { .tocar, .nota-ecra { display: none; } h2 { break-before: page; } h2:first-of-type { break-before: auto; } body { background: #fff; } .pauta { border: 0; } }
+</style></head><body>
+<h1>Cardomancer: a música escrita</h1>
+<p class="meta">A mesma melodia para todas as classes: cada classe toca-a com os seus instrumentos (ver <b>ideias-e-prompts.md</b>).
+Melodia em altura real, cifras por cima (um acorde por compasso). As secções aparecem uma vez; a ordem em que tocam está em "Forma".
+A secção D é a melodia de A uma oitava abaixo, em voz baixa.</p>
+<p class="nota nota-ecra">Para guardar em PDF: Ctrl+P → Guardar como PDF. O botão de tocar usa sons de piano/flauta da Internet, só para ouvir as notas.</p>
+<div id="pecas"></div>
+<script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js"></script>
+<script>
+const PECAS = [{"id": "calma", "abc": "X:1\nT:A Estrada\nC:Cardomancer\nM:6/8\nL:1/8\nQ:3/8=56\n%%MIDI program 73\nK:Ddor\nP:I\n\"Dm\"z6 | \"Dm\"z6 |]\nP:A\n\"Dm\"d3 f2 g | \"C\"a4 g2 | \"G\"f3 e c2 | \"Dm\"d4 z2 |\n\"F\"f2 a c'3 | \"C\"c'2 b g3 | \"G\"f2 g b2 g | \"Am\"a4 z2 |]\nP:A2\n\"Dm\"d3 f2 g | \"C\"a4 g2 | \"G\"f3 e c2 | \"Dm\"d4 z2 |\n\"F\"f2 a c'3 | \"C\"c'2 b g3 | \"G\"b2 g e2 c | \"Dm\"d4 z2 |]\nP:B\n\"F\"a2 c' d'3 | \"C\"e'2 d' c'3 | \"Dm\"a3 g a2 | \"G\"b4 z2 |\n\"F\"f a c' d'3 | \"G\"d'2 b g3 | \"Am\"a2 c' b2 g | \"Dm\"f2 e d3 |]\nP:C\n\"G\"d'3 b d'2 | \"Am\"e'3 c' a2 | \"C\"c'2 b c'2 e' | \"F\"f'4 z2 |\n\"G\"d'2 c' b2 g | \"C\"c'3 b g2 | \"Am\"a2 b c'2 a | \"Am\"a5 z |]\nP:F\n\"C\"g3 f3 | \"G\"e3 c3 | \"Dm\"d6 | \"Dm\"z6 |]", "titulo": "A Estrada", "sub": "Balada da viagem, igual para todas as classes; muda só o arranjo.", "forma": "I → A → A2 → B → A2 → C → B → D → A2 → F", "tom": "Ré dórico", "bpm": 84, "compasso": "6/8"}, {"id": "combate", "abc": "X:2\nT:O Combate\nC:Cardomancer\nM:4/4\nL:1/8\nQ:1/4=132\n%%MIDI program 73\nK:Amin\nP:A\n\"Am\"A2 c d e3 c | \"Am\"f2 e d c2 B2 | \"F\"A4 z2 c d | \"G\"e2 d B d4 |\n\"Am\"A2 c d e3 f | \"F\"a2 f e f2 c2 | \"C\"e2 g2 e2 c2 | \"Em\"B3 G B4 |]\nP:A2\n\"Am\"A2 c d e3 c | \"Am\"f2 e d c2 B2 | \"F\"A4 z2 c d | \"G\"e2 d B d4 |\n\"Am\"A2 c d e3 f | \"F\"a2 f e f2 c2 | \"C\"e2 g2 e2 c2 | \"Am\"A6 z2 |]\nP:B\n\"Dm\"d2 f2 a3 g | \"C\"e2 g2 a2 b2 | \"G\"g4 e2 d2 | \"Em\"e6 z2 |\n\"Dm\"a a g a b4 | \"C\"a2 g2 e4 | \"F\"f2 a2 c'2 a2 | \"Em\"b4 e4 |]\nP:C\n\"Am\"A A B c A2 E2 | \"F\"F F A c A4 | \"Am\"A A B c d2 e2 | \"G\"d4 B2 G2 |\n\"Am\"e e f e c2 A2 | \"F\"f2 e c A4 | \"G\"B2 d2 e2 g2 | \"Em\"e4 z4 |]", "titulo": "O Combate", "sub": "Tema de luta, com ostinato e tambores a cavalgar.", "forma": "A → A2 → B → C → A2", "tom": "Lá eólio", "bpm": 132, "compasso": "4/4"}, {"id": "chefe", "abc": "X:3\nT:O Chefe\nC:Cardomancer\nM:4/4\nL:1/8\nQ:1/4=72\n%%MIDI program 73\nK:Gphr\nP:A\n\"Gm\"G4 A2 B2 | \"Ab\"c4 A4 | \"Gm\"G6 z2 | \"Fm\"d3 c B2 A2 |\n\"Bb\"B4 d2 f2 | \"Ab\"e4 c2 A2 | \"Eb\"B3 A G4 | \"Ddim\"A4 d4 |]\nP:B\n\"Eb\"g4 a2 g2 | \"Ab\"e4 a4 | \"Bb\"f3 e d4 | \"Ddim\"d6 z2 |\n\"Eb\"e2 g2 b4 | \"Ab\"a3 g e4 | \"Fm\"f4 d2 A2 | \"Gm\"G6 z2 |]\nP:A2\n\"Gm\"G4 A2 B2 | \"Ab\"c4 A4 | \"Gm\"G6 z2 | \"Fm\"d3 c B2 A2 |\n\"Bb\"B4 d2 f2 | \"Ab\"e4 c2 A2 | \"Eb\"B3 A c4 | \"Gm\"G6 z2 |]", "titulo": "O Chefe", "sub": "Lento e pesado, com coro por baixo.", "forma": "A → B → D → A2", "tom": "Sol frígio", "bpm": 72, "compasso": "4/4"}];
+const raiz = document.getElementById('pecas');
+for (const p of PECAS) {
+  const s = document.createElement('section');
+  s.innerHTML = `<h2>${p.titulo}</h2><p class="meta">${p.sub}<br>Tom: <b>${p.tom}</b> · Compasso: <b>${p.compasso}</b> · <b>${p.compasso === '6/8' ? 'Semínima com ponto = ' + Math.round(p.bpm * 2 / 3) : 'Semínima = ' + p.bpm}</b> · Forma: <b>${p.forma}</b></p>
+    <div class="tocar" id="t-${p.id}"></div><div class="pauta" id="p-${p.id}"></div>`;
+  raiz.appendChild(s);
+  const vis = ABCJS.renderAbc('p-' + p.id, p.abc, { responsive: 'resize', add_classes: true, paddingtop: 0 })[0];
+  if (ABCJS.synth.supportsAudio()) {
+    const ctl = new ABCJS.synth.SynthController();
+    ctl.load('#t-' + p.id, null, { displayPlay: true, displayProgress: true, displayRestart: true });
+    ctl.setTune(vis, false, { program: 73 }).catch(() => {});
+  }
+}
+</script></body></html>
