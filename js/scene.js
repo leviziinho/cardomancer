@@ -154,8 +154,9 @@ function createWorld(canvasEl) {
   })();
 
   // Luz
-  scene.add(new THREE.HemisphereLight(0xffe2bd, 0x1c0e05, 0.2));
-  const key = new THREE.SpotLight(0xffdcae, 3.3, 0, 0.95, 0.72, 0);
+  // A luz principal é quase branca: as velas já aquecem a mesa, e o papel e o mapa precisam de ler-se.
+  scene.add(new THREE.HemisphereLight(0xfff0dc, 0x1c0e05, 0.2));
+  const key = new THREE.SpotLight(0xfff1df, 3.3, 0, 0.95, 0.72, 0);
   key.position.set(CX, 38, 12);
   key.target.position.set(CX, 0, 0);
   key.castShadow = true;
@@ -185,7 +186,9 @@ function createWorld(canvasEl) {
   const leatherBlue = tex.leather('#1d2642');
   const grao = tex.relevoCouro();
   const couro = map => new THREE.MeshStandardMaterial({ map, normalMap: grao, normalScale: new THREE.Vector2(.7, .7), roughness: .6 });
-  const brass = new THREE.MeshStandardMaterial({ color: 0xc9994a, metalness: 1, roughness: 0.3 });
+  // Tudo o que é metal, osso ou lacre leva o mesmo mapa de desgaste: baço, com riscos de uso.
+  const gasto = tex.gasto();
+  const brass = new THREE.MeshStandardMaterial({ color: 0xa87c3c, metalness: 1, roughness: .62, roughnessMap: gasto, envMapIntensity: .7 });
 
   // Sombra de contacto: onde um objeto toca na mesa, a luz não chega.
   const texSombra = tex.sombraSuave();
@@ -436,7 +439,7 @@ function createWorld(canvasEl) {
     const normaisVeios = wood.normal.clone();
     normaisVeios.needsUpdate = true;
     normaisVeios.repeat.set(.05, .05);
-    const moldura = shadowed(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: veios, normalMap: normaisVeios, color: 0xa88c6c, roughness: .46, envMapIntensity: .55 })));
+    const moldura = shadowed(new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: veios, normalMap: normaisVeios, color: 0xa88c6c, roughness: .78, roughnessMap: gasto, envMapIntensity: .4 })));
     moldura.position.set(x, .05, z);
     scene.add(moldura);
     [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => {
@@ -448,8 +451,24 @@ function createWorld(canvasEl) {
   })();
 
   // Pino de viagem: a cor e o símbolo são os da classe.
-  const pinLac = new THREE.MeshPhysicalMaterial({ color: 0x9c1414, roughness: 0.3, metalness: 0.1, clearcoat: .8, clearcoatRoughness: .12 });
+  const pinLac = new THREE.MeshPhysicalMaterial({ color: 0x8a1414, roughness: .55, roughnessMap: gasto, metalness: 0.1, clearcoat: .3, clearcoatRoughness: .5 });
   const pinFace = new THREE.SpriteMaterial({ transparent: true, depthWrite: false });
+  const pinContorno = new THREE.SpriteMaterial({ transparent: true, depthWrite: false, color: 0x000000, opacity: .9 });
+  const pinHalo = new THREE.SpriteMaterial({ transparent: true, depthWrite: false, toneMapped: false, opacity: .8 });
+  // A silhueta da miniatura, desfocada e cor de papel claro.
+  function haloDe(img) {
+    const m = 40, w = 256, h = Math.round(256 * img.naturalHeight / img.naturalWidth);
+    const cv = document.createElement('canvas'); cv.width = w + m * 2; cv.height = h + m * 2;
+    const x = cv.getContext('2d');
+    x.filter = 'blur(10px)';
+    x.drawImage(img, m, m, w, h); x.drawImage(img, m, m, w, h);
+    x.filter = 'none';
+    x.globalCompositeOperation = 'source-in';
+    x.fillStyle = '#fff6e2'; x.fillRect(0, 0, cv.width, cv.height);
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+    // Quanto o halo é maior do que a figura, e onde fica o pé dela dentro do halo.
+    return { t, sx: (w + m * 2) / w, sy: (h + m * 2) / h, cy: m / (h + m * 2) };
+  }
   const pin = (() => {
     const g = new THREE.Group();
     const pts = [[0, 0], [.34, 0], [.36, .07], [.24, .14], [.13, .3], [.1, .74], [.2, .84], [.09, .9]].map(p => new THREE.Vector2(p[0], p[1]));
@@ -461,7 +480,16 @@ function createWorld(canvasEl) {
     const face = new THREE.Sprite(pinFace);
     face.position.y = 1.35;
     face.scale.set(.95, .95, 1);
+    face.renderOrder = 2;
     g.add(face);
+    // A miniatura pintada leva um contorno escuro (a mesma figura, um pouco maior, a preto) e, por trás,
+    // um halo claro com a forma dela, como um autocolante: assim não se perde na pintura quente do mapa.
+    const contorno = new THREE.Sprite(pinContorno);
+    contorno.renderOrder = 1; contorno.visible = false;
+    g.add(contorno);
+    const halo = new THREE.Sprite(pinHalo);
+    halo.renderOrder = 0; halo.visible = false;
+    g.add(halo);
     g.scale.setScalar(1.25);
     g.visible = false;
     scene.add(g);
@@ -471,7 +499,7 @@ function createWorld(canvasEl) {
   // sem ela, fica o pino de laca com o símbolo.
   function setPin(cor, glyph, lugar, classe) {
     const mini = typeof ARTE !== 'undefined' && ARTE.img['miniaturas/' + classe];
-    const [corpo, colar, face] = pin.children;
+    const [corpo, colar, face, contorno, halo] = pin.children;
     if (mini && mini.complete && mini.naturalWidth) {
       const t = new THREE.Texture(mini);
       t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); t.needsUpdate = true;
@@ -479,12 +507,21 @@ function createWorld(canvasEl) {
       const alto = 2.1;
       face.center.set(.5, 0); face.position.y = 0;
       face.scale.set(alto * mini.naturalWidth / mini.naturalHeight, alto, 1);
+      pinContorno.map = t; pinContorno.needsUpdate = true;
+      contorno.center.set(.5, .02); contorno.position.y = -.04;
+      contorno.scale.set(face.scale.x * 1.1, alto * 1.05, 1);
+      const hl = haloDe(mini);
+      pinHalo.map = hl.t; pinHalo.needsUpdate = true;
+      halo.center.set(.5, hl.cy); halo.position.y = -.06;
+      halo.scale.set(face.scale.x * hl.sx, alto * hl.sy, 1);
+      contorno.visible = halo.visible = true;
       corpo.visible = colar.visible = false;
     } else {
       pinLac.color.set(cor);
       pinFace.map = tex.pinFace(glyph, '#' + cor.toString(16).padStart(6, '0'));
       face.center.set(.5, .5); face.position.y = 1.35; face.scale.set(.95, .95, 1);
       corpo.visible = colar.visible = true;
+      contorno.visible = halo.visible = false;
     }
     pinFace.needsUpdate = true;
     pin.position.copy(mapToWorld(lugar));
@@ -541,7 +578,7 @@ function createWorld(canvasEl) {
     const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: texChama, color: new THREE.Color(5, 3.4, 1.9), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
     flame.position.y = flameY + .08;
     g.add(flame);
-    const light = new THREE.PointLight(0xffa458, 38, 26, 2);
+    const light = new THREE.PointLight(0xffb070, 30, 26, 2);
     light.position.y = flameY + .2;
     if (!LEVE) g.add(light);
     g.position.set(x, 0, z);
@@ -552,6 +589,7 @@ function createWorld(canvasEl) {
   candle(CX - 15.8, -7.4, 2.6);
   candle(CX + 11.8, 8.2, 1.5);
 
+  const folhasLivros = new THREE.MeshStandardMaterial({ map: tex.pageEdge(), color: 0xcbb68c, roughness: .95 });
   function bookStack(x, z, rot) {
     const g = new THREE.Group();
     let y = 0;
@@ -559,7 +597,7 @@ function createWorld(canvasEl) {
       const cover = shadowed(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), couro(map)));
       cover.position.y = y + h / 2; cover.rotation.y = r;
       g.add(cover);
-      const pages = new THREE.Mesh(new THREE.BoxGeometry(w - .18, h - .13, d + .02), new THREE.MeshStandardMaterial({ color: 0xd9c9a2, roughness: .9 }));
+      const pages = new THREE.Mesh(new THREE.BoxGeometry(w - .18, h - .13, d + .02), folhasLivros);
       pages.position.set(.12, y + h / 2, 0); pages.rotation.y = r;
       g.add(pages);
       const band = new THREE.Mesh(new THREE.BoxGeometry(.1, h + .01, d + .01), brass);
@@ -597,7 +635,7 @@ function createWorld(canvasEl) {
     const x = CX - 13.4, z = 6.4;
     sombraDe(x, z, 2.1);
     const pts = [[0, 0], [.46, 0], [.5, .05], [.5, .42], [.42, .54], [.2, .6], [.2, .72], [.26, .75], [.15, .76], [.12, .6], [0, .58]].map(p => new THREE.Vector2(p[0], p[1]));
-    const vidro = shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 28), new THREE.MeshPhysicalMaterial({ color: 0x14202c, roughness: .1, metalness: .1, clearcoat: 1, envMapIntensity: 1.6 })));
+    const vidro = shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 28), new THREE.MeshPhysicalMaterial({ color: 0x14202c, roughness: .32, roughnessMap: gasto, metalness: .1, clearcoat: .5, clearcoatRoughness: .35, envMapIntensity: 1.1 })));
     vidro.position.set(x, 0, z);
     scene.add(vidro);
     const contorno = new THREE.Shape();
@@ -623,7 +661,7 @@ function createWorld(canvasEl) {
   // Selo de lacre
   (function selo() {
     const x = CX + 15.9, z = 3.2;
-    const lacre = new THREE.MeshPhysicalMaterial({ color: 0x8f1612, roughness: .32, clearcoat: .6 });
+    const lacre = new THREE.MeshPhysicalMaterial({ color: 0x7e1410, roughness: .6, roughnessMap: gasto, clearcoat: .15, clearcoatRoughness: .6 });
     const m = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(.5, .56, .1, 12), lacre));
     m.position.set(x, .05, z); m.rotation.y = .4;
     scene.add(m);
@@ -636,7 +674,7 @@ function createWorld(canvasEl) {
 
   // Pergaminho enrolado
   (function scroll() {
-    const m = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(.34, .34, 5.2, 28), new THREE.MeshStandardMaterial({ color: 0xcdb98a, roughness: .9 })));
+    const m = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(.34, .34, 5.2, 28), new THREE.MeshStandardMaterial({ map: tex.arteRepetida('papel', [1, 1], '#cdb98a'), roughness: .92 })));
     m.rotation.set(0, 0.5, Math.PI / 2);
     m.position.set(CX + 19, .34, 9.6);
     scene.add(m);
@@ -687,7 +725,7 @@ function createWorld(canvasEl) {
       : new THREE.MeshStandardMaterial(base);
     const front = new THREE.Mesh(faceGeo, frontMat);
     front.position.z = .012;
-    const backMesh = new THREE.Mesh(faceGeo, back ? new THREE.MeshStandardMaterial({ map: back, roughness: .5 }) : backMat);
+    const backMesh = new THREE.Mesh(faceGeo, back ? new THREE.MeshStandardMaterial({ map: back, roughness: .9, envMapIntensity: .2 }) : backMat);
     backMesh.rotation.set(0, Math.PI, Math.PI);
     backMesh.position.z = -.012;
     const body = new THREE.Mesh(bodyGeo, bodyMat);
@@ -875,7 +913,7 @@ diffuseColor.rgb *= 1. - qOrla * .8;`);
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    const mesh = shadowed(new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ map: atlas, roughness: .3, metalness: .05, clearcoat: .7, clearcoatRoughness: .14, envMapIntensity: 1 })));
+    const mesh = shadowed(new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ map: atlas, roughness: .78, roughnessMap: gasto, metalness: 0, clearcoat: .12, clearcoatRoughness: .7, envMapIntensity: .45 })));
     mesh.visible = false;
     scene.add(mesh);
     return { mesh, faces };
@@ -1053,10 +1091,11 @@ diffuseColor.rgb *= 1. - qOrla * .8;`);
   const CAIXA = { w: 7.4, d: 4.8, borda: .55 };
   const caixa = (() => {
     const g = new THREE.Group();
-    const fundo = new THREE.Mesh(new THREE.BoxGeometry(CAIXA.w, .06, CAIXA.d), new THREE.MeshStandardMaterial({ color: 0x5c1616, roughness: 1 }));
+    const fundo = new THREE.Mesh(new THREE.BoxGeometry(CAIXA.w, .06, CAIXA.d), new THREE.MeshStandardMaterial({ map: tex.arteRepetida('veludo', [2.4, 1.6]), color: 0xb08080, roughness: 1 }));
     fundo.receiveShadow = true;
     g.add(fundo);
-    const madeira = new THREE.MeshStandardMaterial({ color: 0x4a2a14, roughness: .62 });
+    const veioCaixa = wood.map.clone(); veioCaixa.repeat.set(.6, .08); veioCaixa.needsUpdate = true;
+    const madeira = new THREE.MeshStandardMaterial({ map: veioCaixa, color: 0x8a6448, roughness: .82, roughnessMap: gasto });
     [[0, -1], [0, 1], [-1, 0], [1, 0]].forEach(([a, b]) => {
       const largo = a ? .32 : CAIXA.w + .32, fundoL = a ? CAIXA.d : .32;
       const m = new THREE.Mesh(new THREE.BoxGeometry(largo, CAIXA.borda, fundoL), madeira);
@@ -1191,8 +1230,8 @@ diffuseColor.rgb *= 1. - qOrla * .8;`);
     }
     const coinGeo = new THREE.CylinderGeometry(.3, .3, .07, 28);
     const cunho = tex.moeda();
-    const coinSide = new THREE.MeshStandardMaterial({ color: 0xd8a640, metalness: 1, roughness: .4, envMapIntensity: 1.3 });
-    const coinFace = new THREE.MeshStandardMaterial({ map: cunho.map, normalMap: cunho.normal, metalness: 1, roughness: .36, envMapIntensity: 1.3 });
+    const coinSide = new THREE.MeshStandardMaterial({ color: 0xb98c3a, metalness: 1, roughness: .58, roughnessMap: gasto, envMapIntensity: .9 });
+    const coinFace = new THREE.MeshStandardMaterial({ map: cunho.map, normalMap: cunho.normal, metalness: 1, roughness: .55, roughnessMap: gasto, color: 0xd8c0a0, envMapIntensity: .9 });
     const coinMat = [coinSide, coinFace, coinFace];
     const coins = [];
 

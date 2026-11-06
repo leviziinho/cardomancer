@@ -8,7 +8,7 @@ let cartaSelada = null, costasSelada = null;
 // A face da carta selada: quem espera no fim, e porquê.
 function especSelada() {
   const t = G.trama, v = VILOES[t.vilao], rev = REVIRAVOLTAS[t.reviravolta];
-  return { tema: 'destino', etiqueta: 'A Verdade', titulo: fmt('{vilao}').replace(/^./, m => m.toUpperCase()), glyph: v.glyph, desc: fmt(`${t.motivo} ${rev.nome}: ${rev.resumo}`) };
+  return { tema: 'destino', etiqueta: 'A Verdade', titulo: fmt('{vilao}').replace(/^./, m => m.toUpperCase()), glyph: v.glyph, arte: `retratos/${t.vilao}`, desc: fmt(`${t.motivo} ${rev.nome}: ${rev.resumo}`) };
 }
 let cartaMissao = null;
 let paginaAtual = {};
@@ -42,7 +42,7 @@ const PASSOS_GUIA = [
   { titulo: 'Agora', alvo: () => ($('objetivo').classList.contains('on') ? juntar(['#objetivo']) : null),
     texto: 'O próximo passo da missão, e onde espera a próxima pista. Se se perder, olhe para aqui.' },
   { titulo: 'O mapa', alvo: () => world.retangulo(cantos(AREA.map)),
-    texto: 'O pino é você. A estrela dourada marca a missão. O olho vermelho marca uma pista: ninguém o obriga a segui-la, mas quem a segue chega mais forte ao fim.' },
+    texto: 'A miniatura é você. A estrela dourada marca a missão. O olho vermelho marca uma pista: ninguém o obriga a segui-la, mas quem a segue chega mais forte ao fim.' },
   { titulo: 'O que a missão guarda', alvo: () => world.retangulo(cantos({ x: CX + 11.2, z: -2.3, w: 5.2, h: 8.4 })),
     texto: 'A carta da missão e, ao lado, o destino selado, que só se abre no fim. Por baixo juntam-se as pistas, os talentos e os aliados.' },
   { titulo: 'O livro', prepara: abrirLivroDoGuia, alvo: () => (ecraVertical() || !world.book.aberto ? null : world.retanguloLivro()),
@@ -162,7 +162,7 @@ const DICAS_TUTORIAL = {
   dado: ['O d20', 'O dado mais o atributo tem de chegar ao número da carta. Um 20 é sempre crítico, um 1 é sempre falha. Com 2d20, fica o melhor dos dois.'],
   cidade: ['Na cidade', 'Aqui escolhe o que fazer: seguir viagem, ir ao mercado, descansar (recupera Vida, mas gasta um dia) ou investigar. A estrela dourada no mapa é a missão; o olho vermelho é uma pista.'],
   estrada: ['A viagem', 'Cada estrada custa um dia. Veja os dias na trilha em baixo: a ampulheta é o fim do prazo.'],
-  encontro: ['Alguém na estrada', 'Cada estrada custa um dia. Desta vez, o pino parou a meio do caminho: há um encontro. Resolva-o, e só depois chega.'],
+  encontro: ['Alguém na estrada', 'Cada estrada custa um dia. Desta vez, a miniatura parou a meio do caminho: há um encontro. Resolva-o, e só depois chega.'],
   combate: ['Combate', 'Joga-se à vez. A carta de ataque mostra a CA dele: é o número a tirar no d20. Os PV de cada um estão no livro. Pode fugir, mas perde o prémio.'],
   mercado: ['O mercado', 'Só aparece o que a sua classe sabe usar. O preço está no rodapé de cada carta.'],
   pista: ['Uma pista', 'Ganhou um fragmento. Com três, a pista fica completa: poupa uma etapa e revela uma fraqueza do inimigo final.'],
@@ -239,7 +239,7 @@ Jeitos de lutar: cada inimigo tem o seu, dito no início do combate e no rodapé
 
 Chefe final: tem muitos PV e duas ações por ronda, um efeito e um golpe. Os golpes variam: há os que partem a sua guarda, os que lhe cansam o braço, os que acertam sem dado, e há rondas em que ele só se defende. Os inimigos ficam mais duros a cada etapa da história, não a cada nível que sobe: o que ganha a subir fica seu. Nenhuma ronda o derruba de uma vez: perde no máximo 40% dos PV por ronda, e quando aguenta um golpe a página diz quanto dano lhe foi poupado. E traz um guarda por cada aliado seu, que os aliados têm de derrubar antes de lhe chegar.
 
-Viagem: cada estrada custa um dia. Metade das vezes há alguém nela: o pino para a meio do caminho, o aviso diz quem é, e só chega depois de resolver o encontro. Se não houver ninguém, chega em segurança. Um perigo começa logo em combate; o inimigo lendário é mais duro, e paga muito melhor. Nos testes, quer-se um número alto: o 11+ da carta é 11 ou mais.
+Viagem: cada estrada custa um dia. Metade das vezes há alguém nela: a miniatura para a meio do caminho, o aviso diz quem é, e só chega depois de resolver o encontro. Se não houver ninguém, chega em segurança. Um perigo começa logo em combate; o inimigo lendário é mais duro, e paga muito melhor. Nos testes, quer-se um número alto: o 11+ da carta é 11 ou mais.
 
 Tempo e Vida: os falhanços gastam Vida, e recuperá-la gasta tempo. Os aliados lutam a seu lado, com CA e PV próprios, que se veem no livro. No combate final, os guardas do chefe recebem os golpes primeiro. O inimigo também os ataca, e quem cai em combate perde-se. Durma numa estalagem, acampe na estrada ou guarde uma poção. A trilha em baixo mostra os dias, e o fim do prazo.
 
@@ -540,7 +540,7 @@ const ui = {
     return world.rollDice(lista, opcoes);
   },
 
-  musica: modo => musica.modo(modo),
+  musica: modo => { if (typeof G !== 'undefined' && G && G.cls) musica.classe(G.cls); musica.modo(modo); },
 
   async critico(bom) {
     const c = $('critico');
@@ -736,7 +736,11 @@ const ui = {
     const backC = (() => {
       const [c, x] = canvas(world.tex.CARD_W, world.tex.CARD_H);
       x.fillStyle = '#191310'; x.fillRect(0, 0, c.width, c.height);
-      speckle(x, c.width, c.height, 26000, .4);
+      // O verso pintado (arte/destino.png), quando existe: o selo e o olho vêm na pintura, e o texto escreve-se por cima.
+      const pint = typeof ARTE !== 'undefined' && ARTE.img.destino;
+      const temPint = !!(pint && pint.complete && pint.naturalWidth);
+      if (temPint) x.drawImage(pint, 0, 0, c.width, c.height);
+      else speckle(x, c.width, c.height, 26000, .4);
       x.strokeStyle = '#c9a24a'; x.lineWidth = 10; x.strokeRect(46, 46, c.width - 92, c.height - 92);
       x.lineWidth = 2; x.strokeRect(68, 68, c.width - 136, c.height - 136);
       x.fillStyle = '#c9a24a'; x.textAlign = 'center';
@@ -744,8 +748,10 @@ const ui = {
       x.fillText('O DESTINO', c.width / 2, 240);
       x.font = `italic 52px ${FONT_BODY}`;
       x.fillText('Não abrir antes do fim', c.width / 2, c.height - 210);
-      drawGlyph(x, 'seal', c.width / 2, c.height / 2, 460, '#8a1414');
-      drawGlyph(x, 'eye', c.width / 2, c.height / 2, 210, '#d99a8a');
+      if (!temPint) {
+        drawGlyph(x, 'seal', c.width / 2, c.height / 2, 460, '#8a1414');
+        drawGlyph(x, 'eye', c.width / 2, c.height / 2, 210, '#d99a8a');
+      }
       return toTexture(c, world.renderer);
     })();
     costasSelada = backC;
@@ -979,6 +985,8 @@ async function main() {
     r.setProperty('--botao-orn', `url(${ARTE.botaoOrn})`);
     document.documentElement.classList.add('placas');
   }
+  // O papel velho das cartas, por trás dos textos que se leem em janela.
+  if (typeof ARTE !== 'undefined' && ARTE.papel) document.documentElement.style.setProperty('--papel', `url(${ARTE.papel})`);
   $('loading').classList.remove('on');
   $('title').classList.add('on');
 

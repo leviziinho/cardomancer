@@ -703,6 +703,15 @@ function textures(renderer) {
     const sh = p.naturalWidth * h / w;
     x.drawImage(p, 0, (p.naturalHeight - sh) / 2, p.naturalWidth, sh, 0, 0, w, h);
     x.restore();
+    // Para se ler sem cansar: o papel perde parte da cor, e o meio da página, onde está o texto,
+    // é lavado para as manchas não passarem por trás das letras. As bordas ficam gastas.
+    x.save();
+    x.globalCompositeOperation = 'saturation';
+    x.fillStyle = 'rgba(128,128,128,.35)'; x.fillRect(0, 0, w, h);
+    x.restore();
+    const lavado = x.createRadialGradient(w / 2, h * .46, w * .12, w / 2, h * .46, w * .78);
+    lavado.addColorStop(0, 'rgba(247,240,224,.66)'); lavado.addColorStop(.62, 'rgba(247,240,224,.5)'); lavado.addColorStop(1, 'rgba(247,240,224,0)');
+    x.fillStyle = lavado; x.fillRect(0, 0, w, h);
   }
 
   // spec: { tema, titulo, desc, glyph, rodape, rodapeGlyph, locked, lockText }
@@ -1024,6 +1033,11 @@ function textures(renderer) {
   }
 
   const PAGE_W = 1024, PAGE_H = 1300;
+  // A tinta do texto do livro: quase preta, para o contraste com o papel ser alto.
+  const TINTA_LIVRO = '#130a04';
+  // Bom e mau sem depender do verde e do vermelho, que muita gente com daltonismo confunde:
+  // azul-petróleo para o que se ganha, vermelho-tijolo para o que se perde (e sempre o sinal + ou -).
+  const COR_BOM = '#1d4f6b', COR_MAU = '#8c2a14';
 
   // Página esquerda: capítulo, título e desenho.
   function leftPage(p) {
@@ -1041,8 +1055,9 @@ function textures(renderer) {
     x.fillStyle = '#6d1f1a'; losango(x, PAGE_W / 2 - 20, 410, 11);
     // A pintura do lugar só serve quando a cena se passa no terreno dele; senão, vale a pintura do terreno.
     const noLugar = p.lugar && LUGARES[p.lugar] && LUGARES[p.lugar].terreno === p.arte;
-    const pintura = p.arte && ((noLugar && arteDe(`regioes/${p.lugar}`)) || arteDe(`terrenos/${p.arte}`));
-    if (p.arte) {
+    // Um retrato (o mestre, o vilão no fim) passa à frente da paisagem.
+    const pintura = (p.retrato && arteDe(p.retrato)) || (p.arte && ((noLugar && arteDe(`regioes/${p.lugar}`)) || arteDe(`terrenos/${p.arte}`)));
+    if (p.arte || pintura) {
       x.save();
       x.beginPath(); x.rect(112, 474, PAGE_W - 264, 600); x.clip();
       if (pintura) x.drawImage(pintura, 112, 474, PAGE_W - 264, 600);
@@ -1075,7 +1090,7 @@ function textures(renderer) {
     let y = 100;
 
     if (p.banner) {
-      x.fillStyle = p.bannerBom ? '#2f5a33' : '#7c1f1f';
+      x.fillStyle = p.bannerBom ? COR_BOM : COR_MAU;
       x.fillRect(marginL, y - 44, maxW, 84);
       x.fillStyle = '#f2e3bd'; x.textAlign = 'center';
       x.font = `600 44px ${FONT_TITLE}`;
@@ -1159,11 +1174,14 @@ function textures(renderer) {
           if (at >= 0 && (!best || at < best.at)) best = { at, t };
         });
         const plain = best ? rest.slice(0, best.at) : rest;
-        x.fillStyle = '#26170a';
+        x.lineWidth = 6; x.lineJoin = 'round'; x.strokeStyle = 'rgba(248,242,226,.6)';
+        x.strokeText(plain, cursor, by);
+        x.fillStyle = TINTA_LIVRO;
         x.fillText(plain, cursor, by);
         cursor += x.measureText(plain).width;
         if (!best) break;
         const w = x.measureText(best.t.nome).width;
+        x.strokeText(best.t.nome, cursor, by);
         x.fillStyle = '#8a1d16';
         x.fillText(best.t.nome, cursor, by);
         x.fillRect(cursor, by + 6, w, 3);
@@ -1190,7 +1208,7 @@ function textures(renderer) {
       const fy = PAGE_H - 70 - (linhasFichas.length - i) * 96 + 10;
       l.forEach(f => {
         const mais = f.t[0] === '+', menos = f.t[0] === '-';
-        x.fillStyle = mais ? '#2f5a33' : menos ? '#7c1f1f' : '#4a3a28';
+        x.fillStyle = mais ? COR_BOM : menos ? COR_MAU : '#4a3a28';
         x.fillRect(fx, fy, f.w, 82);
         x.fillStyle = '#f7ecd0'; x.textAlign = 'center';
         x.font = `700 58px ${FONT_TITLE}`;
@@ -1240,6 +1258,9 @@ function textures(renderer) {
   }
 
   function rosaDosVentos(x, cx, cy, r) {
+    // A rosa pintada (arte/rosa.png), quando existe; o N continua a ser escrito por cima.
+    const rosa = typeof ARTE !== 'undefined' && ARTE.img.rosa;
+    if (rosa && rosa.complete && rosa.naturalWidth) { desenhaPintado(x, rosa, cx, cy, r * 2.3); return; }
     x.save();
     x.translate(cx, cy);
     x.fillStyle = 'rgba(232,216,176,.45)';
@@ -1292,6 +1313,8 @@ function textures(renderer) {
     const pintado = !!(img && img.complete && img.naturalWidth);
     if (pintado) {
       x.drawImage(img, 0, 0, W, H);
+      // A pintura vem muito amarela: tira-se um pouco de cor, para as marcas se destacarem.
+      x.save(); x.globalCompositeOperation = 'saturation'; x.fillStyle = 'rgba(128,128,128,.28)'; x.fillRect(0, 0, W, H); x.restore();
     } else {
       // Manchas de aguarela na terra, para o papel não parecer vazio.
       [['rgba(120,136,70,.12)', 26], ['rgba(170,120,60,.1)', 22], ['rgba(95,120,80,.1)', 16]].forEach(([cor, n]) => {
@@ -1523,6 +1546,14 @@ function textures(renderer) {
 
   // Castelo de cidade: muralha, duas torres e uma bandeira.
   function castelo(x, px, py, s, visitada) {
+    // O castelo pintado (arte/icones/castelo.png); as cidades já visitadas levam um selo vermelho ao lado.
+    const pint = iconePintado('castelo');
+    if (pint) {
+      x.fillStyle = 'rgba(30,18,8,.3)'; x.beginPath(); x.ellipse(px + 4, py + 18, 44 * s, 9 * s, 0, 0, 7); x.fill();
+      desenhaPintado(x, pint, px, py - 10 * s, 96 * s);
+      if (visitada) { x.fillStyle = '#a4161a'; x.strokeStyle = '#e9dbb8'; x.lineWidth = 4; x.beginPath(); x.arc(px + 40 * s, py + 12 * s, 12 * s, 0, 7); x.fill(); x.stroke(); }
+      return;
+    }
     x.save();
     x.translate(px, py); x.scale(s, s);
     x.lineWidth = 3; x.strokeStyle = '#1f130a'; x.lineJoin = 'round';
@@ -1546,6 +1577,20 @@ function textures(renderer) {
     x.fillStyle = '#2a1a0d';
     x.beginPath(); x.arc(0, 6, 7, Math.PI, 0); x.lineTo(7, 14); x.lineTo(-7, 14); x.closePath(); x.fill();
     x.restore();
+  }
+
+  // As marcas do mapa (missão e pista) vivem sobre uma pintura quente: para se verem, e para quem
+  // não distingue bem as cores, cada uma leva um halo claro, um disco de papel e um contorno de tinta escura.
+  const TINTA_MAPA = '#140b04';
+  function marcaComHalo(x, px, py, r) {
+    const g = x.createRadialGradient(px, py, r * .2, px, py, r);
+    g.addColorStop(0, 'rgba(255,250,236,.7)'); g.addColorStop(.6, 'rgba(255,250,236,.3)'); g.addColorStop(1, 'rgba(255,250,236,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+  }
+  function medalhaoMapa(x, px, py, r) {
+    x.fillStyle = 'rgba(20,11,4,.35)'; x.beginPath(); x.arc(px + 6, py + 8, r, 0, 7); x.fill();
+    x.fillStyle = '#f6eedb'; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+    x.strokeStyle = TINTA_MAPA; x.lineWidth = 10; x.stroke();
   }
 
   // visitados: lista ordenada de chaves de LUGARES; destaque: chaves a realçar.
@@ -1583,23 +1628,28 @@ function textures(renderer) {
       if (rasto && rasto.key === key) {
         // Cada ponto é um fragmento: os cheios já são seus.
         const raio = 118;
+        x.strokeStyle = TINTA_MAPA; x.lineWidth = 10; x.setLineDash([26, 16]);
+        x.beginPath(); x.arc(px, py, raio, 0, 7); x.stroke(); x.setLineDash([]);
         for (let i = 0; i < FRAGMENTOS_POR_PISTA; i++) {
           const a = -Math.PI / 2 + i * 2 * Math.PI / FRAGMENTOS_POR_PISTA, cheio = i < rasto.fragmentos;
-          x.beginPath(); x.arc(px + Math.cos(a) * raio, py + Math.sin(a) * raio, 26, 0, 7);
-          x.fillStyle = cheio ? '#a4161a' : 'rgba(233,219,184,.75)'; x.fill();
-          x.strokeStyle = cheio ? '#f2e3bd' : '#a4161a'; x.lineWidth = 5; x.stroke();
+          x.beginPath(); x.arc(px + Math.cos(a) * raio, py + Math.sin(a) * raio, 32, 0, 7);
+          x.fillStyle = cheio ? '#b3161a' : '#f6eedb'; x.fill();
+          x.strokeStyle = TINTA_MAPA; x.lineWidth = 8; x.stroke();
         }
-        drawGlyph(x, 'eye', px, py - 196, 104, '#a4161a');
+        marcaComHalo(x, px, py - 250, 130);
+        medalhaoMapa(x, px, py - 250, 82);
+        drawGlyph(x, 'eye', px, py - 250, 118, '#b3161a');
       }
       // A estrela dourada: é para aqui que a missão manda.
       if (rumo === key) {
-        const brilho = x.createRadialGradient(px, py - 130, 6, px, py - 130, 120);
-        brilho.addColorStop(0, 'rgba(255,214,90,.9)'); brilho.addColorStop(1, 'rgba(255,214,90,0)');
-        x.fillStyle = brilho; x.beginPath(); x.arc(px, py - 130, 120, 0, 7); x.fill();
-        drawGlyph(x, 'star', px, py - 130, 132, '#7a4a06');
-        drawGlyph(x, 'star', px, py - 130, 102, '#ffd34d');
-        x.strokeStyle = '#b07a12'; x.lineWidth = 9;
-        x.beginPath(); x.arc(px, py, 58, 0, 7); x.stroke();
+        marcaComHalo(x, px, py - 150, 150);
+        medalhaoMapa(x, px, py - 150, 92);
+        drawGlyph(x, 'star', px, py - 150, 150, TINTA_MAPA);
+        drawGlyph(x, 'star', px, py - 150, 112, '#ffcf3a');
+        x.strokeStyle = TINTA_MAPA; x.lineWidth = 18;
+        x.beginPath(); x.arc(px, py, 62, 0, 7); x.stroke();
+        x.strokeStyle = '#ffcf3a'; x.lineWidth = 8;
+        x.beginPath(); x.arc(px, py, 62, 0, 7); x.stroke();
       }
       x.font = `700 ${p.cidade ? 58 : 48}px ${FONT_TITLE}`;
       x.textAlign = 'center';
@@ -1922,6 +1972,45 @@ function textures(renderer) {
     return t;
   }
 
+  // Mapa de rugosidade gasto, para tirar o polido ao que é de metal, osso ou resina:
+  // fundo baço com manchas, e riscos finos mais lisos onde o uso poliu. Linear (não é cor).
+  let gastoCache = null;
+  function gasto() {
+    if (gastoCache) return gastoCache;
+    const S = 512, [c, x] = canvas(S, S);
+    x.fillStyle = '#9a9a9a'; x.fillRect(0, 0, S, S);
+    for (let i = 0; i < 260; i++) {
+      const r = 6 + Math.random() * 40, px = Math.random() * S, py = Math.random() * S, v = 120 + Math.random() * 110 | 0;
+      const g = x.createRadialGradient(px, py, 0, px, py, r);
+      g.addColorStop(0, `rgba(${v},${v},${v},.35)`); g.addColorStop(1, `rgba(${v},${v},${v},0)`);
+      x.fillStyle = g; x.fillRect(px - r, py - r, r * 2, r * 2);
+    }
+    x.lineCap = 'round';
+    for (let i = 0; i < 420; i++) {
+      const px = Math.random() * S, py = Math.random() * S, a = Math.random() * Math.PI, l = 6 + Math.random() * 46;
+      const v = Math.random() < .7 ? 40 + Math.random() * 50 | 0 : 200 + Math.random() * 50 | 0;
+      x.strokeStyle = `rgba(${v},${v},${v},${.25 + Math.random() * .45})`; x.lineWidth = .6 + Math.random() * 1.2;
+      x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l); x.stroke();
+    }
+    for (let i = 0; i < 9000; i++) {
+      const v = Math.random() * 255 | 0;
+      x.fillStyle = `rgba(${v},${v},${v},.18)`; x.fillRect(Math.random() * S, Math.random() * S, 1.5, 1.5);
+    }
+    gastoCache = toTexture(c, renderer, { linear: true });
+    gastoCache.wrapS = gastoCache.wrapT = THREE.RepeatWrapping;
+    return gastoCache;
+  }
+
+  // Uma imagem da arte como textura repetida (o veludo da placa, o papel velho); sem ela, uma cor lisa.
+  function arteRepetida(chave, rep = [1, 1], cor = '#5c1616') {
+    const i = typeof ARTE !== 'undefined' && ARTE.img[chave];
+    let t;
+    if (i) { t = new THREE.Texture(i); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); if (i.complete && i.naturalWidth) t.needsUpdate = true; else i.addEventListener('load', () => (t.needsUpdate = true), { once: true }); }
+    else { const [c, x] = canvas(64, 64); x.fillStyle = cor; x.fillRect(0, 0, 64, 64); speckle(x, 64, 64, 300, .2); t = toTexture(c, renderer); }
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...rep);
+    return t;
+  }
+
   function pageEdge() {
     const [c, x] = canvas(256, 64);
     x.fillStyle = '#d9c9a2'; x.fillRect(0, 0, 256, 64);
@@ -1929,5 +2018,5 @@ function textures(renderer) {
     return toTexture(c, renderer);
   }
 
-  return { characterBoard, wood, leather, capaLivro, relevoCouro, relevoMapa, superficieCarta, cardBack, cardFace, leftPage, rightPage, mapTexture, diceAtlas, diceAtlasTema, glowSprite, chama, pena, moeda, sombraSuave, pinFace, pageEdge, CARD_W, CARD_H };
+  return { characterBoard, wood, leather, capaLivro, relevoCouro, relevoMapa, superficieCarta, cardBack, cardFace, leftPage, rightPage, mapTexture, diceAtlas, diceAtlasTema, glowSprite, chama, pena, moeda, sombraSuave, pinFace, pageEdge, gasto, arteRepetida, CARD_W, CARD_H };
 }

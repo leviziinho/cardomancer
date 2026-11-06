@@ -136,7 +136,7 @@ Object.assign(CARTAS_UNICAS.bg, {
 });
 
 Object.assign(ITENS, {
-  lach: { nome: 'Pedras Vermelhas', mundo: 'daraan', slot: 'arma', perfil: 'magica', preco: 16, dado: 'd8', a: 'carisma', glyph: 'flame', desc: 'Ataca com Carisma. Componente dos Voranan. Dado d8.' },
+  lach: { nome: 'Pedras Vermelhas', mundo: 'daraan', slot: 'arma', perfil: 'magica', preco: 16, dado: 'd8', a: 'carisma', glyph: 'flame', desc: 'Foco mágico, só para quem lança magia. Ataca com Carisma. Componente dos Voranan. Dado d8.' },
   lua: { nome: 'Par da Lua Crescente', mundo: 'daraan', slot: 'arma', perfil: 'fina', preco: 18, dado: 'd8', a: 'agilidade', attrs: { forca: 1 }, glyph: 'moon', desc: 'Ataca com Agilidade. Espada longa e adaga, ao estilo de Simony. Dado d8, +1 Força.' },
   larga: { nome: 'Espada Larga Imperial', mundo: 'daraan', slot: 'arma', perfil: 'pesada', preco: 24, dado: 'd10', a: 'forca', attrs: { carisma: 1 }, glyph: 'sword', desc: 'Ataca com Força. Tirada a um soldado, e o brasão ainda assusta. Dado d10, +1 Carisma.' },
   robe: { nome: 'Robe Élfica', mundo: 'daraan', slot: 'armadura', preco: 16, ca: 1, attrs: { mente: 1, carisma: 1 }, glyph: 'scroll', desc: 'Branca e vermelha, com adornos de prata. +1 CA, +1 Mente, +1 Carisma.' },

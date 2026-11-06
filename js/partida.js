@@ -563,7 +563,7 @@ async function combate(ui, ini, arte) {
   // Só a primeira página do combate vira. Depois, a página fica e os números mudam a cada golpe.
   let virada = false;
   const pagina = () => (virada ? ui.refrescar : (virada = true, ui.livro))({
-    capitulo: `${ini.capitulo || 'Combate'}  ·  Ronda ${ronda}`, titulo: ini.nome, arte, texto,
+    capitulo: `${ini.capitulo || 'Combate'}  ·  Ronda ${ronda}`, titulo: ini.nome, arte, retrato: ini.retrato, texto,
     rodape: [jeito ? `${jeito.nome}: ${jeito.curto}` : '', est.rodape].filter(Boolean).join('  ·  '),
     combate: { nome: ini.nome, pv: Math.max(0, ini.pv), pvMax: ini.pvMax, ataque: ini.ataque, dado: dadoDoInimigo(ini), defesa: ini.defesa, vida: G.vida, vidaMax: vidaMax(), ca: caEmCombate(est), escudo: est.escudo,
       lados: [...est.guardas.map(g => ({ nome: g.nome, pv: Math.max(0, g.pv), pvMax: g.pvMax, ca: g.defesa, inimigo: true })),
@@ -960,8 +960,8 @@ const semFerreiro = cena => (FERREIRO ? cena : { ...cena, opcoes: cena.opcoes.fi
 async function encontroMestre(ui) {
   G.mentorVisto = true;
   const m = MENTORES[G.cls], ops = EVOLUCOES[G.cls];
-  const arte = terrenoAqui();
-  await ui.livro({ capitulo: 'Encontro raríssimo', titulo: m.titulo, arte, texto: m.texto });
+  const arte = terrenoAqui(), retrato = `retratosLivro/mestre-${G.cls}`;
+  await ui.livro({ capitulo: 'Encontro raríssimo', titulo: m.titulo, arte, retrato, texto: m.texto });
   ui.prompt('Um encontro raríssimo', 'A sua classe pode mudar para sempre. Só acontece uma vez.');
   const specs = ops.map(e => ({ tema: 'rara', etiqueta: 'Nova Classe', titulo: e.nome, glyph: e.glyph, desc: `${e.desc} Nova carta: ${e.manobra.t}.`, rodape: e.resumo }));
   // Quem recusa não sai de mãos vazias: o que o mestre mostrou leva-o ao nível máximo.
@@ -971,11 +971,11 @@ async function encontroMestre(ui) {
   const i = await ui.escolha(specs, { ctx: 'evolucao' });
   ui.prompt('');
   if (i >= ops.length) {
-    if (noTopo) await ui.livro({ capitulo: 'Encontro raríssimo', titulo: m.titulo, arte, texto: 'Quando olha para trás, já não vê ninguém. Fica a dúvida, e fica para sempre.' });
+    if (noTopo) await ui.livro({ capitulo: 'Encontro raríssimo', titulo: m.titulo, arte, retrato, texto: 'Quando olha para trás, já não vê ninguém. Fica a dúvida, e fica para sempre.' });
     else {
       G.xp = Math.max(G.xp, NIVEIS[NIVEIS.length - 1]);
       ui.sync();
-      await ui.livro({ capitulo: 'Encontro raríssimo', titulo: m.titulo, arte, texto: 'Quando olha para trás, já não vê ninguém. Mas o que viu ali fica consigo: nunca se sentiu tão capaz.', banner: 'Nível máximo', bannerBom: true });
+      await ui.livro({ capitulo: 'Encontro raríssimo', titulo: m.titulo, arte, retrato, texto: 'Quando olha para trás, já não vê ninguém. Mas o que viu ali fica consigo: nunca se sentiu tão capaz.', banner: 'Nível máximo', bannerBom: true });
       await subirDeNivel(ui);
     }
   } else {
@@ -1191,7 +1191,7 @@ async function fazerDraft(ui) {
 
   const cidades = baralhar(Object.keys(LUGARES).filter(k => LUGARES[k].cidade && !LUGARES[k].semInicio)).slice(0, 3);
   G.cidade = cidades[await ui.draft('Escolha a cidade de partida', 'É daqui que a história vai começar.', cidades.map(k => ({
-    tema: 'cidade', titulo: LUGARES[k].nome, glyph: 'tower', desc: LUGARES[k].desc,
+    tema: 'cidade', titulo: LUGARES[k].nome, glyph: 'tower', desc: LUGARES[k].desc, arte: `cidades/${k}`,
   })))];
   G.lugar = G.cidade;
   G.visitados = [G.cidade];

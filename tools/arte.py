@@ -12,6 +12,7 @@
 #   arte/regioes/<lugar>.png, arte/terrenos/<terreno>.png   páginas do livro
 #   arte/icones/<nome>.png ou folhaN.png (3 x 3)            ícones, fundo liso
 #   arte/miniaturas/<classe>.png                            pino do herói, fundo liso
+#   arte/retratos/<vilao>.png, arte/retratos/mestre-<classe>.png   carta do vilão e páginas do livro
 #
 # Correr:  python tools/arte.py
 import base64, io, json, os, sys
@@ -80,10 +81,10 @@ def imagens(pasta):
 
 
 # Todas as cartas com ilustração usam a mesma janela; a chave no jogo é "pasta/nome", por ex. "racas/elfo".
-PASTAS = ['classes', 'racas', 'antecedentes', 'itens', 'aliados', 'regioes', 'terrenos']
+PASTAS = ['classes', 'racas', 'antecedentes', 'itens', 'aliados', 'regioes', 'terrenos', 'retratos']
 # As páginas do livro têm uma janela mais larga do que alta (760 x 600).
 JANELA = {'regioes': (960, 758), 'terrenos': (960, 758)}
-dados = {'cartas': {}, 'papel': None, 'logo': None, 'mapa': None, 'capa': None, 'mesa': None, 'botao': None, 'botaoLiso': None, 'botaoOrn': None}
+dados = {'cartas': {}, 'papel': None, 'logo': None, 'mapa': None, 'capa': None, 'mesa': None, 'botao': None, 'botaoLiso': None, 'botaoOrn': None, 'veludo': None, 'rosa': None, 'destino': None}
 import unicodedata
 def sem_acentos(t):
     return ''.join(c for c in unicodedata.normalize('NFD', t.lower()) if unicodedata.category(c) != 'Mn')
@@ -102,6 +103,35 @@ for pasta in PASTAS:
             img = Image.open(os.path.join(ARTE, real, f))
             dados['cartas'][k] = texto(recorta(apara(img, MARGEM['classes']), *JANELA.get(pasta, JANELA_CLASSE), FOCO_IMAGEM.get(k, FOCO.get(pasta, FOCO['classes']))), 74)
             print(k)
+# As pinturas das regiões servem também nas cartas de cidade (quadradas): 'cidades/<lugar>'.
+for real in pastas_reais.get('regioes', []):
+    for f in imagens(real):
+        k = 'cidades/' + sem_acentos(os.path.splitext(f)[0])
+        dados['cartas'][k] = texto(recorta(Image.open(os.path.join(ARTE, real, f)), *JANELA_CLASSE, (.5, .5)), 74)
+        print(k)
+# Os retratos servem na carta (quadrada, já feita acima) e na página do livro (mais larga): 'retratosLivro/<nome>'.
+for real in pastas_reais.get('retratos', []):
+    for f in imagens(real):
+        k = 'retratosLivro/' + sem_acentos(os.path.splitext(f)[0])
+        dados['cartas'][k] = texto(recorta(Image.open(os.path.join(ARTE, real, f)), *JANELA['regioes'], FOCO['classes']), 74)
+        print(k)
+# Quando há duas versões de um retrato, fica a escolhida; a outra é ignorada.
+ESCOLHIDOS = {'mestre-mago2': 'mestre-mago', 'mestre-mago1': None}
+for pre in ('retratos/', 'retratosLivro/'):
+    for de, para in ESCOLHIDOS.items():
+        img = dados['cartas'].pop(pre + de, None)
+        if img and para:
+            dados['cartas'][pre + para] = img
+# Enquanto não houver retrato próprio, o inimigo usa a pintura da carta de aliado.
+SUBSTITUTOS = {'inimigo-simony-lumiel': 'simony'}
+for retrato, aliado in SUBSTITUTOS.items():
+    if 'retratosLivro/' + retrato in dados['cartas']:
+        continue
+    for real in pastas_reais.get('aliados', []):
+        for f in imagens(real):
+            if sem_acentos(os.path.splitext(f)[0]) == aliado:
+                dados['cartas']['retratosLivro/' + retrato] = texto(recorta(apara(Image.open(os.path.join(ARTE, real, f)), MARGEM['classes']), *JANELA['regioes'], FOCO['classes']), 74)
+                print('retratosLivro/' + retrato, '(da carta de aliado)')
 # Ícones e miniaturas vêm num fundo liso; o fundo que toca nas bordas fica transparente.
 from PIL import ImageDraw, ImageChops, ImageFilter
 def sem_fundo(img, neutros=False):
@@ -187,6 +217,8 @@ for f in imagens(''):
             v = round(255 * i / 40); d.line([(i, 0), (i, orn.height)], v); d.line([(orn.width - 1 - i, 0), (orn.width - 1 - i, orn.height)], v)
         orn.putalpha(ImageChops.multiply(a, m))
         dados['botaoOrn'] = texto(orn.resize((278, 244), Image.LANCZOS), 86)
+        # Um pedaço de veludo liso (sem moldura nem ornamentos), para forrar a caixa dos dados.
+        dados['veludo'] = texto(img.crop((1060, 390, 1280, 610)).convert('RGB'), 84)
         print('botão')
 for f in imagens('cartas'):
     if os.path.splitext(f)[0].lower() == 'papel':
@@ -213,6 +245,14 @@ for f in imagens(''):
         img.thumbnail((1400, 1400), Image.LANCZOS)
         dados['capa'] = texto(img, 80)
         print('capa')
+    # A rosa dos ventos do mapa, em fundo branco que fica transparente.
+    if os.path.splitext(f)[0].lower() == 'rosa':
+        dados['rosa'] = texto(justo(sem_fundo(Image.open(os.path.join(ARTE, f))), 512), 86)
+        print('rosa')
+    # O verso da carta selada "O Destino", à medida da carta.
+    if os.path.splitext(f)[0].lower() == 'destino':
+        dados['destino'] = texto(recorta(Image.open(os.path.join(ARTE, f)), 1024, 1434), 80)
+        print('destino')
     # O mapa pintado: o jogo estica-o à proporção do mapa (1,4:1) e desenha os lugares por cima.
     if os.path.splitext(f)[0].lower() == 'mapa':
         img = Image.open(os.path.join(ARTE, f)).convert('RGB')
@@ -226,7 +266,7 @@ js = ('// Gerado por tools/arte.py a partir das imagens em arte/. Não editar à
       'ARTE.img = {};\n'
       'Object.entries(ARTE.cartas).forEach(([k, s]) => { const i = new Image(); i.src = s; ARTE.img[k] = i; });\n'
       "if (ARTE.papel) { const i = new Image(); i.src = ARTE.papel; ARTE.img.papel = i; }\n"
-      "['logo', 'mapa', 'capa', 'mesa', 'botao', 'botaoLiso', 'botaoOrn'].forEach(k => { if (ARTE[k]) { const i = new Image(); i.src = ARTE[k]; ARTE.img[k] = i; } });\n"
+      "['logo', 'mapa', 'capa', 'mesa', 'botao', 'botaoLiso', 'botaoOrn', 'veludo', 'rosa', 'destino'].forEach(k => { if (ARTE[k]) { const i = new Image(); i.src = ARTE[k]; ARTE.img[k] = i; } });\n"
       "['icones', 'miniaturas'].forEach(g => Object.entries(ARTE[g] || {}).forEach(([k, s]) => { const i = new Image(); i.src = s; ARTE.img[g + '/' + k] = i; }));\n")
 open(SAIDA, 'w', encoding='utf8', newline='\n').write(js)
 print('js/arte.js', round(len(js) / 1024), 'KB')

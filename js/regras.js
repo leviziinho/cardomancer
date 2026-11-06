@@ -541,6 +541,13 @@ function resolverTeste(o) {
 const jeitoDe = nome => Object.keys(JEITOS).find(k => JEITOS[k].busca.test(nome)) || null;
 
 // O inimigo que uma opção de combate põe à frente do jogador.
+// O nome do ficheiro do retrato de um inimigo: "Os Goblins da Estrada" dá "goblins-da-estrada".
+// Tira o "Lendário:", os nomes que mudam ({vilao}) e o artigo do início.
+function chaveInimigo(nome) {
+  return nome.replace(/^Lendário:\s*/, '').replace(/\s*\{[^}]*\}/g, '').replace(/^(os|as|o|a)\s+/i, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
 function inimigoDe(o, cena) {
   const golpeBase = o.ko && o.ko.fx && o.ko.fx.vida ? -o.ko.fx.vida : 3;
   const pv = pvDoInimigo(o), dc = o.roll.dc + (o.dcExtra || 0);
@@ -554,6 +561,7 @@ function inimigoDe(o, cena) {
     agi: dc - 11,
     primeiro: o.roll.primeiro || null,
     jeito: o.roll.jeito || jeitoDe(fmt(o.roll.ini || cena.titulo)),
+    retrato: `retratosLivro/inimigo-${chaveInimigo(o.roll.ini || cena.titulo)}`,
   };
 }
 
@@ -575,7 +583,7 @@ function chefeFinal() {
     dado: COMBATE.vilao.dado, agi: 3,
     primeiro: sabe.some(f => f.calado) ? 'jogador' : null, calado: sabe.some(f => f.calado), sabe: sabe.map(f => f.nome).join('  ·  '),
     chefe: true, efeitos: sabe.some(f => f.semEfeito) ? null : v.efeitos, frases: v.ronda, fraqueza: v.fraqueza.includes(G.cls),
-    capitulo: 'Capítulo Final', abertura: `${v.finalTexto} ${G.trama.motivo}`,
+    capitulo: 'Capítulo Final', abertura: `${v.finalTexto} ${G.trama.motivo}`, retrato: `retratosLivro/${G.trama.vilao}`,
   };
 }
 
