@@ -34,7 +34,7 @@ function novoEstado() {
     vida: 0, ouro: 6, xp: 0, nivel: 1, pistas: 0,
     dia: 1, prazo: PRAZO_DIAS, avisos: 0,
     visitados: [], vistos: new Set(), unicas: [],
-    trama: null, rumo: null, fio: 0, dicas: 0, rastro: null, fragmentos: 0, fraquezas: [], destinoRevelado: false, reviravoltaPendente: false,
+    trama: null, rumo: null, fio: 0, dicas: 0, rastro: null, fragmentos: 0, fraquezas: [], destinoRevelado: false, etapaUm: null, reforcos: 0,
     diario: [], melhorias: {}, gastos: [], evolucao: null, mentorVisto: false, emCombate: false,
     tend: { bem: 0, ordem: 0 },
     log: { testes: 0, sucessos: 0, cartasRaras: 0, comprados: 0, dano: 0, noites: 0, pocoes: 0, combates: 0, criticos: 0, onde: 'Prólogo', causa: '', danoEm: {}, etapas: [] },
@@ -278,21 +278,44 @@ function sitioPerto(evitar, alcance) {
   return umDe([perto(novos), perto(todos), novos, todos].find(l => l.length));
 }
 
-// ---------- O fio da história: três etapas, e depois o fim ----------
+// ---------- O fio da história: três etapas, e a última é o próprio objetivo ----------
+// Etapa 1: uma cena escolhida no início da partida. Etapa 2: a Reviravolta, disfarçada de tarefa normal.
+// Etapa 3: o objetivo da missão, no destino, contra o chefe. Só a missão faz andar o fio; as pistas não.
 
 function avancarFio() {
   G.fio++;
   // Para o simulador: como o herói chega a cada etapa.
   G.log.etapas.push({ dia: G.dia, vida: G.vida, vidaMax: vidaMax() });
   G.dicas = 0;
-  if (G.fio === 2) G.reviravoltaPendente = true;
-  if (G.fio >= ETAPAS_DA_MISSAO) {
+  if (G.fio >= ETAPAS_DA_MISSAO - 1) {
     G.destinoRevelado = true;
     G.rumo = null;
     return fmt(' Já não há dúvida: tudo acaba em {destino}.');
   }
   G.rumo = sitioPerto(G.rastro, 2);
-  return fmt(' Agora sabe para onde ir: {proximo}.');
+  // A ponte leva à etapa da Reviravolta sem a revelar: o jogador só vê uma tarefa nova.
+  const rev = REVIRAVOLTAS[G.trama.reviravolta];
+  return rev.ponte ? ` ${fmt(rev.ponte)}` : fmt(' Agora sabe para onde ir: {proximo}.');
+}
+
+// O que fazer em cada etapa, no imperativo. Sem texto próprio (outros mundos), usa a frase geral.
+function tarefaDaEtapa(n) {
+  if (!G.trama) return '';
+  if (n === 0) return fmt((G.etapaUm && G.etapaUm.agora) || ETAPA_AGORA[0]);
+  if (n === 1) return fmt(REVIRAVOLTAS[G.trama.reviravolta].agora || ETAPA_AGORA[1]);
+  return fmt(OBJETIVOS[G.trama.objetivo].titulo);
+}
+// A lista da missão: as etapas feitas e a de agora. A seguinte só aparece quando a anterior se cumpre.
+function listaDaMissao(html = false) {
+  if (!G.trama) return [];
+  const destino = VILOES[G.trama.vilao].destino;
+  const agora = Math.min(G.fio, ETAPAS_DA_MISSAO - 1);
+  return Array.from({ length: agora + 1 }, (_, n) => ({
+    feito: n < agora,
+    texto: n < agora ? tarefaDaEtapa(n)
+      : n === ETAPAS_DA_MISSAO - 1 ? `${tarefaDaEtapa(n)} em ${nomeRealcado(destino, html)}, ${aEstradas(estradasAte(destino))}`
+        : `${tarefaDaEtapa(n)} em ${nomeRealcado(G.rumo, html)}, ${aEstradas(estradasAte(G.rumo))}`,
+  }));
 }
 
 // Com html, o nome da cidade vem realçado: "Interrogue o suspeito em <b>Abiad</b>".
@@ -361,9 +384,9 @@ function decidirChefe() {
 function objetivoAgora(html = false) {
   if (!G.trama) return '';
   const destino = VILOES[G.trama.vilao].destino;
-  if (G.destinoRevelado) return `Marche para ${nomeRealcado(destino, html)}, onde tudo acaba`;
+  if (G.destinoRevelado) return `${tarefaDaEtapa(ETAPAS_DA_MISSAO - 1)} em ${nomeRealcado(destino, html)}, onde tudo acaba`;
   const alvo = G.rumo || destino;
-  return `${ETAPA_AGORA[G.fio]} em ${nomeRealcado(alvo, html)}, ${aEstradas(estradasAte(alvo))}`;
+  return `${tarefaDaEtapa(G.fio)} em ${nomeRealcado(alvo, html)}, ${aEstradas(estradasAte(alvo))}`;
 }
 function pistaAgora(html = false) {
   if (!G.trama || !G.rastro) return '';
@@ -388,17 +411,25 @@ function pedacoDaPista() {
   return `${visto}...`;
 }
 
+// A fraqueza de cada pista: a do próprio vilão (VILOES[...].fraquezas, tirada da história) ou, nos mundos
+// que ainda não a têm, uma das gerais. O efeito no combate vem sempre de FRAQUEZAS.
+function fraquezaDaPista(n) {
+  const propria = (VILOES[G.trama.vilao].fraquezas || [])[n];
+  if (propria) return { ...FRAQUEZAS[propria.efeito], nome: propria.nome, lore: propria.lore || '', efeito: propria.efeito };
+  return { ...FRAQUEZAS[G.fraquezas[n]], lore: '', efeito: G.fraquezas[n] };
+}
+const fraquezaDe = d => d.fq || FRAQUEZAS[d.fraqueza];
+
 function ganharFragmento() {
   G.fragmentos++;
   if (G.fragmentos < FRAGMENTOS_POR_PISTA) return { texto: `Mais um pedaço da pista (${G.fragmentos} de ${FRAGMENTOS_POR_PISTA}): "${pedacoDaPista()}"` };
   const completa = fmt(VILOES[G.trama.vilao].pistas[G.pistas]);
-  const f = FRAQUEZAS[G.fraquezas[G.pistas]];
-  G.diario.push({ lugar: LUGARES[G.lugar].nome, texto: completa, fraqueza: G.fraquezas[G.pistas] });
+  const f = fraquezaDaPista(G.pistas);
+  G.diario.push({ lugar: LUGARES[G.lugar].nome, texto: completa, fraqueza: f.efeito, fq: f });
   G.pistas++;
   G.fragmentos = 0;
   escolherPista();
-  let texto = `A pista fica inteira: "${completa}" Descobriu ${f.nome}. ${f.desc}`;
-  if (!G.destinoRevelado) texto += ` Poupa-lhe também uma etapa da missão.${avancarFio()}`;
+  let texto = `A pista fica inteira: "${completa}" Descobriu ${f.nome}.${f.lore ? ` ${fmt(f.lore)}` : ''} ${f.desc}`;
   if (G.rastro) texto += fmt(' Há outra pista em {pista}.');
   return { texto, completa: true };
 }
@@ -420,6 +451,9 @@ function montarTrama() {
     refem: umDe(REFENS),
   };
   G.fraquezas = tirar(FRAQUEZAS, PISTAS_PRECISAS);
+  // A primeira etapa escolhe-se já, para a lista da missão dizer desde o início o que há a fazer.
+  G.etapaUm = umDe([...ETAPAS_GERAIS.flat(), ...(ETAPAS_MUNDO[G.mundo] || []).flat()]);
+  G.reforcos = 0;
   G.rumo = sitioPerto(null, 2);
   escolherPista();
   G.unicas = [{ cls: G.cls }, { raca: G.raca }, { bg: G.bg }];
@@ -459,7 +493,9 @@ const pvDoInimigo = o => Math.ceil(o.roll.pv * COMBATE.escalaPv * (1 + SUBIDA.pv
 function opcoesDaCena(cena) {
   // As dicas que ouviu pelo caminho facilitam a etapa seguinte.
   const dica = cena.etapa ? Math.min(G.dicas, 3) : 0;
-  const sobe = o => (o.roll ? { ...o, dcExtra: (o.dcExtra || 0) + subidaNivel() - dica } : o);
+  // As cenas da missão são mais duras do que as outras: testes e inimigos sobem SUBIDA.cenaDaEtapa.
+  const extra = cena.etapa ? SUBIDA.cenaDaEtapa : 0;
+  const sobe = o => (o.roll ? { ...o, dcExtra: (o.dcExtra || 0) + subidaNivel() + extra - dica } : o);
   return maoDaCena(cena).map(sobe);
 }
 
@@ -542,10 +578,13 @@ const jeitoDe = nome => Object.keys(JEITOS).find(k => JEITOS[k].busca.test(nome)
 
 // O inimigo que uma opção de combate põe à frente do jogador.
 // O nome do ficheiro do retrato de um inimigo: "Os Goblins da Estrada" dá "goblins-da-estrada".
+// Inimigos sem pintura própria que usam a de outro parecido (os que faltam estão em docs/arte-pendente.md).
+const RETRATO_IGUAL = { 'soldados-do-imperio': 'soldados-imperiais', vigias: 'tres-soldados', 'simony-a-brincar': 'simony' };
 // Tira o "Lendário:", os nomes que mudam ({vilao}) e o artigo do início.
 function chaveInimigo(nome) {
-  return nome.replace(/^Lendário:\s*/, '').replace(/\s*\{[^}]*\}/g, '').replace(/^(os|as|o|a)\s+/i, '')
+  const k = nome.replace(/^Lendário:\s*/, '').replace(/\s*\{[^}]*\}/g, '').replace(/^(os|as|o|a)\s+/i, '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return RETRATO_IGUAL[k] || k;
 }
 
 function inimigoDe(o, cena) {
@@ -560,6 +599,7 @@ function inimigoDe(o, cena) {
     mais: subidaNivel() + (o.roll.mais || 0),
     agi: dc - 11,
     primeiro: o.roll.primeiro || null,
+    treino: !!o.roll.treino,
     jeito: o.roll.jeito || jeitoDe(fmt(o.roll.ini || cena.titulo)),
     retrato: `retratosLivro/inimigo-${chaveInimigo(o.roll.ini || cena.titulo)}`,
   };
@@ -568,9 +608,9 @@ function inimigoDe(o, cena) {
 // O chefe final: tem PV a sério e, em cada ronda, um efeito e um ataque.
 function chefeFinal() {
   const v = VILOES[G.trama.vilao];
-  const trunfos = ['enganou', 'traidorvirado', 'ajudado', 'sangue'].filter(m => G.marcas.has(m)).length;
+  const trunfos = Object.keys(TRUNFOS).filter(m => G.marcas.has(m)).length;
   // Cada pista completa é uma fraqueza que se leva para a última porta.
-  const sabe = G.diario.map(d => FRAQUEZAS[d.fraqueza]);
+  const sabe = G.diario.map(fraquezaDe);
   const soma = campo => sabe.reduce((t, f) => t + (f[campo] || 0), 0);
   // Cada chefe pode ter o seu ajuste sobre o chefe de base (o Santo é mais difícil de acertar).
   const aj = v.ajuste || {};
@@ -581,15 +621,16 @@ function chefeFinal() {
     pv, pvMax: pv, defesa: ca, caBase: ca,
     ataque: COMBATE.vilao.ataque + (aj.ataque || 0) + subidaNivel() - soma('ataque'),
     dado: COMBATE.vilao.dado, agi: 3,
-    primeiro: sabe.some(f => f.calado) ? 'jogador' : null, calado: sabe.some(f => f.calado), sabe: sabe.map(f => f.nome).join('  ·  '),
+    primeiro: sabe.some(f => f.calado) ? 'jogador' : null, calado: sabe.some(f => f.calado), sabe: [...sabe.map(f => f.nome), ...Object.keys(TRUNFOS).filter(m => G.marcas.has(m)).map(m => TRUNFOS[m])].join('  ·  '),
     chefe: true, efeitos: sabe.some(f => f.semEfeito) ? null : v.efeitos, frases: v.ronda, fraqueza: v.fraqueza.includes(G.cls),
     capitulo: 'Capítulo Final', abertura: `${v.finalTexto} ${G.trama.motivo}`, retrato: `retratosLivro/${G.trama.vilao}`,
   };
 }
 
 // Os guardas do chefe: os aliados têm de passar por eles antes de lhe chegar.
+// Os reforços (de uma Reviravolta que correu mal) juntam-se sempre, mesmo a quem vem sozinho.
 function guardasDoChefe(aliados) {
-  const g = COMBATE.vilao.guarda, n = Math.min(COMBATE.vilao.guardasMax, aliados);
+  const g = COMBATE.vilao.guarda, n = Math.min(COMBATE.vilao.guardasMax, aliados) + (G.reforcos || 0);
   const pv = Math.ceil(g.pv * (1 + SUBIDA.pvPorEtapa[etapaDoMundo()]));
   return Array.from({ length: n }, (_, i) => ({ nome: n > 1 ? `Guarda ${i + 1}` : 'O Guarda', pv, pvMax: pv, defesa: g.ca, ataque: g.ataque + subidaNivel(), dado: g.dado, mais: 0 }));
 }

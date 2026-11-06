@@ -222,6 +222,12 @@ const VILOES_DARAAN = {
       'Quem o viu de perto fala de uma cicatriz de queimadura, e de uma espada que acende quando é sacada.',
       'Um soldado ferido confessa: o general subiu às Montanhas Dentadas, e espera no Templo de Farlagg.',
     ],
+    // Uma fraqueza por pista, pela mesma ordem; o efeito no combate vem de FRAQUEZAS (data.js).
+    fraquezas: [
+      { efeito: 'ritmo', nome: 'O Discurso de Sempre', lore: 'Ele luta como discursa: sempre pela mesma ordem. Ao terceiro golpe, já sabe qual vem a seguir.', },
+      { efeito: 'medo', nome: 'A Queimadura dos Voranan', lore: 'Lembra-lhe o nome Voranan, a queimadura e a fuga. A mão da espada hesita.', },
+      { efeito: 'guarda', nome: 'As Juntas da Armadura', lore: 'Sabe onde estão as juntas da armadura, e onde a poção não curou.', },
+    ],
     finalTexto: 'Os raios de sol caem pelos vitrais partidos. {vilao} passeia entre as estátuas, tocando em cada uma. A espada acende-se, e a voz rouca enche o templo. "É preciso coragem para subir até aqui. Hoje, o Imperador recebe a sua cabeça."',
     ronda: { combate: 'A armadura cede num ponto cego, e ele recua um passo.', social: 'Lembra-lhe o nome Voranan, a queimadura e a fuga. A mão da espada hesita.', habilidade: 'Roda para o lado cego do ataque, e a lâmina parte o chão.', investigacao: 'Sabe onde estão as juntas da armadura, e onde a poção não curou.' } },
   profeta: { nome: 'o Profeta', destino: 'sangue', glyph: 'eye', fraqueza: ['clerigo', 'mago', 'druida'],
@@ -231,6 +237,12 @@ const VILOES_DARAAN = {
       'Há quem desapareça em plena vista, envolto numa chama vermelha. A única coisa que fica é a brasa no ar.',
       'Um conselheiro bêbado fala de um elfo de manto branco que não é de Daraan, e que dá ordens ao próprio Imperador.',
       'Nos registos do castelo há listas de exilados. Todos foram enviados para a ilha.',
+    ],
+    // Uma fraqueza por pista, pela mesma ordem; o efeito no combate vem de FRAQUEZAS (data.js).
+    fraquezas: [
+      { efeito: 'poder', nome: 'O Anel do Imperador', lore: 'Reconhece o anel que dá autoridade às palavras do Imperador, e sabe como destruí-lo.', },
+      { efeito: 'medo', nome: 'O Que Ivan Fará Dele', lore: 'Pergunta-lhe o que Ivan fará dele no fim, e ele demora a responder.', },
+      { efeito: 'ferida', nome: 'Os Exilados da Ilha', lore: '', porEscrever: true, },
     ],
     finalTexto: 'O portão de Sangue Sombrio está aberto. Coisas com quatro asas rondam lá em cima, sem se aproximarem. {vilao} levanta o cajado e aponta-o na sua direção. "Que exemplar maravilhoso", diz. "Finalmente, vou aumentar a minha coleção."',
     ronda: { combate: 'A esfera racha, e pela primeira vez algo lhe toca.', social: 'Pergunta-lhe o que Ivan fará dele no fim, e ele demora a responder.', habilidade: 'Selos surgem do chão, um a um, e disparam em várias direções.', investigacao: 'Reconhece o anel que dá autoridade às palavras do Imperador, e sabe como destruí-lo.' } },
@@ -243,6 +255,12 @@ const VILOES_DARAAN = {
       'Uma testemunha jura que foi um rapaz de uniforme que saltou para o céu e desapareceu. Ninguém acredita, mas todos têm medo.',
       'Os Saybaff mandam dizer: Santo entrou em Pere, e as árvores estão a abrir caminho a quem não devia.',
     ],
+    // Uma fraqueza por pista, pela mesma ordem; o efeito no combate vem de FRAQUEZAS (data.js).
+    fraquezas: [
+      { efeito: 'ritmo', nome: 'A Respiração do Santo', lore: 'Percebe o padrão: o feixe sai sempre um instante depois da respiração dele.', },
+      { efeito: 'guarda', nome: 'Ouvir o Ar', lore: 'Deixa de tentar vê-lo, e começa a ouvir o ar.', },
+      { efeito: 'medo', nome: 'Os Cruzados de Agalor', lore: 'Pergunta-lhe pelos Cruzados de Agalor, e o raio abranda.', },
+    ],
     finalTexto: 'Na clareira diante da biblioteca, as folhas caem cortadas ao meio, sem vento nenhum. Um rapaz de uniforme olha para o céu, de olhos fechados. {vilao} não se vira. "Finalmente...", diz. "...um oponente digno."',
     ronda: { combate: 'Um golpe às cegas encontra a sua carne, e ele abre os olhos, surpreendido.', social: 'Pergunta-lhe pelos Cruzados de Agalor, e o raio abranda.', habilidade: 'Deixa de tentar vê-lo, e começa a ouvir o ar.', investigacao: 'Percebe o padrão: o feixe sai sempre um instante depois da respiração dele.' } },
   tevish: { nome: 'Tevish Szar', destino: 'dentadas', glyph: 'fist', fraqueza: ['barbaro', 'monge', 'mago'],
@@ -252,6 +270,12 @@ const VILOES_DARAAN = {
       'Há portas de carvalho partidas em três golpes, sempre com a marca de um punho muito liso.',
       'Um sobrevivente fala de um monge de roupa negra, com olhos incandescentes e um gume na lateral dos braços.',
       'Os pastores de Ratti descem a serra: alguém anda a pendurar rebeldes nas Montanhas Dentadas para enviar uma mensagem.',
+    ],
+    // Uma fraqueza por pista, pela mesma ordem; o efeito no combate vem de FRAQUEZAS (data.js).
+    fraquezas: [
+      { efeito: 'guarda', nome: 'A Junta do Metal', lore: 'Encontra a junta entre o metal e o que ainda é carne.', },
+      { efeito: 'poder', nome: 'O Limite da Resistência', lore: 'A resistência mágica tem um limite, e você sabe agora qual é.', },
+      { efeito: 'medo', nome: 'Altrair Szar', lore: 'Pergunta-lhe por Altrair Szar. Pela primeira vez, ele para, em choque.', },
     ],
     finalTexto: 'No alto das Montanhas Dentadas, o vento uiva. Uma figura de faixa vermelha cai do céu, a rodopiar, e o chão racha debaixo dela. {vilao} levanta os olhos incandescentes na sua direção. "Diz-me, inseto: preferes a forca ou a guilhotina?"',
     ronda: { combate: 'Encontra a junta entre o metal e o que ainda é carne.', social: 'Pergunta-lhe por Altrair Szar. Pela primeira vez, ele para, em choque.', habilidade: 'Passa-lhe por baixo das pernas, e ele demora a reagir.', investigacao: 'A resistência mágica tem um limite, e você sabe agora qual é.' } },
@@ -263,12 +287,23 @@ const VILOES_DARAAN = {
       'Caik Bak, o velho Protetor do Reino, serve à mesa no Paço. Quem o viu diz que não levanta os olhos.',
       'O Imperador vai à varanda todas as noites, e está à espera de alguém.',
     ],
+    // Uma fraqueza por pista, pela mesma ordem; o efeito no combate vem de FRAQUEZAS (data.js).
+    fraquezas: [
+      { efeito: 'poder', nome: 'Os Reis que Pagam', lore: '', porEscrever: true, },
+      { efeito: 'ferida', nome: 'O Olho Esquerdo', lore: 'A cicatriz no olho esquerdo ainda sangra, e o último Cruzado de Agalor deixou o trabalho a meio.', },
+      { efeito: 'medo', nome: 'Ezuri Salazar', lore: 'Chama-o pelo nome, "Ezuri Salazar!", e vê algo por detrás dos olhos do Imperador.', },
+    ],
     finalTexto: 'Chove sobre o Paço Real, e é possível ver toda Daraan, trezentos e sessenta graus. {vilao} está de costas, de braços cruzados, com os crânios de dragão nos ombros. Vira-se devagar, e o sorriso vai de uma orelha à outra. "Gostaste da paisagem?", diz, a desembainhar a Lâmina dos Cinco Sóis. "Preparei-a para ti."',
     ronda: { combate: 'A cicatriz no olho esquerdo sangra de novo.', social: 'Chama-o pelo nome, "Ezuri Salazar!", e vê algo por detrás dos olhos do Imperador.', habilidade: 'Corta-lhe a visão, concluindo o trabalho do último Cruzado de Agalor.', investigacao: 'A lâmina foi feita pelos deuses, e assume a forma de uma grande serpente.' } },
 };
 
 const REVIRAVOLTAS_DARAAN = {
-  vendido: { nome: 'Traição', resumo: 'O nobre que o ajudava já tinha aceitado o ouro de {vilao}.',
+  // tipo: 'boa' (sempre uma sorte), 'ma' (sempre um revés) ou 'aleatoria' (depende dos dados).
+  // agora: a tarefa da etapa 2, que esconde a Reviravolta. ponte: o que a etapa 1 diz para lá chegar.
+  // reforco: guardas a mais ao lado do chefe, no fim.
+  vendido: { nome: 'Traição', tipo: 'aleatoria', resumo: 'O nobre que o ajudava já tinha aceitado o ouro de {vilao}.',
+    agora: 'Peça abrigo ao nobre que esconde quem foge do Império',
+    ponte: 'Há um nobre em {proximo} que esconde quem foge do Império, e sabe mais do que diz. É com ele que tem de falar.',
     titulo: 'Promessas de Riqueza',
     texto: 'O nobre que lhe deu abrigo fecha a porta à chave, e já não lhe chama amigo. Lá fora, ouve-se o passo pesado dos soldados de armadura vermelha. "Compreenda", diz, sem olhar para si. "Prometeram-me uma cidade inteira. E {vilao} paga sempre em boas moedas."',
     opcoes: [
@@ -277,12 +312,14 @@ const REVIRAVOLTAS_DARAAN = {
         ko: { txt: 'Ele grita "Guardas!", mas você sai pela janela e, com os cacos de vidro, deixa sangue no parapeito.', fx: { vida: -4, dia: 1 } } },
       { t: 'Sair pela força', d: 'Eles são muitos. Você tem pressa.', tipo: 'combate', roll: { a: 'forca', dc: 13, pv: 7, ini: 'Os Soldados Imperiais' },
         ok: { txt: 'Passa por cima da guarda. O nobre fica para trás, a explicar-se a {vilao}.', fx: { xp: 2, ouro: 3 } },
-        ko: { txt: 'São superiores em tudo, menos em conhecer as vielas.', fx: { vida: -4 } } },
+        ko: { txt: 'São superiores em tudo, menos em conhecer as vielas. E o nobre conta a {vilao} por onde fugiu.', fx: { vida: -4, reforco: 1 } } },
       { t: 'Deixar-lhe uma pista falsa', d: 'Fingir que não percebeu, e mentir sobre o caminho.', tipo: 'habilidade', roll: { a: 'mente', dc: 14 },
         ok: { txt: 'Fala de um esconderijo em Mórmon, com muitos pormenores. {vilao} vai mandar soldados na direção errada.', fx: { marca: 'enganou', xp: 3 } },
         ko: { txt: 'Ele já sabia a verdade. Você perde um dia a despistar quem o segue.', fx: { dia: 1, vida: -2 } } },
     ] },
-  andarilhos: { nome: 'A Caçada', resumo: 'Os Andarilhos partiram antes do previsto.',
+  andarilhos: { nome: 'A Caçada', tipo: 'ma', resumo: 'Os Andarilhos partiram antes do previsto.',
+    agora: 'Encontre o batedor das colinas',
+    ponte: 'Um batedor das colinas traz notícias da capital, e só fala com quem o Opositor mandar. Espera em {proximo}.',
     titulo: 'Ivan Envia os Seus Andarilhos',
     texto: 'Um batedor das colinas chega a cair do cavalo. "Os Andarilhos Fantasmas saíram da capital!" Olha para trás, como se alguém já pudesse estar a ouvir. Em Feldon, o Opositor manda levantar o acampamento.',
     opcoes: [
@@ -293,7 +330,9 @@ const REVIRAVOLTAS_DARAAN = {
         ok: { txt: 'Sai a meio da noite, e ganha alguns dias de vantagem.', fx: { prazo: -1, xp: 2 } },
         ko: { txt: 'Parte exausto, e o despreparo é cobrado com dias de atraso.', fx: { prazo: -2, vida: -3 } } },
     ] },
-  profecia: { nome: 'A Mensagem Misteriosa', resumo: 'Foi escrita por {vilao}.',
+  profecia: { nome: 'A Mensagem Misteriosa', tipo: 'aleatoria', resumo: 'Foi escrita por {vilao}.',
+    agora: 'Mostre as ordens imperiais a quem saiba ler o selo',
+    ponte: 'Os soldados levavam ordens seladas. Em {proximo} há quem saiba ler o selo do Império.',
     titulo: 'O Mesmo Pergaminho',
     texto: 'Ao comparar os papéis, o estômago dá-lhe uma volta. O pedido que o trouxe até aqui foi escrito no mesmo pergaminho, com o mesmo selo, das ordens que tirou aos soldados. Foi {vilao} quem o enviou. Para o usar, ou para o seguir até ao Opositor?',
     opcoes: [
@@ -307,7 +346,9 @@ const REVIRAVOLTAS_DARAAN = {
         ok: { txt: 'O aviso chega a tempo, e Simony muda o plano. No final, isso vai contar muito.', fx: { marca: 'enganou', xp: 4 } },
         ko: { txt: 'O pombo não chega. Fica com a dúvida, e com a dor de cabeça.', fx: { vida: -1 } } },
     ] },
-  debito: { nome: 'Um Antigo Aliado', resumo: 'Alguém pagou uma dívida antiga ao salvá-lo.',
+  debito: { nome: 'Um Antigo Aliado', tipo: 'boa', resumo: 'Alguém pagou uma dívida antiga ao salvá-lo.',
+    agora: 'Encontre a casa segura do Opositor',
+    ponte: 'O Opositor tem uma casa segura em {proximo}. Os soldados também andam à procura dela.',
     titulo: 'Diga a Ele que o Débito Está Pago',
     texto: 'Uma bola de fogo atravessa a parede e acerta nos soldados que o cercavam. Na poeira, está um velho de vestes reluzentes, com um cajado na mão. "Vá, depressa", diz. "O meu sobrenome é Salazar. Diga ao Opositor que o débito está pago."',
     opcoes: [
@@ -316,7 +357,9 @@ const REVIRAVOLTAS_DARAAN = {
         ko: { txt: 'O velho não tem tempo para mais nada. Atira-lhe uma bolsa, e empurra-o porta fora.', fx: { ouro: 6, vida: 2 } } },
       { t: 'Só pedir o caminho', d: 'Sem arrastar mais ninguém.', ok: { txt: 'Mostra-lhe uma passagem que nem no mapa do Opositor existe, e volta-se para a poeira.', fx: { dia: -1, xp: 1 } } },
     ] },
-  nome: { nome: 'O Decreto de Extinção', resumo: 'O nome da sua família chegou aos ouvidos de {vilao}.',
+  nome: { nome: 'O Decreto de Extinção', tipo: 'aleatoria', resumo: 'O nome da sua família chegou aos ouvidos de {vilao}.',
+    agora: 'Ouça o decreto novo na praça',
+    ponte: 'Em {proximo}, um arauto vai ler um decreto novo do Imperador. Toda a gente vai lá estar, e quem sabe alguma coisa também.',
     titulo: 'O Decreto',
     texto: 'Num palanque, um arauto desenrola um pergaminho e lê o seu nome, o da sua família e o da sua terra. Agora, quem o ajudar em Daraan, diz o decreto, "carregará também as consequências". A assinatura é de {vilao}.',
     opcoes: [
@@ -784,6 +827,12 @@ VILOES_DARAAN.mestra = { nome: 'a Mestra', destino: 'mhari', glyph: 'fist', fraq
     'Há espadas partidas em cacos pelas estradas, e os donos juram que ela só lhes tocou com um dedo.',
     'Os pastores falam de uma mulher a quem o fogo não queima, a atravessar um incêndio sem pressa, e sem olhar para o chão.',
     "Em M'hari, há quem a veja a fazer sinais para o vento, sozinha, ao fim da tarde. E o vento responde, sibilante.",
+  ],
+  // Uma fraqueza por pista, pela mesma ordem; o efeito no combate vem de FRAQUEZAS (data.js).
+  fraquezas: [
+    { efeito: 'guarda', nome: 'O Joelho que Falha', lore: 'Ela não sente a dor, mas o corpo sente, e o joelho falha.', },
+    { efeito: 'ferida', nome: 'O Corpo Gasto', lore: 'A Transmigração tem um preço, e este corpo já lhe está a acabar.', },
+    { efeito: 'poder', nome: 'Fora dos Olhos Dela', lore: 'Ela só tem os olhos. Sai-lhe do campo de visão, e o vento perde o alvo.', },
   ],
   finalTexto: 'As planícies de M\'hari não têm uma árvore, e o vento para de repente. Uma mulher de pé olha para si, e continua a olhar. {vilao} não diz nada, porque nunca diz. Estala os dedos, e os vendavais que deles saem enchem e moldam o campo de batalha. Ela está em postura de ataque.',
   ronda: { combate: 'Ela não sente a dor, mas o corpo sente, e o joelho falha.', social: 'Faz-lhe em sinais o nome de Ezuri, e ela entristece.', habilidade: 'Ela só tem os olhos. Sai-lhe do campo de visão, e o vento perde o alvo.', investigacao: 'A Transmigração tem um preço, e este corpo já lhe está a acabar.' } };

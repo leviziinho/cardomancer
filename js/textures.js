@@ -137,6 +137,12 @@ function iconePintado(name) {
   const i = typeof ARTE !== 'undefined' && ARTE.img['icones/' + name];
   return i && i.complete && i.naturalWidth ? i : null;
 }
+// Os assets da interface (arte/interface/), quando existem e já carregaram.
+function arteUI(nome) {
+  const i = typeof ARTE !== 'undefined' && ARTE.img['interface/' + nome];
+  return i && i.complete && i.naturalWidth ? i : null;
+}
+
 function desenhaPintado(ctx, img, x, y, size) {
   const e = size / Math.max(img.naturalWidth, img.naturalHeight);
   ctx.drawImage(img, x - img.naturalWidth * e / 2, y - img.naturalHeight * e / 2, img.naturalWidth * e, img.naturalHeight * e);
@@ -186,6 +192,21 @@ function textoIcones(ctx, t, tam, cores, cx, y) {
 
 // A máscara de teatro em marca d'água, atrás do texto da carta: 'bom' sorri, 'mau' chora, 'neutro' cerra os lábios.
 function desenharMascara(x, tipo, cx, cy, s) {
+  // A máscara pintada (arte/interface/mascaras.png): o pergaminho dela passa a branco e some a multiplicar sobre a carta.
+  const pintada = arteUI('mascara-' + tipo);
+  if (pintada) {
+    const [c, m] = canvas(512, 512);
+    m.filter = 'grayscale(1) contrast(1.9) brightness(1.3)'; m.drawImage(pintada, 0, 0, 512, 512); m.filter = 'none';
+    m.globalCompositeOperation = 'destination-in';
+    const g = m.createRadialGradient(256, 256, 150, 256, 256, 256);
+    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    m.fillStyle = g; m.fillRect(0, 0, 512, 512);
+    x.save();
+    x.globalCompositeOperation = 'multiply'; x.globalAlpha = .5;
+    x.drawImage(c, cx - s * .62, cy - s * .62, s * 1.24, s * 1.24);
+    x.restore();
+    return;
+  }
   const tinta = a => `rgba(92, 58, 24, ${a})`;
   x.save();
   x.lineCap = 'round'; x.lineJoin = 'round';
@@ -462,12 +483,22 @@ function textures(renderer) {
     const pintada = typeof ARTE !== 'undefined' && ARTE.img.mesa;
     if (pintada && pintada.complete && pintada.naturalWidth) {
       x.drawImage(pintada, 0, 0, S, S);
-      mx.filter = 'grayscale(1) contrast(1.4)'; mx.drawImage(pintada, 0, 0, 1024, 1024); mx.filter = 'none';
+      // A pintura tem 1254 pontos e, esticada pela mesa, ficava mole: por cima vai um veio fino, ao longo das tábuas,
+      // e no relevo o grão feito em código continua a ver-se por baixo dos veios da pintura.
+      x.save(); x.globalCompositeOperation = 'multiply';
+      for (let i = 0; i < 9000; i++) {
+        const px = Math.random() * S, py = Math.random() * S, l = 14 + Math.random() * 60;
+        x.strokeStyle = `rgba(40,22,10,${.08 + Math.random() * .14})`; x.lineWidth = .8 + Math.random() * 1.2;
+        x.beginPath(); x.moveTo(px, py); x.lineTo(px + l, py + (Math.random() - .5) * 2); x.stroke();
+      }
+      x.restore();
+      mx.globalAlpha = .6; mx.filter = 'grayscale(1) contrast(1.4)'; mx.drawImage(pintada, 0, 0, 1024, 1024); mx.filter = 'none'; mx.globalAlpha = 1;
     }
     const map = toTexture(c, renderer);
     const normal = normaisDe(m, renderer, 1.5);
     const rough = toTexture(r, renderer, { linear: true });
-    [map, normal, rough].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2.2); });
+    // A pintura (arte/mesa2.png) tem 8 tábuas: repetida assim, cada tábua fica à medida do mapa.
+    [map, normal, rough].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2.75); });
     return { map, normal, rough };
   }
 
@@ -487,7 +518,16 @@ function textures(renderer) {
     return graoCouro;
   }
 
-  function leather(hex) {
+  // Com uma chave (por ex. 'couro', de arte/couro.png), usa o couro pintado em vez do feito em código.
+  function leather(hex, chave) {
+    const pintado = chave && typeof ARTE !== 'undefined' && ARTE.img[chave];
+    if (pintado && pintado.complete && pintado.naturalWidth) {
+      const [c, x] = canvas(2048, 2048);
+      x.drawImage(pintado, 0, 0, 2048, 2048);
+      const t = toTexture(c, renderer);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      return t;
+    }
     const [c, x] = canvas(512, 512);
     x.fillStyle = hex; x.fillRect(0, 0, 512, 512);
     for (let i = 0; i < 46; i++) {
@@ -593,6 +633,10 @@ function textures(renderer) {
 
   function versoComLogo(logo) {
     const [c, x] = canvas(CARD_W, CARD_H);
+    const pintado = arteUI('verso');
+    // O verso pintado (arte/interface/verso.png): cartão escuro e gasto, com a moldura de ouro; o logótipo vai ao centro.
+    if (pintado) x.drawImage(pintado, 0, 0, CARD_W, CARD_H);
+    else {
     // Fundo de carvão, com grão fino e manchas suaves, como cartão pintado a negro e gasto ao toque.
     x.fillStyle = '#16100c'; x.fillRect(0, 0, CARD_W, CARD_H);
     for (let i = 0; i < 40; i++) {
@@ -612,8 +656,9 @@ function textures(renderer) {
     x.lineWidth = 2; traca(x, 66);
     x.globalAlpha = 1;
     desgasteBorda(x, '170,150,120');
+    }
     const desenha = () => {
-      const w = CARD_W - 110, h = w * logo.naturalHeight / logo.naturalWidth;
+      const w = CARD_W - (pintado ? 230 : 110), h = w * logo.naturalHeight / logo.naturalWidth;
       x.drawImage(logo, (CARD_W - w) / 2, (CARD_H - h) / 2, w, h);
     };
     const t = toTexture(c, renderer);
@@ -774,7 +819,24 @@ function textures(renderer) {
     const cx0 = CARD_W / 2, my = MEDALHAO.y, mr = MEDALHAO.r;
     // A janela é quadrada, como as imagens geradas, para se ver a ilustração inteira.
     if (grande) desenharArcano(x, spec.tarot, 112, 166, 800, 800, ouro, pintada);
-    else {
+    else if (arteUI('medalhao')) {
+    // O medalhão pintado (arte/interface/medalhao.png), gasto; os raios da cor do tipo passam por dentro.
+    const med = arteUI('medalhao'), lado = mr * 2.08;
+    x.save();
+    x.shadowColor = 'rgba(40,20,5,.55)'; x.shadowBlur = 26; x.shadowOffsetY = 8;
+    x.drawImage(med, cx0 - lado / 2, my - lado / 2, lado, lado);
+    x.restore();
+    x.save();
+    x.beginPath(); x.arc(cx0, my, mr * .78, 0, 7); x.clip();
+    x.translate(cx0, my);
+    x.fillStyle = th.band; x.globalAlpha = .12;
+    for (let i = 0; i < 28; i++) {
+      x.rotate(Math.PI * 2 / 28);
+      x.beginPath(); x.moveTo(0, 0); x.lineTo(-22, -mr); x.lineTo(22, -mr); x.closePath(); x.fill();
+    }
+    x.restore();
+    drawGlyphRico(x, spec.glyph, cx0, my, 185, th.tinta || th.band, '#d9b878');
+    } else {
     x.save();
     x.shadowColor = 'rgba(40,20,5,.55)'; x.shadowBlur = 26; x.shadowOffsetY = 8;
     x.fillStyle = th.band; x.beginPath(); x.arc(cx0, my, mr, 0, 7); x.fill();
@@ -808,7 +870,12 @@ function textures(renderer) {
     }
 
     // O olho vermelho: esta carta rende um fragmento de pista.
-    if (spec.fragmento) {
+    if (spec.fragmento && arteUI('olho-carta')) {
+      x.save();
+      x.shadowColor = 'rgba(40,10,5,.7)'; x.shadowBlur = 18;
+      x.drawImage(arteUI('olho-carta'), cx0 + 252 - 90, my - 92 - 90, 180, 180);
+      x.restore();
+    } else if (spec.fragmento) {
       x.save();
       x.shadowColor = 'rgba(40,10,5,.7)'; x.shadowBlur = 18;
       x.fillStyle = '#8f1610'; x.beginPath(); x.arc(cx0 + 252, my - 92, 80, 0, 7); x.fill();
@@ -826,6 +893,19 @@ function textures(renderer) {
       banho.addColorStop(0, `hsla(${h}, 70%, 45%, 0)`); banho.addColorStop(1, `hsla(${h}, 70%, 40%, .2)`);
       x.fillStyle = banho; x.fillRect(53, 53, CARD_W - 106, CARD_H - 106);
       const sx = cx0 - 252, sy = my - 92;
+      const selo = arteUI(h < 40 ? 'selo-vermelho' : h < 80 ? 'selo-ambar' : 'selo-verde');
+      if (selo) {
+        // O selo pintado (arte/interface/selos-chance.png): a cor diz a dificuldade, o número escreve-se no papel do meio.
+        x.save();
+        x.shadowColor = 'rgba(40,10,5,.6)'; x.shadowBlur = 18;
+        x.drawImage(selo, sx - 96, sy - 95, 192, 190);
+        x.restore();
+        // O número tem de se ler de relance: letra grande e grossa, com um contorno da mesma tinta.
+        const num = `${Math.round(spec.hipotese * 100)}%`;
+        x.textAlign = 'center'; x.font = `700 66px ${FONT_TITLE}`;
+        x.lineJoin = 'round'; x.lineWidth = 4; x.strokeStyle = '#1e1208'; x.strokeText(num, sx, sy + 23);
+        x.fillStyle = '#1e1208'; x.fillText(num, sx, sy + 23);
+      } else {
       x.save();
       x.shadowColor = 'rgba(40,10,5,.6)'; x.shadowBlur = 18;
       x.fillStyle = cor; x.beginPath(); x.arc(sx, sy, 80, 0, 7); x.fill();
@@ -833,6 +913,7 @@ function textures(renderer) {
       x.strokeStyle = ouro; x.lineWidth = 9; x.beginPath(); x.arc(sx, sy, 80, 0, 7); x.stroke();
       x.textAlign = 'center'; x.fillStyle = '#fff3d0'; x.font = `700 60px ${FONT_TITLE}`;
       x.fillText(`${Math.round(spec.hipotese * 100)}%`, sx, sy + 21);
+      }
     }
 
     // título
@@ -1164,6 +1245,13 @@ function textures(renderer) {
     x.font = `${size}px ${FONT_BODY}`;
     y += size;
     const links = [];
+    // A IM Fell só tem um peso, e no telemóvel lia-se fina: um contorno da mesma tinta engrossa o traço sem mudar o tamanho.
+    const peso = size * .045;
+    const tinta = (t, px, py, cor) => {
+      x.fillStyle = cor; x.fillText(t, px, py);
+      x.lineWidth = peso; x.strokeStyle = cor; x.strokeText(t, px, py);
+      x.lineWidth = 6; x.strokeStyle = 'rgba(248,242,226,.6)';
+    };
     lines.forEach((l, i) => {
       const by = y + i * lh;
       let cursor = marginL, rest = l;
@@ -1176,14 +1264,12 @@ function textures(renderer) {
         const plain = best ? rest.slice(0, best.at) : rest;
         x.lineWidth = 6; x.lineJoin = 'round'; x.strokeStyle = 'rgba(248,242,226,.6)';
         x.strokeText(plain, cursor, by);
-        x.fillStyle = TINTA_LIVRO;
-        x.fillText(plain, cursor, by);
+        tinta(plain, cursor, by, TINTA_LIVRO);
         cursor += x.measureText(plain).width;
         if (!best) break;
         const w = x.measureText(best.t.nome).width;
         x.strokeText(best.t.nome, cursor, by);
-        x.fillStyle = '#8a1d16';
-        x.fillText(best.t.nome, cursor, by);
+        tinta(best.t.nome, cursor, by, '#8a1d16');
         x.fillRect(cursor, by + 6, w, 3);
         links.push({ x: cursor, y: by - size, w, h: size * 1.3, id: best.t.id });
         cursor += w;
@@ -1260,7 +1346,16 @@ function textures(renderer) {
   function rosaDosVentos(x, cx, cy, r) {
     // A rosa pintada (arte/rosa.png), quando existe; o N continua a ser escrito por cima.
     const rosa = typeof ARTE !== 'undefined' && ARTE.img.rosa;
-    if (rosa && rosa.complete && rosa.naturalWidth) { desenhaPintado(x, rosa, cx, cy, r * 2.3); return; }
+    if (rosa && rosa.complete && rosa.naturalWidth) {
+      // A ponta do Norte pinta-se de vermelho, para se ver de longe.
+      const S = r * 2.3, [c2, x2] = canvas(Math.ceil(S), Math.ceil(S));
+      desenhaPintado(x2, rosa, S / 2, S / 2, S);
+      x2.globalCompositeOperation = 'source-atop';
+      x2.fillStyle = 'rgba(178,26,22,.78)';
+      x2.beginPath(); x2.moveTo(S / 2, S * .02); x2.lineTo(S * .565, S * .42); x2.lineTo(S / 2, S / 2); x2.lineTo(S * .435, S * .42); x2.closePath(); x2.fill();
+      x.drawImage(c2, cx - S / 2, cy - S / 2);
+      return;
+    }
     x.save();
     x.translate(cx, cy);
     x.fillStyle = 'rgba(232,216,176,.45)';
@@ -1520,18 +1615,29 @@ function textures(renderer) {
 
     // Rosa dos ventos
     rosaDosVentos(x, W * .92, H * .19, 160);
-    x.fillStyle = '#2a1a0d'; x.textAlign = 'center';
-    x.font = `700 58px ${FONT_TITLE}`;
+    x.fillStyle = '#8e1612'; x.textAlign = 'center';
+    x.font = `700 62px ${FONT_TITLE}`;
     x.fillText('N', W * .92, H * .19 - 172);
 
     // Título numa fita
     x.font = `700 70px ${FONT_TITLE}`;
     const tw = x.measureText(MAPA.titulo).width, tx = W * MAPA.tituloX, ty = H * .935, fw = tw / 2 + 70;
+    const faixaPintada = arteUI('faixa');
+    if (faixaPintada) {
+      // A fita pintada (arte/interface/faixa.png): o corpo liso ocupa uns 70% da largura, e as pontas caem dos lados.
+      const fwP = (tw + 110) / .76, fhP = fwP * faixaPintada.naturalHeight / faixaPintada.naturalWidth;
+      // Não pode sair do mapa: se o título estiver muito à esquerda, a fita entra um pouco.
+      const txP = Math.max(tx, fwP / 2 + 70), tyP = ty - 85;  // mais acima: em baixo ficava escondida pelas cartas
+      x.drawImage(faixaPintada, txP - fwP / 2, tyP - 24 - fhP * .4, fwP, fhP);
+      x.fillStyle = '#2a1a0d';
+      x.fillText(MAPA.titulo, txP, tyP);
+    }
     const fita = (d, cor) => {
       x.fillStyle = cor;
       x.beginPath(); x.moveTo(tx + d * fw, ty - 62); x.lineTo(tx + d * (fw + 74), ty - 44); x.lineTo(tx + d * (fw + 40), ty - 2); x.lineTo(tx + d * (fw + 80), ty + 34); x.lineTo(tx + d * fw, ty + 18); x.closePath(); x.fill();
       x.strokeStyle = '#2f1c0e'; x.lineWidth = 3; x.stroke();
     };
+    if (!faixaPintada) {
     fita(-1, '#8a2c22'); fita(1, '#8a2c22');
     const faixa = x.createLinearGradient(0, ty - 66, 0, ty + 22);
     faixa.addColorStop(0, '#efe2bd'); faixa.addColorStop(.5, '#fbf1d4'); faixa.addColorStop(1, '#cdb988');
@@ -1539,6 +1645,7 @@ function textures(renderer) {
     x.strokeStyle = '#2f1c0e'; x.lineWidth = 4; x.strokeRect(tx - fw, ty - 68, fw * 2, 88);
     x.fillStyle = '#2a1a0d';
     x.fillText(MAPA.titulo, tx, ty);
+    }
 
     bordaRasgada(x, W, H);
     mapBases[MAPA.titulo] = c;
@@ -1626,7 +1733,26 @@ function textures(renderer) {
         x.strokeStyle = '#e9dbb8'; x.lineWidth = 5; x.stroke();
       }
       if (rasto && rasto.key === key) {
+        // Um brilho vermelho leve, no sítio e por trás do olho, para a pista não se perder na pintura.
+        const brilho = (cx, cy, r, a) => {
+          const g = x.createRadialGradient(cx, cy, r * .15, cx, cy, r);
+          g.addColorStop(0, `rgba(230,40,30,${a})`); g.addColorStop(.55, `rgba(230,40,30,${a * .4})`); g.addColorStop(1, 'rgba(230,40,30,0)');
+          x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill();
+        };
+        brilho(px, py, 175, .42);
+        brilho(px, py - 250, 175, .5);
         // Cada ponto é um fragmento: os cheios já são seus.
+        const anel = arteUI('marca-pista');
+        if (anel) {
+          // O anel pintado (arte/interface/marca-pista.png): o centro dele fica em (293, 352) e os encaixes a 317 pontos.
+          const raio = 150, e = raio / 317 * anel.naturalWidth / 586;
+          x.drawImage(anel, px - 293 * raio / 317, py - 352 * raio / 317, anel.naturalWidth * e, anel.naturalHeight * e);
+          for (let i = 0; i < rasto.fragmentos && i < FRAGMENTOS_POR_PISTA; i++) {
+            const a = -Math.PI / 2 + i * 2 * Math.PI / FRAGMENTOS_POR_PISTA;
+            x.beginPath(); x.arc(px + Math.cos(a) * raio, py + Math.sin(a) * raio, 19, 0, 7);
+            x.fillStyle = '#b3161a'; x.fill(); x.strokeStyle = TINTA_MAPA; x.lineWidth = 4; x.stroke();
+          }
+        } else {
         const raio = 118;
         x.strokeStyle = TINTA_MAPA; x.lineWidth = 10; x.setLineDash([26, 16]);
         x.beginPath(); x.arc(px, py, raio, 0, 7); x.stroke(); x.setLineDash([]);
@@ -1636,20 +1762,30 @@ function textures(renderer) {
           x.fillStyle = cheio ? '#b3161a' : '#f6eedb'; x.fill();
           x.strokeStyle = TINTA_MAPA; x.lineWidth = 8; x.stroke();
         }
+        }
         marcaComHalo(x, px, py - 250, 130);
-        medalhaoMapa(x, px, py - 250, 82);
-        drawGlyph(x, 'eye', px, py - 250, 118, '#b3161a');
+        const olho = arteUI('olho-mapa');
+        if (olho) desenhaPintado(x, olho, px, py - 250, 184);
+        else { medalhaoMapa(x, px, py - 250, 82); drawGlyph(x, 'eye', px, py - 250, 118, '#b3161a'); }
       }
       // A estrela dourada: é para aqui que a missão manda.
       if (rumo === key) {
         marcaComHalo(x, px, py - 150, 150);
-        medalhaoMapa(x, px, py - 150, 92);
-        drawGlyph(x, 'star', px, py - 150, 150, TINTA_MAPA);
-        drawGlyph(x, 'star', px, py - 150, 112, '#ffcf3a');
+        const estrela = arteUI('estrela-mapa');
+        if (estrela) desenhaPintado(x, estrela, px, py - 150, 206);
+        else {
+          medalhaoMapa(x, px, py - 150, 92);
+          drawGlyph(x, 'star', px, py - 150, 150, TINTA_MAPA);
+          drawGlyph(x, 'star', px, py - 150, 112, '#ffcf3a');
+        }
+        const anelM = arteUI('anel-missao');
+        if (anelM) desenhaPintado(x, anelM, px, py, 150);
+        else {
         x.strokeStyle = TINTA_MAPA; x.lineWidth = 18;
         x.beginPath(); x.arc(px, py, 62, 0, 7); x.stroke();
         x.strokeStyle = '#ffcf3a'; x.lineWidth = 8;
         x.beginPath(); x.arc(px, py, 62, 0, 7); x.stroke();
+        }
       }
       x.font = `700 ${p.cidade ? 58 : 48}px ${FONT_TITLE}`;
       x.textAlign = 'center';

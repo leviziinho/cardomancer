@@ -126,7 +126,7 @@ const JEITOS = {
 
 // O mundo aperta a cada etapa da história, não a cada nível do herói: assim, subir de nível sente-se.
 // Por etapa (0 a 3, a última é a do chefe): PV a mais nos inimigos, e +1 nos testes, na CA, no ataque e no dano.
-const SUBIDA = { pvPorEtapa: [0, .1, .2, .3], maisPorEtapa: [0, 0, 0, 1] };
+const SUBIDA = { pvPorEtapa: [0, .15, .3], maisPorEtapa: [0, 0, 1], cenaDaEtapa: 1 }; // um degrau por etapa: 1, 2 (a Reviravolta) e o destino
 
 // A Vida é o outro relógio do jogo: poupar tempo gasta Vida, e recuperar Vida gasta tempo.
 const VIDA = { falha: 1.5, marcha: 2, acampar: .35, emboscadaAcampar: 20 };
@@ -343,6 +343,9 @@ const FRAQUEZAS = {
   medo: { nome: 'O Medo Dele', desc: 'No combate final, joga primeiro, e ele perde a primeira ronda.', calado: true },
   ritmo: { nome: 'O Ritmo Dele', desc: 'No combate final, o ataque dele desce 3.', ataque: 3 },
 };
+
+// Os trunfos: marcas que algumas escolhas deixam (sobretudo na Reviravolta). Cada uma baixa 1 à CA do chefe.
+const TRUNFOS = { enganou: 'A pista falsa', traidorvirado: 'O nobre arrependido', ajudado: 'A dívida paga', sangue: 'O nome da família' };
 
 // Cada classe é um arcano do tarô.
 const ARCANOS = {

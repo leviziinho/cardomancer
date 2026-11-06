@@ -14,6 +14,8 @@ body.legivel * { text-transform: none !important; }
   --line: rgba(216, 180, 94, .45);
   --rail: 92px;
   --trilha: 40px;
+  /* A interface fica um pouco menos saturada do que a arte das cartas: o laranja deixa de dominar. */
+  --frio: .86;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: #070403; overflow: hidden; color: var(--cream); font-family: var(--f-texto); }
@@ -57,12 +59,17 @@ html.placas #title .t-caixa { gap: 14px; }
 html.placas :is(#prompt, #toast, #objetivo, #aviso) {
   background: none; border: 0; border-radius: 0; box-shadow: none;
   border-image: var(--botao-liso) 24 22 29 22 fill / 11px 10px 13px 10px round stretch;
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .7));
+  filter: saturate(var(--frio)) drop-shadow(0 6px 12px rgba(0, 0, 0, .7));
 }
 html.placas #prompt { padding: 12px 28px 15px; }
 html.placas #prompt.livro { padding: 12px 16px 15px; }
 html.placas #toast { padding: 14px 30px 16px; }
-html.placas #objetivo { padding: 13px 17px 15px; filter: drop-shadow(0 0 12px rgba(230, 180, 80, .3)) drop-shadow(0 6px 12px rgba(0, 0, 0, .7)); }
+html.placas #objetivo { padding: 13px 17px 15px; filter: saturate(var(--frio)) drop-shadow(0 0 12px rgba(230, 180, 80, .3)) drop-shadow(0 6px 12px rgba(0, 0, 0, .7)); }
+/* Com os assets pintados (arte/interface/): placas de veludo próprias, botões de couro com rebites, barra e trilha de madeira. */
+html.ui-pintada :is(#prompt, #toast, #objetivo, #aviso) { border-image: var(--painel) 13% 4.2% fill / 15px 16px stretch; }
+html.ui-pintada .r-tools button:is(#_, *) { border-image: var(--botao-barra) 16% 5% fill / .32em .3em stretch; }
+html.ui-pintada #rail { background: #1a0f08 var(--barra) left top / 100% auto repeat-y; border-image: none; border-left: 0; }
+html.ui-pintada #trilha { background: #1a0f08 var(--trilha-fundo) left top / 100% auto no-repeat; border-image: none; border-top: 0; }
 html.placas #toast.good { color: #d9f0cf; }
 html.placas #toast.bad { color: #ffd0c8; }
 html.placas #rail { border-left: 0; border-image: var(--botao-liso) 0 0 0 22 / 0 0 0 11px round stretch; padding-left: 15px; }
@@ -138,6 +145,12 @@ html.placas #trilha { border-top: 0; border-image: var(--botao-liso) 24 0 0 0 / 
 #objetivo.on { opacity: 1; }
 #objetivo h3 { margin: 0 0 4px; font: 700 16px var(--f-titulo); letter-spacing: .1em; color: #ffd97a; text-transform: uppercase; text-shadow: 0 0 8px rgba(255, 200, 90, .45); }
 #objetivo p { margin: 0; font-size: clamp(15px, 1.3vw, 20px); font-weight: 700; line-height: 1.22; color: #fff3d6; }
+/* As etapas já feitas: pequenas, riscadas, com o visto à frente. */
+#objetivo .feito { display: block; margin-bottom: 3px; font-size: .78em; font-weight: 400; opacity: .7; text-decoration: line-through; text-decoration-color: rgba(255, 217, 122, .7); }
+#objetivo .feito::before { content: '✓ '; text-decoration: none; display: inline-block; margin-right: .2em; color: #ffd97a; }
+#painel .lista-missao { margin: 4px 0 6px; padding-left: 1.3em; }
+#painel .lista-missao li { margin: 2px 0; }
+#painel .lista-missao li.feito { text-decoration: line-through; opacity: .65; }
 #objetivo-pista { margin-top: 4px !important; font-style: italic; color: #ffb4a8 !important; }
 /* A cidade para onde ir, realçada no painel Agora e na ficha. */
 .cidade { color: #ffd166; font-weight: 700; font-style: normal; }
@@ -166,7 +179,8 @@ html.placas #trilha { border-top: 0; border-image: var(--botao-liso) 24 0 0 0 / 
 .r-tools { margin-top: auto; display: flex; flex-direction: column; gap: 5px; }
 .r-tools button { font-size: 13px; padding: 7px 2px; }
 #rail, #trilha, #objetivo { transition: filter .4s, opacity .35s; }
-body.veu #rail, body.veu #trilha { filter: brightness(.3); }
+#rail, #trilha { filter: saturate(var(--frio)); }
+body.veu #rail, body.veu #trilha { filter: brightness(.3) saturate(var(--frio)); }
 body.veu #objetivo { opacity: 0; }
 @keyframes pulso { 50% { opacity: .45; } }
 
@@ -237,8 +251,8 @@ body.veu #objetivo { opacity: 0; }
 #opiniao div { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 #opiniao div button { font-size: 15px; padding: 8px 14px; }
 /* Foco na decisão: enquanto escolhe uma carta, o que está à volta recua. */
-body.foco #rail, body.foco #trilha { filter: brightness(.55) saturate(.7); }
-body.foco #objetivo { opacity: .55; }
+/* A missão e a barra lateral ficam como estão: são o que se consulta enquanto se escolhe. Só a trilha recua. */
+body.foco #trilha { filter: brightness(.55) saturate(calc(.7 * var(--frio))); }
 #pergunta { position: fixed; inset: 0; z-index: 8; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(0, 0, 0, .6); }
 #pergunta.on { display: flex; }
 #pergunta article, #guia-caixa { color: #2a1a0d; background: #e9dbb8; border: 3px double #6e4a1e; border-radius: 3px; box-shadow: 0 18px 50px rgba(0, 0, 0, .7); }

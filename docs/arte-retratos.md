@@ -75,3 +75,9 @@ Troque no bloco de estilo "A personagem da cintura para cima" por "Em pose de at
 | `inimigo-barbaros-das-terras-selvagens.png` | Bárbaros das Terras Selvagens | Guerreiros de peles e pinturas de guerra, machados e escudos redondos, a gritar ao ataque. |
 | `inimigo-enviados-de.png` | Enviados do vilão | Figuras encapuzadas de manto cinzento, rostos na sombra, com lâminas curvas e um brilho vermelho nos olhos. |
 | `inimigo-simony-lumiel.png` | Simony Lumiel (quando luta contra si) | Use a mesma personagem da carta de aliada da Simony, em pose de duelo com espada longa e adaga. |
+| `inimigo-homem-da-cicatriz.png` | O Homem da Cicatriz (etapa da missão) | Homem magro e nervoso numa taberna escura, com uma cicatriz ainda aberta na cara, a levantar-se de faca na mão. |
+| `inimigo-queimador-de-papeis.png` | O Queimador de Papéis (etapa da missão) | Escrivão de mangas arregaçadas numa casa de janelas tapadas, a atirar papéis para a lareira, apanhado de surpresa. |
+| `inimigo-capataz.png` | O Capataz (procura da pista) | Capataz corpulento de avental de couro, num armazém, com um gancho de carga na mão e dois ajudantes atrás. |
+| `inimigo-apagador.png` | O Apagador (procura da pista) | Figura de capuz ágil e calma, com um pano molhado numa mão e uma faca curta na outra, a apagar marcas numa parede. |
+
+Os Soldados do Império usam o retrato dos Soldados Imperiais, Os Vigias usam o dos Três Soldados e "Simony, a brincar" usa o da Simony (ver `RETRATO_IGUAL` em `js/regras.js`). Se quiser pinturas próprias, grave `inimigo-soldados-do-imperio.png`, `inimigo-vigias.png` ou `inimigo-simony-a-brincar.png` e retire a linha correspondente.

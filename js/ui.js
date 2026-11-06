@@ -165,9 +165,9 @@ const DICAS_TUTORIAL = {
   encontro: ['Alguém na estrada', 'Cada estrada custa um dia. Desta vez, a miniatura parou a meio do caminho: há um encontro. Resolva-o, e só depois chega.'],
   combate: ['Combate', 'Joga-se à vez. A carta de ataque mostra a CA dele: é o número a tirar no d20. Os PV de cada um estão no livro. Pode fugir, mas perde o prémio.'],
   mercado: ['O mercado', 'Só aparece o que a sua classe sabe usar. O preço está no rodapé de cada carta.'],
-  pista: ['Uma pista', 'Ganhou um fragmento. Com três, a pista fica completa: poupa uma etapa e revela uma fraqueza do inimigo final.'],
+  pista: ['Uma pista', 'Ganhou um fragmento. Cada pista revela uma fraqueza do inimigo final, tirada da história dele. Não avança a missão, mas conta muito no último combate.'],
   talento: ['Subiu de nível', 'Escolha um talento. Fica seu até ao fim, e aparece por baixo da missão.'],
-  fim: ['Agora é consigo', 'Chegou à segunda etapa: já viu o essencial. O resto descobre-se a jogar, e a Ajuda tem as regras todas. Boa viagem!'],
+  fim: ['Agora é consigo', 'Cumpriu a primeira etapa da missão: já viu o essencial. O resto descobre-se a jogar, e a Ajuda tem as regras todas. Boa viagem!'],
 };
 function dica(chave) {
   if (!tutorial || dicasVistas.has(chave) || !DICAS_TUTORIAL[chave]) return;
@@ -247,9 +247,9 @@ Classes: cada uma tem uma habilidade sua, escrita na carta do draft. O Bárbaro 
 
 Equipamento: cada classe só usa as armas e armaduras do seu tipo. O mercado só mostra o que a sua classe sabe usar. Adagas, cajados, capas, mantos e acessórios servem a todos.
 
-Missão: a estrela dourada no mapa e o aviso no canto dizem sempre para onde ir. São três etapas, e mesmo quem falha fica a saber a seguinte. Ganhar combates e ter êxito em testes também lhe dá dicas, que tornam a etapa seguinte mais fácil.
+Missão: a estrela dourada no mapa e a lista no canto dizem sempre o que fazer e para onde ir. São três etapas, e cada uma só aparece quando a anterior fica feita. A terceira é o objetivo, que já conhece desde o início. A segunda esconde uma Reviravolta: pode ser uma sorte, um revés ou depender dos dados. O objetivo não muda, mas o caminho até lá sim. Mesmo quem falha uma etapa fica a saber a seguinte. Ganhar combates e ter êxito em testes também lhe dá dicas, que tornam a etapa seguinte mais fácil.
 
-Pistas: são opcionais, mas muito fortes. Siga o olho vermelho no mapa. Lá, as cartas com o olho dão um fragmento se correrem bem, e até um combate pode ter o olho: há quem saiba perguntar com o machado. Se falhar uma carta com o olho, a pista muda de sítio, mas nada se perde. Com três fragmentos, a pista fica completa: poupa-lhe uma etapa e revela uma fraqueza do inimigo, que conta muito no combate final.
+Pistas: são opcionais, mas muito fortes. Siga o olho vermelho no mapa. Lá, as cartas com o olho dão um fragmento se correrem bem, e até um combate pode ter o olho: há quem saiba perguntar com o machado. Se falhar uma carta com o olho, a pista muda de sítio, mas nada se perde. Com três fragmentos, a pista fica completa e revela uma fraqueza do inimigo, tirada da história dele. A pista não avança a missão: é um desafio à parte, que conta muito no combate final.
 
 Tendência: as escolhas definem quem é. Uma máscara no fundo da carta avisa: a que sorri puxa para o Bem, a que chora para o Mal, a de lábios cerrados para a Ordem ou o Caos. A página do resultado diz para onde pendeu, e a Ficha mostra o nome (Leal Bom, Neutro, Caótico Mau...). Quem servir o Império até ao fim encontra, na última porta, alguém dos Rebeldes.
 
@@ -430,9 +430,9 @@ function posicaoAviso() {
     $('folha').style.top = `${topoFolha}px`;
     $('folha').style.maxHeight = `${Math.max(120, innerHeight * .55 - topoFolha)}px`;
   }
-  $('prompt').classList.toggle('lado', !!G.trama && !world.book.aberto && !emDestaque);
+  $('prompt').classList.toggle('lado', !!(G && G.trama) && !world.book.aberto && !emDestaque);
   // Com o livro aberto, o aviso fica por cima do "Agora": à direita tapava a carta selada.
-  const noLivro = !!G.trama && world.book.aberto && !emDestaque;
+  const noLivro = !!(G && G.trama) && world.book.aberto && !emDestaque;
   $('prompt').classList.toggle('livro', noLivro);
   $('prompt').style.bottom = noLivro ? `${innerHeight - $('objetivo').getBoundingClientRect().top + 8}px` : '';
 }
@@ -604,7 +604,7 @@ const ui = {
   async pista(i) {
     dica('pista');
     const d = G.diario[i];
-    const f = FRAQUEZAS[d.fraqueza];
+    const f = fraquezaDe(d);
     const c = world.createCard({ tema: 'investigacao', etiqueta: `Pista ${i + 1}`, titulo: f.nome, glyph: 'eye', desc: `${f.desc} ${d.texto}` });
     sfx.card();
     await world.fly(c, lugarPista(i), .8, { arc: 2 });
@@ -689,7 +689,9 @@ const ui = {
     const alvos = zona();
     const origem = AO_BARALHO();
     const cards = specs.map(s => world.createCard(s, { at: origem }));
-    cards.forEach((c, i) => { if (specs[i].unica) world.prepararQueima(c); });
+    // Ardem as cartas que só se usam uma vez: a única da cena, e a rara dourada do combate.
+    const ardeAoUsar = s => s.unica || (ctx === 'combate' && s.tema === 'rara');
+    cards.forEach((c, i) => { if (ardeAoUsar(specs[i])) world.prepararQueima(c); });
     maoAtual = { cards, zona };
     document.body.classList.add('foco');
     cards.forEach((c, i) => { c.zoom = true; window.setTimeout(sfx.card, i * 140); });
@@ -699,7 +701,7 @@ const ui = {
     document.body.classList.remove('foco');
     // A carta única da criação não volta ao baralho: desfaz-se em fogo, com as outras ainda ao lado.
     // Só quando acaba de arder é que as outras voltam.
-    const arde = specs[idx].unica ? cards[idx] : null;
+    const arde = ardeAoUsar(specs[idx]) ? cards[idx] : null;
     if (arde) { await world.desintegrar(arde); world.removeCard(arde); }
     await Promise.all(cards.filter(c => c !== arde).map(c => world.fly(c, { pos: origem, rot: [FACE_DOWN, 0, 0], scale: .6 }, .45, { arc: 1 }).then(() => world.removeCard(c))));
     return idx;
@@ -820,7 +822,7 @@ const ui = {
     $('rail').classList.add('on');
     world.resize();
     if (!G) return;
-    // A partida guiada acaba na segunda etapa.
+    // A partida guiada acaba quando a primeira etapa fica feita.
     if (tutorial && G.fio >= 1) dica('fim');
     const max = G.cls ? vidaMax() : 0;
     const prox = G.cls ? xpParaProximo() : null;
@@ -845,7 +847,9 @@ const ui = {
     $('objetivo').classList.toggle('on', missaoOn);
     if (missaoOn) {
       // Os nomes vêm dos dados do jogo, nunca do jogador; por isso podem ir em HTML.
-      $('objetivo-agora').innerHTML = `${objetivoAgora(true)}.`;
+      // A lista da missão: as etapas feitas ficam riscadas por cima; a de agora vem a seguir.
+      $('objetivo-titulo').textContent = `Missão · etapa ${Math.min(G.fio, ETAPAS_DA_MISSAO - 1) + 1} de ${ETAPAS_DA_MISSAO}`;
+      $('objetivo-agora').innerHTML = listaDaMissao(true).map(e => (e.feito ? `<span class="feito">${e.texto}</span>` : `${e.texto}.`)).join('');
       $('objetivo-pista').innerHTML = pistaAgora(true) ? `${pistaAgora(true)}.` : (G.pistas >= PISTAS_PRECISAS ? 'Tem as três pistas.' : '');
     }
     const trilha = $('trilha');
@@ -896,10 +900,10 @@ function desenharPainel() {
     ? G.aliados.map(id => `<li class="slot"><span class="nome">${ALIADOS[id].nome}</span><span class="desc">${resumoAliado(fichaAliado(id))}<br>${ALIADOS[id].desc}</span></li>`).join('')
     : '<li class="slot vazio"><span class="nome">Viaja sozinho, por agora.</span></li>';
 
-  const pistas = G.diario.map((d, i) => `<li class="slot"><span class="rotulo">Pista ${i + 1}: ${FRAQUEZAS[d.fraqueza].nome}</span><span class="desc">${FRAQUEZAS[d.fraqueza].desc} ${d.texto}</span></li>`).join('');
+  const pistas = G.diario.map((d, i) => { const f = fraquezaDe(d); return `<li class="slot"><span class="rotulo">Pista ${i + 1}: ${f.nome}</span><span class="desc">${f.lore ? `${fmt(f.lore)} ` : ''}${f.desc} ${d.texto}</span></li>`; }).join('');
   const rumo = pistaAgora(true) ? `${pistaAgora(true)}.` : '';
 
-  const missao = G.trama ? `<section><h3>Missão</h3><p class="missao">${fmt(OBJETIVOS[G.trama.objetivo].titulo)}</p><p class="pequeno"><b>Agora:</b> ${objetivoAgora(true)}.</p><p class="pequeno">Dia ${G.dia} de ${G.prazo}. Pistas: ${G.pistas} de ${PISTAS_PRECISAS}.${pressao() ? ` O tempo aperta: +${pressao()} em todos os testes.` : ''}</p></section>` : '';
+  const missao = G.trama ? `<section><h3>Missão</h3><p class="missao">${fmt(OBJETIVOS[G.trama.objetivo].titulo)}</p><ol class="lista-missao">${listaDaMissao(true).map(e => `<li class="${e.feito ? 'feito' : ''}">${e.texto}${e.feito ? '' : '.'}</li>`).join('')}</ol><p class="pequeno">Dia ${G.dia} de ${G.prazo}. Pistas: ${G.pistas} de ${PISTAS_PRECISAS}.${pressao() ? ` O tempo aperta: +${pressao()} em todos os testes.` : ''}</p></section>` : '';
 
   $('painel-corpo').innerHTML = `
     <header><h2>${pele}</h2><p>${nomeTendencia()} · Nível ${G.nivel}${prox !== null ? ` · ${G.xp}/${prox} XP` : ' · nível máximo'} · CA ${caJogador()}</p><div class="barra"><i style="width:${barra}%"></i></div></header>
@@ -995,6 +999,13 @@ async function main() {
     r.setProperty('--botao-liso', `url(${ARTE.botaoLiso})`);
     r.setProperty('--botao-orn', `url(${ARTE.botaoOrn})`);
     document.documentElement.classList.add('placas');
+  }
+  // Os assets pintados da interface (arte/interface/): placas, botões da barra, a barra lateral e a trilha.
+  if (typeof ARTE !== 'undefined' && ARTE.interface && ARTE.interface.painel) {
+    const r = document.documentElement.style, I = ARTE.interface;
+    [['--painel', 'painel'], ['--botao-barra', 'botao'], ['--barra', 'barra'], ['--trilha-fundo', 'trilha']]
+      .forEach(([v, k]) => I[k] && r.setProperty(v, `url(${I[k]})`));
+    document.documentElement.classList.add('ui-pintada');
   }
   // O papel velho das cartas, por trás dos textos que se leem em janela.
   if (typeof ARTE !== 'undefined' && ARTE.papel) document.documentElement.style.setProperty('--papel', `url(${ARTE.papel})`);

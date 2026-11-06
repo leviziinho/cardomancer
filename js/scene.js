@@ -144,7 +144,7 @@ function createWorld(canvasEl) {
       m.position.set(x, y, z); env.add(m);
     };
     glow(0xffc488, 6, 9, 4, 4.6);
-    glow(0xff9a4c, -8, 4, -5, 3.2);
+    glow(0xffb27a, -8, 4, -5, 3.2);
     glow(0xffe0b0, 0, 12, -3, 3.4);
     glow(0x7a98c0, -4, 8, 8, 2);
     glow(0x3a2212, 0, -8, 0, 7);
@@ -174,7 +174,8 @@ function createWorld(canvasEl) {
   const wood = tex.wood();
   const table = new THREE.Mesh(
     new THREE.PlaneGeometry(130, 90),
-    new THREE.MeshStandardMaterial({ map: wood.map, normalMap: wood.normal, normalScale: new THREE.Vector2(.5, .5), roughnessMap: wood.rough, roughness: 1, metalness: 0.02, envMapIntensity: 0.5 })
+    // A madeira nova já é fria; a cor só a puxa um pouco mais, para o mapa e a miniatura se destacarem.
+    new THREE.MeshStandardMaterial({ map: wood.map, color: new THREE.Color(.96, .96, .98), normalMap: wood.normal, normalScale: new THREE.Vector2(.5, .5), roughnessMap: wood.rough, roughness: 1, metalness: 0.02, envMapIntensity: 0.5 })
   );
   table.rotation.x = -Math.PI / 2;
   table.receiveShadow = true;
@@ -184,6 +185,11 @@ function createWorld(canvasEl) {
   const leatherRed = tex.leather('#4a1712');
   const leatherGreen = tex.leather('#1f3a2c');
   const leatherBlue = tex.leather('#1d2642');
+  // A pasta do mapa: castanho escuro e gasto, como as capas pintadas; o verde destoava da arte.
+  const leatherPasta = tex.leather('#2a1c14', 'couro');
+  // A pasta é grande: o couro repete-se para o grão ter o tamanho certo, em vez de uma só imagem esticada.
+  leatherPasta.repeat.set(2.4, 1.75);
+  leatherPasta.anisotropy = renderer.capabilities.getMaxAnisotropy();
   const grao = tex.relevoCouro();
   const couro = map => new THREE.MeshStandardMaterial({ map, normalMap: grao, normalScale: new THREE.Vector2(.7, .7), roughness: .6 });
   // Tudo o que é metal, osso ou lacre leva o mesmo mapa de desgaste: baço, com riscos de uso.
@@ -200,23 +206,13 @@ function createWorld(canvasEl) {
     return m;
   }
 
-  // Pasta de couro cosida, onde o mapa assenta.
+  // Pasta de couro onde o mapa assenta. Sem costura: o pesponto liso destoava do resto da mesa.
   (function pasta() {
     const W = 16.4, H = 12, z = AREA.map.z;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(W, .06, H), couro(leatherGreen));
+    const m = new THREE.Mesh(new THREE.BoxGeometry(W, .06, H), couro(leatherPasta));
     m.position.set(CX, -.015, z);
     m.receiveShadow = true;
     scene.add(m);
-    const pontos = [], passo = .26, folga = .22;
-    for (let a = -W / 2 + folga; a < W / 2 - folga; a += passo) pontos.push([a, -H / 2 + folga, 0], [a, H / 2 - folga, 0]);
-    for (let b = -H / 2 + folga; b < H / 2 - folga; b += passo) pontos.push([-W / 2 + folga, b, 1], [W / 2 - folga, b, 1]);
-    const cosido = new THREE.InstancedMesh(new THREE.BoxGeometry(.16, .012, .035), new THREE.MeshStandardMaterial({ color: 0xc9a25a, roughness: .7 }), pontos.length);
-    const d = new THREE.Object3D();
-    pontos.forEach(([a, b, vira], i) => {
-      d.position.set(CX + a, .018, z + b); d.rotation.y = vira * Math.PI / 2; d.updateMatrix();
-      cosido.setMatrixAt(i, d.matrix);
-    });
-    scene.add(cosido);
   })();
 
   // ---- Livro flutuante ----
@@ -455,19 +451,17 @@ function createWorld(canvasEl) {
   const pinFace = new THREE.SpriteMaterial({ transparent: true, depthWrite: false });
   const pinContorno = new THREE.SpriteMaterial({ transparent: true, depthWrite: false, color: 0x000000, opacity: .9 });
   const pinHalo = new THREE.SpriteMaterial({ transparent: true, depthWrite: false, toneMapped: false, opacity: .8 });
-  // A silhueta da miniatura, desfocada e cor de papel claro.
-  function haloDe(img) {
-    const m = 40, w = 256, h = Math.round(256 * img.naturalHeight / img.naturalWidth);
-    const cv = document.createElement('canvas'); cv.width = w + m * 2; cv.height = h + m * 2;
+  const pinSombra = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, opacity: .75 });
+  // A silhueta da miniatura, desfocada e escura, para a sombra no mapa.
+  function silhuetaEscura(img) {
+    const w = 256, h = Math.round(256 * img.naturalHeight / img.naturalWidth);
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
     const x = cv.getContext('2d');
-    x.filter = 'blur(10px)';
-    x.drawImage(img, m, m, w, h); x.drawImage(img, m, m, w, h);
-    x.filter = 'none';
+    x.filter = 'blur(5px)'; x.drawImage(img, 0, 0, w, h); x.filter = 'none';
     x.globalCompositeOperation = 'source-in';
-    x.fillStyle = '#fff6e2'; x.fillRect(0, 0, cv.width, cv.height);
+    x.fillStyle = 'rgba(15,8,3,.8)'; x.fillRect(0, 0, w, h);
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
-    // Quanto o halo é maior do que a figura, e onde fica o pé dela dentro do halo.
-    return { t, sx: (w + m * 2) / w, sy: (h + m * 2) / h, cy: m / (h + m * 2) };
+    return t;
   }
   const pin = (() => {
     const g = new THREE.Group();
@@ -482,14 +476,24 @@ function createWorld(canvasEl) {
     face.scale.set(.95, .95, 1);
     face.renderOrder = 2;
     g.add(face);
-    // A miniatura pintada leva um contorno escuro (a mesma figura, um pouco maior, a preto) e, por trás,
-    // um halo claro com a forma dela, como um autocolante: assim não se perde na pintura quente do mapa.
+    // A miniatura pintada leva um contorno escuro fino (a mesma figura, um pouco maior, a preto), que a separa
+    // da pintura quente do mapa. O halo claro, de autocolante, já não se usa.
     const contorno = new THREE.Sprite(pinContorno);
     contorno.renderOrder = 1; contorno.visible = false;
     g.add(contorno);
     const halo = new THREE.Sprite(pinHalo);
     halo.renderOrder = 0; halo.visible = false;
     g.add(halo);
+    // A sombra da miniatura, deitada no mapa: cai para trás e para a esquerda, longe da vela.
+    const sombra = new THREE.Group();
+    sombra.add(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), pinSombra));
+    sombra.rotation.y = Math.PI * .3; sombra.position.y = .02; sombra.children[0].renderOrder = -1;
+    // Onde a base pousa, a luz não chega.
+    const pe = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: texSombra, transparent: true, depthWrite: false, opacity: .9 }));
+    pe.rotation.x = -Math.PI / 2; pe.position.y = .025; pe.renderOrder = -1;
+    sombra.add(pe);
+    sombra.visible = false;
+    g.add(sombra);
     g.scale.setScalar(1.25);
     g.visible = false;
     scene.add(g);
@@ -499,33 +503,72 @@ function createWorld(canvasEl) {
   // sem ela, fica o pino de laca com o símbolo.
   function setPin(cor, glyph, lugar, classe) {
     const mini = typeof ARTE !== 'undefined' && ARTE.img['miniaturas/' + classe];
-    const [corpo, colar, face, contorno, halo] = pin.children;
+    const [corpo, colar, face, contorno, halo, sombra] = pin.children;
     if (mini && mini.complete && mini.naturalWidth) {
       const t = new THREE.Texture(mini);
       t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); t.needsUpdate = true;
       pinFace.map = t;
-      const alto = 2.1;
+      const alto = 2.1, largo = alto * mini.naturalWidth / mini.naturalHeight;
       face.center.set(.5, 0); face.position.y = 0;
-      face.scale.set(alto * mini.naturalWidth / mini.naturalHeight, alto, 1);
-      pinContorno.map = t; pinContorno.needsUpdate = true;
-      contorno.center.set(.5, .02); contorno.position.y = -.04;
-      contorno.scale.set(face.scale.x * 1.1, alto * 1.05, 1);
-      const hl = haloDe(mini);
-      pinHalo.map = hl.t; pinHalo.needsUpdate = true;
-      halo.center.set(.5, hl.cy); halo.position.y = -.06;
-      halo.scale.set(face.scale.x * hl.sx, alto * hl.sy, 1);
-      contorno.visible = halo.visible = true;
+      face.scale.set(largo, alto, 1);
+      // Sem o halo de autocolante: a sombra no mapa é que mostra que a figura está de pé.
+      halo.visible = false;
+      pinContorno.map = t; pinContorno.opacity = .6; pinContorno.needsUpdate = true;
+      contorno.center.set(.5, .01); contorno.position.y = -.02;
+      contorno.scale.set(largo * 1.05, alto * 1.025, 1);
+      contorno.visible = true;
+      pin.userData.mini = { largo, alto, k: 1, dz: 0 };
+      face.position.z = contorno.position.z = sombra.position.z = 0;
+      const pe = sombra.children[1];
+      // A sombra de contacto fica debaixo da base pintada, um pouco para trás: centrada no ponto, saía à frente
+      // da base e a figura parecia flutuar. A base vê-se de cima, por isso a sombra é baixa e larga.
+      pe.scale.set(largo * .95, largo * .42, 1);
+      pe.rotation.z = -sombra.rotation.y;
+      const recuo = largo * .16, th = sombra.rotation.y;
+      pe.position.x = recuo * Math.sin(th); pe.position.z = -recuo * Math.cos(th);
+      pinSombra.map = silhuetaEscura(mini); pinSombra.needsUpdate = true;
+      const plano = sombra.children[0];
+      plano.geometry.dispose();
+      plano.geometry = new THREE.PlaneGeometry(largo, alto * .7).translate(0, alto * .35 + .04, 0).rotateX(-Math.PI / 2);
+      sombra.visible = true;
       corpo.visible = colar.visible = false;
     } else {
       pinLac.color.set(cor);
       pinFace.map = tex.pinFace(glyph, '#' + cor.toString(16).padStart(6, '0'));
       face.center.set(.5, .5); face.position.y = 1.35; face.scale.set(.95, .95, 1);
       corpo.visible = colar.visible = true;
-      contorno.visible = halo.visible = false;
+      contorno.visible = halo.visible = sombra.visible = false;
+      pin.userData.mini = null;
     }
     pinFace.needsUpdate = true;
     pin.position.copy(mapToWorld(lugar));
     pin.visible = true;
+  }
+  // Nos lugares do topo do mapa (Tocairn), a miniatura passava a margem de cima do ecrã.
+  // Primeiro encolhe um pouco (até 75%); se ainda não couber, dá um passo à frente no mapa, para baixo no ecrã.
+  const pinTopo = new THREE.Vector3();
+  const topoNoEcra = (m, k, dz) => { pinTopo.copy(pin.position); pinTopo.y += m.alto * k * pin.scale.y; pinTopo.z += dz * pin.scale.z; return pinTopo.project(camera).y; };
+  function encaixarPin() {
+    const m = pin.userData.mini;
+    if (!m || !pin.visible) return;
+    const margem = .93;
+    let k = 1, dz = 0;
+    if (topoNoEcra(m, 1, 0) > margem) {
+      const base = pinTopo.copy(pin.position).project(camera).y;
+      const cima = topoNoEcra(m, 1, 0);
+      k = Math.max(.75, (margem - base) / (cima - base));
+      if (topoNoEcra(m, k, 0) > margem) {
+        let lo = 0, hi = 4;
+        for (let i = 0; i < 12; i++) { const mid = (lo + hi) / 2; if (topoNoEcra(m, k, mid) > margem) lo = mid; else hi = mid; }
+        dz = hi;
+      }
+    }
+    if (Math.abs(k - m.k) < .005 && Math.abs(dz - (m.dz || 0)) < .01) return;
+    m.k = k; m.dz = dz;
+    const [, , face, contorno, , sombra] = pin.children;
+    face.scale.set(m.largo * k, m.alto * k, 1);
+    contorno.scale.set(m.largo * 1.05 * k, m.alto * 1.025 * k, 1);
+    face.position.z = contorno.position.z = sombra.position.z = dz;
   }
   // Um troço de estrada, de t0 a t1: 0 é a origem, 1 é o destino, .5 é o meio do caminho.
   async function movePinTroco(a, b, t0 = 0, t1 = 1) {
@@ -578,7 +621,8 @@ function createWorld(canvasEl) {
     const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: texChama, color: new THREE.Color(5, 3.4, 1.9), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
     flame.position.y = flameY + .08;
     g.add(flame);
-    const light = new THREE.PointLight(0xffb070, 30, 26, 2);
+    // A chama é quente, mas a luz que deita na mesa é mais neutra: o laranja já vem da madeira.
+    const light = new THREE.PointLight(0xffc896, 30, 26, 2);
     light.position.y = flameY + .2;
     if (!LEVE) g.add(light);
     g.position.set(x, 0, z);
@@ -611,22 +655,30 @@ function createWorld(canvasEl) {
   sombraDe(CX + 13.5, -11.5, 8, 6.5);
   bookStack(CX + 13.5, -11.5, .32);
 
-  // Cálice
+  // Cálice de estanho, gasto, com anéis dourados: pé em degraus, um nó no meio da haste e a taça com lábio.
   (function goblet() {
-    const pts = [[0, 0], [.55, 0], [.6, .05], [.2, .16], [.12, .6], [.14, .9], [.44, 1.15], [.56, 1.72], [.52, 1.74], [.4, 1.2], [0, 1.0]].map(p => new THREE.Vector2(p[0], p[1]));
-    const m = shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 40), brass.clone()));
-    m.material.side = THREE.DoubleSide;
+    const pts = [
+      [0, 0], [.6, 0], [.62, .03], [.6, .07], [.5, .09], [.48, .13], [.36, .17], [.22, .24], [.15, .34],
+      [.13, .5], [.2, .56], [.23, .62], [.2, .68], [.13, .74], [.13, .86], [.2, .92], [.36, 1.0], [.47, 1.14],
+      [.53, 1.36], [.56, 1.6], [.59, 1.72], [.585, 1.75], [.55, 1.74], [.52, 1.6], [.49, 1.38], [.43, 1.16], [.3, 1.04], [0, 1.0],
+    ].map(p => new THREE.Vector2(p[0], p[1]));
+    const estanho = new THREE.MeshStandardMaterial({ color: 0x9c968a, metalness: 1, roughness: .42, roughnessMap: gasto, envMapIntensity: .9, side: THREE.DoubleSide });
+    const m = shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 48), estanho));
     m.position.set(CX - 11.6, 0, 8.3);
     m.scale.setScalar(1.25);
     scene.add(m);
-    const vinho = new THREE.Mesh(new THREE.CircleGeometry(.46, 32), new THREE.MeshStandardMaterial({ color: 0x7a0e16, roughness: .07, metalness: 0, envMapIntensity: 1.8 }));
+    // O vinho fica abaixo do lábio, com a borda a subir um pouco no vidro, como o líquido faz.
+    const vinho = new THREE.Mesh(new THREE.CircleGeometry(.5, 40), new THREE.MeshPhysicalMaterial({ color: 0x4a060c, roughness: .05, metalness: 0, clearcoat: 1, clearcoatRoughness: .05, envMapIntensity: 1.6 }));
     vinho.rotation.x = -Math.PI / 2;
-    vinho.position.y = 1.46;
+    vinho.position.y = 1.5;
     m.add(vinho);
-    const bordo = new THREE.Mesh(new THREE.TorusGeometry(.545, .028, 10, 44), brass);
-    bordo.rotation.x = Math.PI / 2;
-    bordo.position.y = 1.73;
-    m.add(bordo);
+    // Anéis dourados: no pé, no nó da haste, no fundo da taça e no lábio.
+    [[.5, .1, .03], [.235, .62, .03], [.37, 1.01, .025], [.555, 1.52, .022], [.585, 1.74, .026]].forEach(([r, y, e]) => {
+      const anel = new THREE.Mesh(new THREE.TorusGeometry(r, e, 10, 48), brass);
+      anel.rotation.x = Math.PI / 2;
+      anel.position.y = y;
+      m.add(anel);
+    });
     sombraDe(CX - 11.6, 8.3, 3);
   })();
 
@@ -635,9 +687,18 @@ function createWorld(canvasEl) {
     const x = CX - 13.4, z = 6.4;
     sombraDe(x, z, 2.1);
     const pts = [[0, 0], [.46, 0], [.5, .05], [.5, .42], [.42, .54], [.2, .6], [.2, .72], [.26, .75], [.15, .76], [.12, .6], [0, .58]].map(p => new THREE.Vector2(p[0], p[1]));
-    const vidro = shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 28), new THREE.MeshPhysicalMaterial({ color: 0x14202c, roughness: .32, roughnessMap: gasto, metalness: .1, clearcoat: .5, clearcoatRoughness: .35, envMapIntensity: 1.1 })));
+    // O vidro pintado (arte/interface/tinteiro.png): verde-negro, com tinta seca a escorrer; dá a volta ao frasco.
+    const vidroPintado = arteUI('tinteiro') ? tex.arteRepetida('interface/tinteiro', [2, 1]) : null;
+    const vidro = shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 28), new THREE.MeshPhysicalMaterial({ color: vidroPintado ? 0xffffff : 0x14202c, map: vidroPintado, roughness: vidroPintado ? .22 : .32, roughnessMap: vidroPintado ? null : gasto, metalness: 0, clearcoat: .8, clearcoatRoughness: .2, envMapIntensity: 1.3 })));
     vidro.position.set(x, 0, z);
     scene.add(vidro);
+    // Um aro de latão no gargalo, e a tinta escura lá dentro.
+    const aroT = new THREE.Mesh(new THREE.TorusGeometry(.21, .035, 8, 24), brass);
+    aroT.rotation.x = Math.PI / 2; aroT.position.set(x, .72, z);
+    scene.add(aroT);
+    const tinta = new THREE.Mesh(new THREE.CircleGeometry(.14, 20), new THREE.MeshStandardMaterial({ color: 0x05070a, roughness: .15 }));
+    tinta.rotation.x = -Math.PI / 2; tinta.position.set(x, .7, z);
+    scene.add(tinta);
     const contorno = new THREE.Shape();
     contorno.moveTo(0, 0);
     contorno.bezierCurveTo(.3, .5, .34, 1.7, .05, 2.9);
@@ -653,14 +714,30 @@ function createWorld(canvasEl) {
     }
     const pluma = new THREE.Mesh(geoPena, new THREE.MeshStandardMaterial({ map: tex.pena(), roughness: .85, side: THREE.DoubleSide }));
     pluma.castShadow = true;
-    pluma.position.set(x, .62, z);
-    pluma.rotation.set(-.95, .5, -.85);
+    // A pena sai do gargalo, inclinada para fora: antes ia quase deitada e atravessava o vidro.
+    pluma.position.set(x, .55, z);
+    pluma.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(.55, .75, -.38).normalize());
+    pluma.rotateY(.6);
     scene.add(pluma);
   })();
 
   // Selo de lacre
   (function selo() {
+    // O lacre solto na mesa parecia caído ao acaso: saiu (6 nov.). A pintura fica guardada para outro uso.
+    if (true) return;
     const x = CX + 15.9, z = 3.2;
+    if (arteUI('lacre')) {
+      // O lacre pintado (arte/interface/lacre.png), deitado na mesa: o relevo sai da própria pintura.
+      const t = tex.arteRepetida('interface/lacre');
+      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 1.35), new THREE.MeshPhysicalMaterial({ map: t, bumpMap: t, bumpScale: 2.5, alphaTest: .5, roughness: .45, clearcoat: .35, clearcoatRoughness: .4 }));
+      m.rotation.set(-Math.PI / 2, 0, .4);
+      m.position.set(x, .03, z);
+      m.receiveShadow = true;
+      scene.add(m);
+      sombraDe(x, z, 1.7);
+      return;
+    }
     const lacre = new THREE.MeshPhysicalMaterial({ color: 0x7e1410, roughness: .6, roughnessMap: gasto, clearcoat: .15, clearcoatRoughness: .6 });
     const m = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(.5, .56, .1, 12), lacre));
     m.position.set(x, .05, z); m.rotation.y = .4;
@@ -1091,7 +1168,7 @@ diffuseColor.rgb *= 1. - qOrla * .8;`);
   const CAIXA = { w: 7.4, d: 4.8, borda: .55 };
   const caixa = (() => {
     const g = new THREE.Group();
-    const fundo = new THREE.Mesh(new THREE.BoxGeometry(CAIXA.w, .06, CAIXA.d), new THREE.MeshStandardMaterial({ map: tex.arteRepetida('veludo', [2.4, 1.6]), color: 0xb08080, roughness: 1 }));
+    const fundo = new THREE.Mesh(new THREE.BoxGeometry(CAIXA.w, .06, CAIXA.d), (arteUI('veludo') ? new THREE.MeshStandardMaterial({ map: tex.arteRepetida('interface/veludo', [1.5, 1.1]), color: 0xd8c4c4, roughness: 1 }) : new THREE.MeshStandardMaterial({ map: tex.arteRepetida('veludo', [2.4, 1.6]), color: 0xb08080, roughness: 1 })));
     fundo.receiveShadow = true;
     g.add(fundo);
     const veioCaixa = wood.map.clone(); veioCaixa.repeat.set(.6, .08); veioCaixa.needsUpdate = true;
@@ -1572,6 +1649,7 @@ diffuseColor.rgb *= 1. - qOrla * .8;`);
       }
     }
     runTweens(dt);
+    encaixarPin();
 
     for (const c of candles) {
       const f = Math.sin(t * 11 + c.seed) * .06 + Math.sin(t * 23 + c.seed * 2) * .04 + Math.sin(t * 3.1 + c.seed) * .09;

@@ -92,6 +92,7 @@ function resumoFx(fx = {}) {
   add(fx.vida, 'Vida'); add(fx.ouro, 'Ouro'); add(fx.xp, 'XP');
   if (fx.dia) partes.push(`${sinal(fx.dia)} dia`);
   if (fx.prazo) partes.push(`${sinal(fx.prazo)} dias de prazo`);
+  if (fx.reforco) partes.push(`+${fx.reforco} guarda do chefe`);
   return partes.join('  ·  ');
 }
 
@@ -109,6 +110,7 @@ async function aplicar(ui, fx = {}) {
   if (fx.dia) G.dia = Math.max(1, G.dia + fx.dia);
   if (fx.prazo) G.prazo += fx.prazo;
   if (fx.marca) G.marcas.add(fx.marca);
+  if (fx.reforco) G.reforcos = (G.reforcos || 0) + fx.reforco;
   if (fx.aliado && !G.aliados.includes(fx.aliado)) {
     G.aliados.push(fx.aliado);
     notas.push(`${ALIADOS[fx.aliado].nome} junta-se a si.`);
@@ -513,6 +515,7 @@ async function combate(ui, ini, arte) {
   G.emCombateFinal = !!ini.chefe;
   ui.sync();
   ui.musica(ini.chefe ? 'chefe' : 'combate');
+  // Num treino (Simony, a brincar), quem cai não morre: fica com 1 de Vida e o combate acaba aí.
   const fim = r => {
     if (r === 'morte') G.log.causa = `${G.log.onde} · combate`;
     if (ini.chefe && est.guardaChefe) ini.defesa -= est.guardaChefe;
@@ -573,7 +576,7 @@ async function combate(ui, ini, arte) {
   if (!primeiro) {
     await pagina();
     texto = await turnoInimigo(ui, ini, est);
-    if (G.vida <= 0) return fim('morte');
+    if (G.vida <= 0) return fim(ini.treino ? (G.vida = 1, 'rendido') : 'morte');
   }
   for (;;) {
     await pagina();
@@ -600,7 +603,7 @@ async function combate(ui, ini, arte) {
       if (m.custo) {
         await aplicar(ui, { vida: -m.custo });
         est.rodape = `-${m.custo} Vida`;
-        if (G.vida <= 0) return fim('morte');
+        if (G.vida <= 0) return fim(ini.treino ? (G.vida = 1, 'rendido') : 'morte');
       }
       if (o.roll) await ui.anuncio(`Você: ${o.t}`);
       const r = o.roll ? await fazerTeste(ui, o) : { ok: true };
@@ -662,7 +665,7 @@ async function combate(ui, ini, arte) {
           ini.ataque -= 2;
           texto += ` ${ini.nome} vê a abertura e responde logo: ${await ataqueInimigo(ui, ini, est)}`;
           ini.ataque += 2;
-          if (G.vida <= 0) return fim('morte');
+          if (G.vida <= 0) return fim(ini.treino ? (G.vida = 1, 'rendido') : 'morte');
         }
       }
     }
@@ -689,11 +692,11 @@ async function combate(ui, ini, arte) {
     {
       const resposta = await turnoInimigo(ui, ini, est);
       texto = `${texto} ${resposta}`;
-      if (G.vida <= 0) return fim('morte');
+      if (G.vida <= 0) return fim(ini.treino ? (G.vida = 1, 'rendido') : 'morte');
     }
     if (guardasDePe(est).length) {
       texto = `${texto} ${await turnoGuardas(ui, est)}`;
-      if (G.vida <= 0) return fim('morte');
+      if (G.vida <= 0) return fim(ini.treino ? (G.vida = 1, 'rendido') : 'morte');
     }
     if (est.olhos) { ini.ataque += est.olhos; est.olhos = 0; }
     ronda++;
@@ -702,12 +705,15 @@ async function combate(ui, ini, arte) {
 
 async function jogarCena(ui, cena, capitulo = null) {
   const arte = cena.terreno || terrenoAqui();
-  const cap = capitulo || `Dia ${G.dia}`;
+  // As etapas da missão anunciam-se: o aviso e o capítulo dizem que é a missão, e qual das etapas.
+  const etapaN = G.fio + 1;
+  if (cena.etapa) await ui.aviso(`Missão: etapa ${etapaN} de ${ETAPAS_DA_MISSAO}`);
+  const cap = capitulo || (cena.etapa ? `Missão  ·  Etapa ${etapaN} de ${ETAPAS_DA_MISSAO}` : `Dia ${G.dia}`);
   await ui.livro({ capitulo: cap, titulo: fmt(cena.titulo), arte, texto: fmt(cena.texto), fundo: fmt(cena.fundo) });
 
   // Uma cena direta (o perigo da estrada) joga a sua própria carta: as da classe e as raras não entram.
   const mao = cena.direto ? cena.opcoes.slice(0, 1) : opcoesDaCena(cena);
-  if (cena.etapa) ui.prompt(`Etapa ${G.fio + 1} de ${ETAPAS_DA_MISSAO} da missão`, `Mesmo falhando, fica a saber para onde ir, mas falhar custa caro.${G.dicas ? ` As dicas que ouviu tornam os testes ${Math.min(G.dicas, 3)} mais fáceis.` : ''}`);
+  if (cena.etapa) ui.prompt(`Missão: ${tarefaDaEtapa(G.fio)}`, `Mesmo falhando, fica a saber para onde ir, mas falhar custa caro.${G.dicas ? ` As dicas que ouviu tornam os testes ${Math.min(G.dicas, 3)} mais fáceis.` : ''}`);
   else if (mao.some(o => o.fragmento || o.rasto)) ui.prompt(cena.prologo ? 'O primeiro fragmento' : 'A pista está aqui!', cena.prologo ? 'As cartas com o olho vermelho dão um fragmento de pista.' : `As cartas com o olho vermelho dão um fragmento (tem ${G.fragmentos} de ${FRAGMENTOS_POR_PISTA}). Se falhar, a pista muda de sítio, mas nada se perde.`);
   else if (mao.some(o => o.rara && o.tokenReq)) ui.prompt('Uma carta rara!', 'Só há uma destas na aventura. Se não a usar agora, volta ao baralho.');
   const i = cena.direto ? 0 : await ui.escolha(mao.map(o => ({ ...especOpcao(o), mascara: mascaraDe(o) })), { ctx: 'cena' });
@@ -737,6 +743,7 @@ async function jogarCena(ui, cena, capitulo = null) {
     if (salvo) G.log.causa = '';
     r = { ok: fim === 'vitoria' };
     if (r.ok) { res = o.ok; G.xp += COMBATE.xpVitoria; }
+    else if (fim === 'rendido') { ui.sync(); res = { txt: o.ko.txt, fx: {} }; }
     else if (salvo) { ui.sync(); await ui.aviso('Segunda oportunidade: deixam-no por morto, mas não morre.'); res = { txt: `O último golpe tira-lhe as forças. ${TEXTO_SEGUNDA}`, fx: {} }; }
     else {
       const resto = { ...((o.ko && o.ko.fx) || {}) };
@@ -778,7 +785,7 @@ async function jogarCena(ui, cena, capitulo = null) {
   if (cena.etapa) {
     texto += avancarFio();
   } else if (cena.prologo) {
-    texto += fmt(' Tudo aponta para {proximo}: é para lá que deve seguir.');
+    texto += fmt(` Tudo aponta para {proximo}. Primeira etapa da missão: ${tarefaDaEtapa(0).replace(/^./, m => m.toLowerCase())}.`);
   } else if (r.ok && !r.certo && !cena.fechada && G.rumo && G.dicas < 3) {
     // Fazer bem as coisas também ensina o caminho.
     G.dicas++;
@@ -802,11 +809,40 @@ async function jogarCena(ui, cena, capitulo = null) {
   });
   if (G.vida <= 0) return false;
 
+  if (cena.reviravolta) await revelarReviravolta(ui, r.ok, fx, arte);
   await subirDeNivel(ui);
   if (fx.item) await receberItem(ui, fx.item);
   if (fx.mercado) await mercado(ui, 'À Venda');
   if (fx.forja) await forja(ui, { titulo: 'O Mercador Secreto', desconto: DESCONTO_SECRETO });
   return true;
+}
+
+// A Reviravolta revela-se depois de jogada: diz o que era, e o que muda na última etapa.
+// O objetivo continua o mesmo; o que muda é o caminho até ele (prazo, aliados, guardas, trunfos).
+async function revelarReviravolta(ui, ok, fx, arte) {
+  const rev = REVIRAVOLTAS[G.trama.reviravolta];
+  const sorte = rev.tipo === 'boa' || (rev.tipo !== 'ma' && ok);
+  const muda = [];
+  if (fx.prazo < 0) muda.push(`O prazo encurta ${-fx.prazo} ${fx.prazo === -1 ? 'dia' : 'dias'}: agora termina no dia ${G.prazo}.`);
+  if (fx.prazo > 0) muda.push(`Ganha ${fx.prazo} ${fx.prazo === 1 ? 'dia' : 'dias'} de prazo.`);
+  if (fx.dia > 0) muda.push(`Perdeu ${fx.dia} ${fx.dia === 1 ? 'dia' : 'dias'}.`);
+  if (fx.dia < 0) muda.push(`Ganhou ${-fx.dia} ${fx.dia === -1 ? 'dia' : 'dias'} de avanço.`);
+  if (fx.aliado) muda.push(`${ALIADOS[fx.aliado].nome.split(',')[0]} vai consigo até ao fim.`);
+  if (fx.marca && TRUNFOS[fx.marca]) muda.push(`Leva um trunfo para o fim, ${TRUNFOS[fx.marca].replace(/^./, m => m.toLowerCase())}: o chefe fica mais fácil de acertar.`);
+  if (fx.reforco) muda.push(`No fim, ${fx.reforco > 1 ? `${fx.reforco} guardas a mais esperam` : 'um guarda a mais espera'} ao lado do chefe.`);
+  if (!muda.length) muda.push(sorte ? 'Sai disto sem perder nada, o que já é uma sorte.' : 'Sai disto mais pobre, e mais desconfiado.');
+  await ui.seguir('Continuar', 'Há mais nisto do que parecia.');
+  ui.som(sorte ? 'moeda' : 'golpe');
+  await ui.aviso(sorte ? `Reviravolta: ${rev.nome}. Uma sorte!` : `Reviravolta: ${rev.nome}. Um revés!`);
+  await ui.livro({
+    capitulo: 'Reviravolta', titulo: rev.nome, arte,
+    texto: `${fmt(rev.resumo)}
+
+${muda.join(' ')}
+
+${fmt(`O objetivo continua o mesmo: ${tarefaDaEtapa(ETAPAS_DA_MISSAO - 1).replace(/^./, m => m.toLowerCase())}, em {destino}.`)}`,
+    banner: sorte ? 'Uma sorte' : 'Um revés', bannerBom: sorte,
+  });
 }
 
 // ---------- Viagem ----------
@@ -815,7 +851,9 @@ async function escolherDestino(ui) {
   const destino = VILOES[G.trama.vilao].destino;
   let opcoes = baralhar(vizinhos(G.lugar).filter(k => k !== destino || G.destinoRevelado));
   // O caminho da missão vem sempre primeiro, e a seguir o da pista.
-  const passoMissao = G.destinoRevelado ? passoPara(destino) : passoPara(G.rumo);
+  // Com o destino longe e já revelado, a carta "A Missão" leva até lá: nenhuma cidade se anuncia como caminho da missão.
+  const marchaFinal = G.destinoRevelado && !vizinhos(G.lugar).includes(destino);
+  const passoMissao = marchaFinal ? null : G.destinoRevelado ? passoPara(destino) : passoPara(G.rumo);
   const passoPista = passoPara(G.rastro);
   opcoes = [...new Set([passoMissao, passoPista, ...opcoes].filter(Boolean))].slice(0, 3);
 
@@ -844,7 +882,7 @@ async function escolherDestino(ui) {
     specs.push({ tema: 'investigacao', etiqueta: 'A Pista', titulo: 'Ficar e Procurar', glyph: 'eye', desc: 'Mais um dia aqui, atrás de outro fragmento. Se a cena correr mal, a pista muda de sítio.', rodape: `+1 dia  ·  ${G.fragmentos} de ${FRAGMENTOS_POR_PISTA}`, rodapeGlyph: 'eye', procurar: true });
   }
   let finalIdx = -1;
-  if (G.destinoRevelado && !opcoes.includes(destino)) {
+  if (marchaFinal) {
     const dias = caminho(G.lugar, destino).length - 1;
     finalIdx = specs.length;
     specs.push({
@@ -935,7 +973,6 @@ function encontroDaEstrada() {
     const atraso = cenaDeAtraso('estrada', 1);
     if (atraso) return { ...atraso, atraso: true };
   }
-  if (G.reviravoltaPendente) return null;
   // Quem anda alerta vê-os primeiro mais vezes.
   const alerta = talentosAtivos().reduce((t, x) => t + (x.alerta || 0), 0);
   const tipo = !vePrimeiro() && dado(100) <= Math.max(5, EMBOSCADA_CHANCE - alerta) ? 'contra' : 'favor';
@@ -1022,18 +1059,15 @@ function cenaDeBusca() {
   return e;
 }
 
+// A etapa 1 foi escolhida no início (G.etapaUm); a etapa 2 é a Reviravolta, que só se revela ao jogar-se.
 function cenaDaEtapa() {
-  return { ...umDe([...ETAPAS_GERAIS[G.fio], ...(ETAPAS_MUNDO[G.mundo] || [])[G.fio]]), etapa: true };
+  if (G.fio === 0) return { ...G.etapaUm, etapa: true };
+  return { ...REVIRAVOLTAS[G.trama.reviravolta], etapa: true, reviravolta: true };
 }
 
 function proximaCena() {
   // 1. A missão: é aqui que a história anda.
   if (G.rumo === G.lugar) return cenaDaEtapa();
-  // 2. A reviravolta, depois da segunda etapa.
-  if (G.reviravoltaPendente) {
-    G.reviravoltaPendente = false;
-    return REVIRAVOLTAS[G.trama.reviravolta];
-  }
   // 3. Onde está a pista, há sempre uma cena com testes.
   if (G.rastro === G.lugar) return cenaDeBusca();
   // 4. As consequências do que fez, se as houver.

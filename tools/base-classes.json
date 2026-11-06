@@ -3,15 +3,15 @@
   "estilo": "cacador",
   "partidas": 12000,
   "classes": {
-    "Guerreiro": 51,
-    "Monge": 53,
-    "Clérigo": 46,
-    "Bardo": 52,
-    "Feiticeiro": 44,
-    "Patrulheiro": 54,
-    "Ladino": 52,
-    "Bárbaro": 46,
-    "Druida": 46,
-    "Mago": 44
+    "Guerreiro": 52,
+    "Feiticeiro": 47,
+    "Clérigo": 48,
+    "Monge": 55,
+    "Bárbaro": 50,
+    "Bardo": 55,
+    "Ladino": 54,
+    "Druida": 50,
+    "Mago": 44,
+    "Patrulheiro": 52
   }
 }

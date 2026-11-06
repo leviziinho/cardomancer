@@ -86,7 +86,7 @@ def imagens(pasta):
 PASTAS = ['classes', 'racas', 'antecedentes', 'itens', 'aliados', 'regioes', 'terrenos', 'retratos']
 # As páginas do livro têm uma janela mais larga do que alta (760 x 600).
 JANELA = {"regioes": (760, 600), "terrenos": (760, 600)}
-dados = {'cartas': {}, 'papel': None, 'logo': None, 'mapa': None, 'capa': None, 'mesa': None, 'botao': None, 'botaoLiso': None, 'botaoOrn': None, 'veludo': None, 'rosa': None, 'destino': None}
+dados = {'cartas': {}, 'papel': None, 'logo': None, 'mapa': None, 'capa': None, 'mesa': None, 'couro': None, 'botao': None, 'botaoLiso': None, 'botaoOrn': None, 'veludo': None, 'rosa': None, 'destino': None}
 import unicodedata
 def sem_acentos(t):
     return ''.join(c for c in unicodedata.normalize('NFD', t.lower()) if unicodedata.category(c) != 'Mn')
@@ -160,6 +160,33 @@ def sem_fundo(img, neutros=False):
     out = img.convert('RGBA'); out.putalpha(alfa)
     return out
 
+# O fundo preso dentro da figura (entre as pernas, dentro do arco) não toca nas bordas e ficava branco.
+# Cada mancha grande de branco sem cor passa a transparente; as pequenas (brilhos, água) ficam.
+def sem_buracos(img):
+    import numpy as np
+    a = np.asarray(img.convert('RGB')).astype(int)
+    alfa = np.asarray(img.getchannel('A'))
+    claro = (a.min(axis=2) > 222) & (a.max(axis=2) - a.min(axis=2) < 16) & (alfa > 0)
+    h, w = claro.shape
+    base = Image.fromarray((claro * 255).astype('uint8')).copy()
+    minimo = w * h * 0.0015
+    tira = np.zeros_like(claro)
+    for y in range(0, h, 6):
+        for x in range(0, w, 6):
+            if base.getpixel((x, y)) != 255:
+                continue
+            m = base.copy()
+            ImageDraw.floodfill(m, (x, y), 128)
+            reg = np.asarray(m) == 128
+            ImageDraw.floodfill(base, (x, y), 64)
+            if reg.sum() >= minimo:
+                tira |= reg
+    al = alfa.copy()
+    al[tira] = 0
+    out = img.copy()
+    out.putalpha(Image.fromarray(al).filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(1)))
+    return out
+
 def justo(img, lado):
     img = img.crop(img.getchannel('A').getbbox())
     img.thumbnail((lado, lado), Image.LANCZOS)
@@ -176,6 +203,8 @@ dados['icones'] = {}
 for real in pastas_reais.get('icones', []):
     for f in imagens(real):
         nome = os.path.splitext(f)[0]
+        if nome.lower() in ('rosa', 'destino'):
+            continue  # têm tratamento próprio, mais abaixo
         img = sem_fundo(Image.open(os.path.join(ARTE, real, f)), neutros=True)
         if nome in FOLHAS:
             w, h = img.size
@@ -186,11 +215,21 @@ for real in pastas_reais.get('icones', []):
         else:
             dados['icones'][nome] = texto(justo(img, 256), 84)
 print('ícones:', len(dados['icones']))
+# A rosa dos ventos e o verso do Destino podem estar na raiz de arte/ ou em arte/icones/.
+for real in [''] + pastas_reais.get('icones', []):
+    for f in imagens(real):
+        n = os.path.splitext(f)[0].lower()
+        if n == 'rosa' and not dados['rosa']:
+            dados['rosa'] = texto(justo(sem_buracos(sem_fundo(Image.open(os.path.join(ARTE, real, f)))), 512), 86)  # o branco entre a estrela e o aro também sai
+            print('rosa')
+        if n == 'destino' and not dados['destino']:
+            dados['destino'] = texto(recorta(Image.open(os.path.join(ARTE, real, f)), 1024, 1434), 80)
+            print('destino')
 dados['miniaturas'] = {}
 for real in pastas_reais.get('miniaturas', []):
     for f in imagens(real):
         nome = sem_acentos(os.path.splitext(f)[0])
-        dados['miniaturas'][nome] = texto(justo(sem_fundo(Image.open(os.path.join(ARTE, real, f))), 512), 84)
+        dados['miniaturas'][nome] = texto(justo(sem_buracos(sem_fundo(Image.open(os.path.join(ARTE, real, f)))), 512), 84)
 print('miniaturas:', len(dados['miniaturas']))
 
 # A placa dos botões (arte/botao.png, 1536 x 1024) parte-se em peças, para servir botões de qualquer largura:
@@ -236,11 +275,21 @@ for f in imagens(''):
         dados['logo'] = texto(img, 84)
         print('logo')
     # O tampo da mesa, quadrado e contínuo; repete-se no jogo.
-    if os.path.splitext(f)[0].lower() == 'mesa':
+    # Se houver uma versão nova (mesa2.png), é ela que conta.
+    if os.path.splitext(f)[0].lower() == ('mesa2' if os.path.exists(os.path.join(ARTE, 'mesa2.png')) else 'mesa'):
         img = Image.open(os.path.join(ARTE, f)).convert('RGB')
         img.thumbnail((1536, 1536), Image.LANCZOS)
-        dados['mesa'] = texto(img, 80)
+        # A pintura é suave e, repetida na mesa inteira, parecia desfocada: um pouco de nitidez nos veios.
+        img = img.filter(ImageFilter.UnsharpMask(radius=2, percent=90, threshold=2))
+        dados['mesa'] = texto(img, 88)
         print('mesa')
+    # O couro da pasta do mapa, quadrado e contínuo; repete-se no jogo.
+    if os.path.splitext(f)[0].lower() == 'couro':
+        img = Image.open(os.path.join(ARTE, f)).convert('RGB')
+        img.thumbnail((1254, 1254), Image.LANCZOS)
+        img = img.filter(ImageFilter.UnsharpMask(radius=2, percent=80, threshold=2))
+        dados['couro'] = texto(img, 86)
+        print('couro')
     # A capa do livro, ao alto; o logótipo põe-se por cima no jogo.
     if os.path.splitext(f)[0].lower() == 'capa':
         img = Image.open(os.path.join(ARTE, f)).convert('RGB')
@@ -262,13 +311,50 @@ for f in imagens(''):
         dados['mapa'] = texto(img, 82)
         print('mapa')
 
+# Os assets da interface (arte/interface/): placas, botões, marcas do mapa, selos das cartas e texturas dos objetos.
+# 'alfa': fundo branco fica transparente e corta-se à figura; 'opaco': textura sem transparência.
+INTERFACE = {
+    'painel': ('alfa', 1100), 'botao': ('alfa', 700), 'faixa': ('alfa', 1400), 'verso': ('alfa', 1200),
+    'estrela-mapa': ('alfa', 400), 'anel-missao': ('alfa', 400), 'olho-mapa': ('alfa', 400), 'marca-pista': ('alfa', 600), 'lacre': ('alfa', 512),
+    'medalhao': ('alfa', 512), 'olho-carta': ('alfa', 256),
+    'barra': ('opaco', 720), 'veludo': ('opaco', 1024), 'tinteiro': ('opaco', 1024),
+}
+dados['interface'] = {}
+for real in pastas_reais.get('interface', []):
+    for f in imagens(real):
+        nome = sem_acentos(os.path.splitext(f)[0]).lower()
+        img = Image.open(os.path.join(ARTE, real, f))
+        if nome in INTERFACE:
+            modo, lado = INTERFACE[nome]
+            if modo == 'alfa':
+                img = justo(sem_buracos(sem_fundo(img)), lado)
+            else:
+                img = img.convert('RGB'); img.thumbnail((lado, lado), Image.LANCZOS)
+            dados['interface'][nome] = texto(img, 86)
+        elif nome == 'trilha':
+            # Veio quadrada: serve só a faixa de cima, com a orla de latão.
+            img = img.convert('RGB'); img = img.crop((0, 0, img.width, img.height // 4)); img.thumbnail((1280, 1280), Image.LANCZOS)
+            dados['interface']['trilha'] = texto(img, 84)
+        elif nome == 'selos-chance':
+            # Três selos lado a lado: verde (fácil), âmbar e vermelho (difícil).
+            img = sem_fundo(img); w = img.width
+            for i, cor in enumerate(['verde', 'ambar', 'vermelho']):
+                dados['interface']['selo-' + cor] = texto(justo(img.crop((w * i // 3, 0, w * (i + 1) // 3, img.height)), 256), 86)
+        elif nome == 'mascaras':
+            # Três máscaras sobre pergaminho: entram no jogo a multiplicar, e o pergaminho some sobre a carta.
+            img = img.convert('RGB'); w = img.width
+            for i, k in enumerate(['bom', 'mau', 'neutro']):
+                c = img.crop((w * i // 3, 0, w * (i + 1) // 3, img.height)); c.thumbnail((512, 512), Image.LANCZOS)
+                dados['interface']['mascara-' + k] = texto(c, 84)
+print('interface:', sorted(dados['interface']))
+
 js = ('// Gerado por tools/arte.py a partir das imagens em arte/. Não editar à mão.\n'
       'const ARTE = ' + json.dumps(dados) + ';\n'
       '// As imagens descodificam-se logo ao abrir, muito antes da primeira carta.\n'
       'ARTE.img = {};\n'
       'Object.entries(ARTE.cartas).forEach(([k, s]) => { const i = new Image(); i.src = s; ARTE.img[k] = i; });\n'
       "if (ARTE.papel) { const i = new Image(); i.src = ARTE.papel; ARTE.img.papel = i; }\n"
-      "['logo', 'mapa', 'capa', 'mesa', 'botao', 'botaoLiso', 'botaoOrn', 'veludo', 'rosa', 'destino'].forEach(k => { if (ARTE[k]) { const i = new Image(); i.src = ARTE[k]; ARTE.img[k] = i; } });\n"
-      "['icones', 'miniaturas'].forEach(g => Object.entries(ARTE[g] || {}).forEach(([k, s]) => { const i = new Image(); i.src = s; ARTE.img[g + '/' + k] = i; }));\n")
+      "['logo', 'mapa', 'capa', 'mesa', 'couro', 'botao', 'botaoLiso', 'botaoOrn', 'veludo', 'rosa', 'destino'].forEach(k => { if (ARTE[k]) { const i = new Image(); i.src = ARTE[k]; ARTE.img[k] = i; } });\n"
+      "['icones', 'miniaturas', 'interface'].forEach(g => Object.entries(ARTE[g] || {}).forEach(([k, s]) => { const i = new Image(); i.src = s; ARTE.img[g + '/' + k] = i; }));\n")
 open(SAIDA, 'w', encoding='utf8', newline='\n').write(js)
 print('js/arte.js', round(len(js) / 1024), 'KB')

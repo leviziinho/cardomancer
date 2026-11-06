@@ -164,7 +164,7 @@ async function correr(estilo, N) {
   const ordem = o => Object.entries(o).sort((a, b) => b[1] - a[1]);
   console.log(`  mortes por causa: ${ordem(causas).map(([k, v]) => `${k} ${p(v, total.morte).trim()}`).join('  ')}`);
   console.log(`  Vida perdida por partida: ${ordem(feridas).map(([k, v]) => `${k} ${m(v, N).trim()}`).join('  ')}`);
-  console.log(`  ao chegar a cada etapa: ${etapas.map((e, i) => `${i < 2 ? `etapa ${i + 2}` : 'destino revelado'} dia ${m(e.dia, e.n).trim()}, Vida ${p(e.vida, e.n).trim()} (${p(e.n, N).trim()} chegam)`).join('  ')}`);
+  console.log(`  ao chegar a cada etapa: ${etapas.map((e, i) => `${i < 1 ? `etapa ${i + 2}` : 'destino revelado'} dia ${m(e.dia, e.n).trim()}, Vida ${p(e.vida, e.n).trim()} (${p(e.n, N).trim()} chegam)`).join('  ')}`);
   // Só as cartas vistas muitas vezes: as que ganham quase sempre, e as que nunca se escolhem.
   const vistas = Object.entries(escolhas).filter(([, e]) => e.vista >= Math.max(30, N / 100));
   const taxa = e => e.escolhida / e.vista;

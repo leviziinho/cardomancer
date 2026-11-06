@@ -7,7 +7,7 @@ O que ainda é desenho feito pelo código, por ordem de impacto:
 | Prioridade | O quê | Onde aparece | Guia |
 |---|---|---|---|
 | 1 | Retratos dos 6 vilões | Carta "A Verdade" e Capítulo Final | `docs/arte-retratos.md` |
-| 2 | Retratos dos 12 inimigos | Página do livro em cada combate | `docs/arte-retratos.md` |
+| 2 | ~~Retratos dos inimigos~~ — feitos a 6 nov. (os 16) | Página do livro em cada combate | `docs/arte-retratos.md` |
 | 3 | Retratos dos 10 mestres | Encontro raríssimo | `docs/arte-retratos.md` |
 | 4 | Verso da carta "O Destino" | A carta selada da missão, durante toda a partida | abaixo |
 | 5 | Castelo das cidades | As 8 cidades no mapa | abaixo |
