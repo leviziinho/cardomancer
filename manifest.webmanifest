@@ -1,0 +1,17 @@
+{
+  "name": "Cardomancer",
+  "short_name": "Cardomancer",
+  "description": "Um herói feito de cartas, uma trama selada e vinte e quatro dias para a desvendar no Império da Espada.",
+  "lang": "pt",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#070403",
+  "theme_color": "#1e0f07",
+  "icons": [
+    { "src": "app/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "app/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "app/icone-mascara.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

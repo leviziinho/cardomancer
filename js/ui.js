@@ -419,8 +419,17 @@ function posicaoAviso() {
   // De pé, a página começa logo abaixo do aviso.
   const p = $('prompt');
   const topoFolha = p.classList.contains('on') ? p.getBoundingClientRect().bottom + 4 : $('rail').getBoundingClientRect().bottom + 4;
-  $('folha').style.top = `${topoFolha}px`;
-  $('folha').style.maxHeight = `${Math.max(120, innerHeight * .55 - topoFolha)}px`;
+  if (ecraPequeno()) {
+    // Deitado, a folha ocupa o lado do livro, de cima até ao aviso ou ao "Agora".
+    let fundo = innerHeight - 6;
+    for (const id of ['prompt', 'objetivo']) if ($(id).classList.contains('on')) fundo = Math.min(fundo, $(id).getBoundingClientRect().top - 6);
+    if (fundo < 160) fundo = innerHeight - 30;
+    $('folha').style.top = '6px';
+    $('folha').style.maxHeight = `${fundo - 6}px`;
+  } else {
+    $('folha').style.top = `${topoFolha}px`;
+    $('folha').style.maxHeight = `${Math.max(120, innerHeight * .55 - topoFolha)}px`;
+  }
   $('prompt').classList.toggle('lado', !!G.trama && !world.book.aberto && !emDestaque);
   // Com o livro aberto, o aviso fica por cima do "Agora": à direita tapava a carta selada.
   const noLivro = !!G.trama && world.book.aberto && !emDestaque;
@@ -954,6 +963,8 @@ async function main() {
   $('i-ca').src = icone('shield', '#f2e3bd');
   $('i-trilha').src = icone('hourglass', '#d8b45e');
   window.addEventListener('resize', () => {
+    // Ao virar o telemóvel, a folha e os avisos mudam de sítio.
+    posicaoAviso();
     if (!maoAtual) return;
     world.resize();
     const alvos = maoAtual.zona();
@@ -1007,8 +1018,15 @@ async function main() {
   $('vertical-btn').addEventListener('click', () => {
     document.body.classList.add('vertical');
     try { localStorage.setItem('cardomancer-vertical', '1'); } catch (e) { /* idem */ }
-    world.resize();
+    world.resize(); posicaoAviso();
     if (maoAtual) { const alvos = maoAtual.zona(); maoAtual.cards.forEach((c, i) => world.fly(c, alvos[i], .2, { arc: 0 })); }
+  });
+  // Deitado no telemóvel, o Ler mostra a página em letra grande; fica escolhido para as próximas vezes.
+  try { if (localStorage.getItem('cardomancer-ler')) document.body.classList.add('ler'); } catch (e) { /* sem memória */ }
+  $('ler-btn').addEventListener('click', () => {
+    const ler = document.body.classList.toggle('ler');
+    try { ler ? localStorage.setItem('cardomancer-ler', '1') : localStorage.removeItem('cardomancer-ler'); } catch (e) { /* idem */ }
+    posicaoAviso(); sfx.page();
   });
   $('rever-guia').addEventListener('click', () => { $('lore').classList.remove('on'); guia(); });
   $('abrir-painel').addEventListener('click', () => $('painel').classList.toggle('on'));

@@ -270,6 +270,21 @@ body.foco #objetivo { opacity: .55; }
 #virar small { font-size: 15px; font-style: italic; color: var(--cream); opacity: .8; }
 #vertical-btn { margin-top: 6px; font-size: 16px; padding: 10px 18px; }
 #folha { display: none; }
+#folha .f-cap { display: block; font: 600 12px var(--f-titulo); letter-spacing: .06em; color: #6d1f1a; text-transform: uppercase; }
+#folha h2 { margin: 2px 0 6px; font: 700 20px/1.2 var(--f-titulo); }
+#folha p { margin: 0 0 8px; }
+#folha a { color: #8a1d16; text-decoration: underline; cursor: pointer; }
+#folha .f-banner { margin: 0 0 8px; padding: 3px 8px; font: 600 14px var(--f-titulo); color: #f2e3bd; text-align: center; }
+#folha .f-banner.bom { background: #1d4f6b; }
+#folha .f-banner.mau { background: #8c2a14; }
+#folha .f-barra { display: grid; grid-template-columns: 1fr auto; font: 600 12px var(--f-titulo); margin-bottom: 4px; }
+#folha .f-barra i { grid-column: 1 / 3; height: 7px; background: rgba(60, 35, 12, .3); }
+#folha .f-barra em { display: block; height: 100%; }
+#folha .f-stats { font-size: 14px; font-style: italic; color: #6d1f1a; }
+#folha .f-fichas { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+#folha .f-fichas span { padding: 2px 8px; font: 700 13px var(--f-titulo); color: #f7ecd0; background: #4a3a28; }
+#folha .f-fichas .mais { background: #1d4f6b; }
+#folha .f-fichas .menos { background: #8c2a14; }
 @media (orientation: portrait) and (pointer: coarse) and (max-width: 820px) { body:not(.vertical) #virar { display: flex; } }
 
 /* De pé: estado em cima, a página em texto, e as cartas por baixo dela. */
@@ -298,22 +313,7 @@ body.foco #objetivo { opacity: .55; }
   body.vertical #prompt h2 { font-size: 15px; }
   body.vertical #prompt p { font-size: 12px; margin-top: 1px; }
   body.vertical.carta-perto #folha { visibility: hidden; }
-  body.vertical.livro-aberto #folha { display: block; position: fixed; left: 6px; right: 6px; z-index: 1; overflow-y: auto; padding: 10px 14px; color: #26170a; background: #efe2c2; border: 3px double #6e4a1e; border-radius: 3px; box-shadow: 0 8px 24px rgba(0, 0, 0, .6); font-size: 17px; line-height: 1.38; }
-  #folha .f-cap { display: block; font: 600 12px var(--f-titulo); letter-spacing: .06em; color: #6d1f1a; text-transform: uppercase; }
-  #folha h2 { margin: 2px 0 6px; font: 700 20px/1.2 var(--f-titulo); }
-  #folha p { margin: 0 0 8px; }
-  #folha a { color: #8a1d16; text-decoration: underline; cursor: pointer; }
-  #folha .f-banner { margin: 0 0 8px; padding: 3px 8px; font: 600 14px var(--f-titulo); color: #f2e3bd; text-align: center; }
-  #folha .f-banner.bom { background: #1d4f6b; }
-  #folha .f-banner.mau { background: #8c2a14; }
-  #folha .f-barra { display: grid; grid-template-columns: 1fr auto; font: 600 12px var(--f-titulo); margin-bottom: 4px; }
-  #folha .f-barra i { grid-column: 1 / 3; height: 7px; background: rgba(60, 35, 12, .3); }
-  #folha .f-barra em { display: block; height: 100%; }
-  #folha .f-stats { font-size: 14px; font-style: italic; color: #6d1f1a; }
-  #folha .f-fichas { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
-  #folha .f-fichas span { padding: 2px 8px; font: 700 13px var(--f-titulo); color: #f7ecd0; background: #4a3a28; }
-  #folha .f-fichas .mais { background: #1d4f6b; }
-  #folha .f-fichas .menos { background: #8c2a14; }
+  body.vertical.livro-aberto #folha { display: block; position: fixed; left: 6px; right: 6px; z-index: 1; overflow-y: auto; padding: 10px 14px; color: #1e1208; background: linear-gradient(rgba(244, 234, 210, .62), rgba(244, 234, 210, .62)), var(--papel, none) center / cover, #ede0c0; border: 3px double #6e4a1e; border-radius: 3px; box-shadow: 0 8px 24px rgba(0, 0, 0, .6); font-size: 17px; line-height: 1.38; }
   body.vertical #painel { top: 66px; width: 100vw; }
   body.vertical #toast { bottom: 40px; padding: 5px 12px; font-size: 13px; white-space: normal; width: max-content; max-width: 90vw; text-align: center; }
   body.vertical #aviso { padding: 8px 14px; font-size: 14px; }
@@ -399,4 +399,28 @@ body.foco #objetivo { opacity: .55; }
 @media (max-width: 760px), (max-height: 499px) {
   #tdica { top: auto; bottom: calc(var(--trilha) + 8px); left: 8px; right: 8px; width: auto; padding: 8px 12px; }
   #tdica p { font-size: 14px; }
+}
+/* Telemóvel deitado: o ecrã de entrada fica em duas colunas, o logo à esquerda e os botões à direita, e pode rolar. */
+#title { overflow-y: auto; align-items: safe center; }
+@media (max-height: 499px) and (orientation: landscape) {
+  #title .t-caixa:is(#_, *) { display: grid; grid-auto-flow: dense; grid-template-columns: minmax(0, 1fr) auto; align-items: center; justify-items: center; gap: 6px 28px; padding: 10px 20px; max-width: 960px; }
+  #title .t-caixa > :is(h1, #title-sub, #title-pitch, #title-nota) { grid-column: 1; }
+  #title .t-caixa > h1 { grid-row: span 3; }
+  #title .t-caixa > #title-pitch { grid-row: span 2; }
+  #title .t-caixa > :not(h1, #title-sub, #title-pitch, #title-nota) { grid-column: 2; }
+  #title h1.com-logo img { max-height: 44vh; width: min(420px, 48vw); margin: 0; }
+  #title p:is(#_, *) { margin: 0; font-size: 15px; }
+  #title-nota { margin: 0; font-size: 12px; }
+  html.placas :is(#start, #start-guiada):is(#_, *) { --alt: 50px; min-width: 250px; font-size: 18px; }
+  #title .t-menor:is(#_, *), #title-opcoes button:is(#_, *) { min-width: 200px; font-size: 15px; }
+}
+/* O botão Ler só existe no telemóvel deitado; as Teclas não servem num ecrã de toque. */
+#ler-btn { display: none; }
+@media (pointer: coarse) { .abre-teclas:is(#_, *) { display: none; } }
+@media (max-height: 499px) and (orientation: landscape) {
+  body.livro-aberto #ler-btn { display: block; }
+  body.ler #ler-btn:is(#_, *) { filter: brightness(1.35) drop-shadow(0 0 4px rgba(255, 196, 96, .7)); }
+  /* A página do livro em letra grande, por cima do livro 3D. */
+  body.ler.livro-aberto #folha { display: block; position: fixed; left: 6px; width: min(540px, 58vw); z-index: 1; overflow-y: auto; padding: 10px 14px; color: #1e1208; background: linear-gradient(rgba(244, 234, 210, .62), rgba(244, 234, 210, .62)), var(--papel, none) center / cover, #ede0c0; border: 3px double #6e4a1e; border-radius: 3px; box-shadow: 0 8px 24px rgba(0, 0, 0, .6); font-size: 17px; line-height: 1.38; }
+  body.ler.carta-perto #folha { visibility: hidden; }
 }

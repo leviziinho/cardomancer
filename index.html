@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cardomancer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1e0f07">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="app/icone-192.png">
+<link rel="apple-touch-icon" href="app/icone-apple.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
@@ -91,6 +96,7 @@
     <button id="mute">Som: sim</button>
     <button id="letra-btn" title="A letra legível ajuda quem tem dislexia.">Letra: legível</button>
     <button class="abre-teclas" title="Mudar as teclas de atalho.">Teclas</button>
+    <button id="ler-btn" title="Mostrar a página do livro em letra grande.">Ler</button>
     <button class="abre-opiniao" title="Dizer ao Levi o que achou.">Opinião</button>
   </div>
 </nav>
@@ -136,6 +142,15 @@ if (!window.THREE) {
   const l = document.getElementById('loading');
   l.innerHTML = '<div class="falha"><p>Não foi possível carregar o motor 3D.</p><small>O jogo precisa de Internet na primeira vez que abre. Verifique a ligação e tente de novo.</small><button onclick="location.reload()">Tentar de novo</button></div>';
   l.classList.add('on');
+}
+// Guarda o jogo no aparelho para se poder instalar e jogar sem Internet. No computador do Levi só com ?app,
+// para a cópia guardada não atrapalhar enquanto se mexe no código.
+if ('serviceWorker' in navigator) {
+  if (!/^(localhost|127\.0\.0\.1)$/.test(location.hostname) || /[?&]app\b/.test(location.search)) {
+    addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  } else {
+    navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
+  }
 }
 </script>
 </body>
