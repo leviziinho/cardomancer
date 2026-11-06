@@ -28,7 +28,9 @@ EXT = ('.png', '.jpg', '.jpeg', '.webp')
 
 # Medidas finais, em pontos da carta (1024 x 1434). A janela da ilustração das
 # classes tem 800 x 800, quadrada como as imagens geradas; grava-se um pouco maior para ficar nítida ao aproximar.
-JANELA_CLASSE = (880, 880)
+JANELA_CLASSE = (800, 800)
+# Qualidade das ilustrações (WebP). 64 mantém a pintura nítida e deixa o arte.js bem abaixo dos 50 MB do GitHub.
+QUALIDADE = 64
 PAPEL = (1024, 1434)
 
 # Onde fica o centro do recorte, de 0 a 1 (x, y). A cara costuma estar em cima.
@@ -83,7 +85,7 @@ def imagens(pasta):
 # Todas as cartas com ilustração usam a mesma janela; a chave no jogo é "pasta/nome", por ex. "racas/elfo".
 PASTAS = ['classes', 'racas', 'antecedentes', 'itens', 'aliados', 'regioes', 'terrenos', 'retratos']
 # As páginas do livro têm uma janela mais larga do que alta (760 x 600).
-JANELA = {'regioes': (960, 758), 'terrenos': (960, 758)}
+JANELA = {"regioes": (760, 600), "terrenos": (760, 600)}
 dados = {'cartas': {}, 'papel': None, 'logo': None, 'mapa': None, 'capa': None, 'mesa': None, 'botao': None, 'botaoLiso': None, 'botaoOrn': None, 'veludo': None, 'rosa': None, 'destino': None}
 import unicodedata
 def sem_acentos(t):
@@ -101,19 +103,19 @@ for pasta in PASTAS:
         for f in imagens(real):
             k = pasta + '/' + sem_acentos(os.path.splitext(f)[0])
             img = Image.open(os.path.join(ARTE, real, f))
-            dados['cartas'][k] = texto(recorta(apara(img, MARGEM['classes']), *JANELA.get(pasta, JANELA_CLASSE), FOCO_IMAGEM.get(k, FOCO.get(pasta, FOCO['classes']))), 74)
+            dados['cartas'][k] = texto(recorta(apara(img, MARGEM['classes']), *JANELA.get(pasta, JANELA_CLASSE), FOCO_IMAGEM.get(k, FOCO.get(pasta, FOCO['classes']))), QUALIDADE)
             print(k)
 # As pinturas das regiões servem também nas cartas de cidade (quadradas): 'cidades/<lugar>'.
 for real in pastas_reais.get('regioes', []):
     for f in imagens(real):
         k = 'cidades/' + sem_acentos(os.path.splitext(f)[0])
-        dados['cartas'][k] = texto(recorta(Image.open(os.path.join(ARTE, real, f)), *JANELA_CLASSE, (.5, .5)), 74)
+        dados['cartas'][k] = texto(recorta(Image.open(os.path.join(ARTE, real, f)), *JANELA_CLASSE, (.5, .5)), QUALIDADE)
         print(k)
 # Os retratos servem na carta (quadrada, já feita acima) e na página do livro (mais larga): 'retratosLivro/<nome>'.
 for real in pastas_reais.get('retratos', []):
     for f in imagens(real):
         k = 'retratosLivro/' + sem_acentos(os.path.splitext(f)[0])
-        dados['cartas'][k] = texto(recorta(Image.open(os.path.join(ARTE, real, f)), *JANELA['regioes'], FOCO['classes']), 74)
+        dados['cartas'][k] = texto(recorta(Image.open(os.path.join(ARTE, real, f)), *JANELA['regioes'], FOCO['classes']), QUALIDADE)
         print(k)
 # Quando há duas versões de um retrato, fica a escolhida; a outra é ignorada.
 ESCOLHIDOS = {'mestre-mago2': 'mestre-mago', 'mestre-mago1': None}
@@ -130,7 +132,7 @@ for retrato, aliado in SUBSTITUTOS.items():
     for real in pastas_reais.get('aliados', []):
         for f in imagens(real):
             if sem_acentos(os.path.splitext(f)[0]) == aliado:
-                dados['cartas']['retratosLivro/' + retrato] = texto(recorta(apara(Image.open(os.path.join(ARTE, real, f)), MARGEM['classes']), *JANELA['regioes'], FOCO['classes']), 74)
+                dados['cartas']['retratosLivro/' + retrato] = texto(recorta(apara(Image.open(os.path.join(ARTE, real, f)), MARGEM['classes']), *JANELA['regioes'], FOCO['classes']), QUALIDADE)
                 print('retratosLivro/' + retrato, '(da carta de aliado)')
 # Ícones e miniaturas vêm num fundo liso; o fundo que toca nas bordas fica transparente.
 from PIL import ImageDraw, ImageChops, ImageFilter
