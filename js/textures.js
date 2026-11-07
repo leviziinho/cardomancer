@@ -483,21 +483,24 @@ function textures(renderer) {
     const pintada = typeof ARTE !== 'undefined' && ARTE.img.mesa;
     if (pintada && pintada.complete && pintada.naturalWidth) {
       x.drawImage(pintada, 0, 0, S, S);
-      // A pintura tem 1254 pontos e, esticada pela mesa, ficava mole: por cima vai um veio fino, ao longo das tábuas,
-      // e no relevo o grão feito em código continua a ver-se por baixo dos veios da pintura.
-      x.save(); x.globalCompositeOperation = 'multiply';
-      for (let i = 0; i < 9000; i++) {
-        const px = Math.random() * S, py = Math.random() * S, l = 14 + Math.random() * 60;
-        x.strokeStyle = `rgba(40,22,10,${.08 + Math.random() * .14})`; x.lineWidth = .8 + Math.random() * 1.2;
-        x.beginPath(); x.moveTo(px, py); x.lineTo(px + l, py + (Math.random() - .5) * 2); x.stroke();
+      // A mesa3.png já é nítida: o veio extra feito em código (para a pintura antiga, mole) saiu.
+      // Relevo: as manchas da aguarela viravam altos e baixos (parecia pixelado), e as juntas feitas em código
+      // não batiam com as tábuas da pintura. Fica só um veio fino e liso, ao comprido.
+      mx.fillStyle = '#808080'; mx.fillRect(0, 0, 1024, 1024);
+      for (let i = 0; i < 2600; i++) {
+        const px = Math.random() * 1024, py = Math.random() * 1024, l = 20 + Math.random() * 90;
+        mx.strokeStyle = `rgba(${Math.random() < .5 ? '60,60,60' : '170,170,170'},${.12 + Math.random() * .16})`; mx.lineWidth = .7 + Math.random();
+        mx.beginPath(); mx.moveTo(px, py); mx.lineTo(px + l, py + (Math.random() - .5) * 1.5); mx.stroke();
       }
-      x.restore();
-      mx.globalAlpha = .6; mx.filter = 'grayscale(1) contrast(1.4)'; mx.drawImage(pintada, 0, 0, 1024, 1024); mx.filter = 'none'; mx.globalAlpha = 1;
+      // Só o mais escuro da pintura (as juntas entre tábuas e os nós) afunda; o resto da madeira fica plano.
+      mx.save(); mx.globalCompositeOperation = 'multiply'; mx.globalAlpha = .7;
+      mx.filter = 'grayscale(1) brightness(3.2) contrast(4)'; mx.drawImage(pintada, 0, 0, 1024, 1024);
+      mx.restore(); mx.filter = 'none';
     }
     const map = toTexture(c, renderer);
     const normal = normaisDe(m, renderer, 1.5);
     const rough = toTexture(r, renderer, { linear: true });
-    // A pintura (arte/mesa2.png) tem 8 tábuas: repetida assim, cada tábua fica à medida do mapa.
+    // A pintura (arte/mesa3.png) tem 6 tábuas largas, como numa mesa de taverna.
     [map, normal, rough].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2.75); });
     return { map, normal, rough };
   }
@@ -1410,6 +1413,19 @@ function textures(renderer) {
       x.drawImage(img, 0, 0, W, H);
       // A pintura vem muito amarela: tira-se um pouco de cor, para as marcas se destacarem.
       x.save(); x.globalCompositeOperation = 'saturation'; x.fillStyle = 'rgba(128,128,128,.28)'; x.fillRect(0, 0, W, H); x.restore();
+      // As planícies puxam para o verde: só os tons amarelo-esverdeados (matiz 40° a 80°) mudam;
+      // o pergaminho da borda (mais laranja), as montanhas, o mar e o texto ficam como estão.
+      const dados = x.getImageData(0, 0, W, H), d = dados.data;
+      for (let k = 0; k < d.length; k += 4) {
+        const r = d[k], g = d[k + 1], b = d[k + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b), ch = mx - mn;
+        if (ch < 18 || mx < 70) continue;
+        let h;
+        if (mx === r) h = 60 * (((g - b) / ch) % 6); else if (mx === g) h = 60 * ((b - r) / ch + 2); else continue;
+        if (h < 40 || h > 80) continue;
+        const w = (h < 52 ? (h - 40) / 12 : h > 68 ? (80 - h) / 12 : 1) * Math.min(1, ch / 50);
+        d[k] = r * (1 - .24 * w); d[k + 2] = b * (1 - .1 * w); d[k + 1] = Math.min(255, g * (1 + .04 * w));
+      }
+      x.putImageData(dados, 0, 0);
     } else {
       // Manchas de aguarela na terra, para o papel não parecer vazio.
       [['rgba(120,136,70,.12)', 26], ['rgba(170,120,60,.1)', 22], ['rgba(95,120,80,.1)', 16]].forEach(([cor, n]) => {
@@ -1621,16 +1637,22 @@ function textures(renderer) {
 
     // Título numa fita
     x.font = `700 70px ${FONT_TITLE}`;
-    const tw = x.measureText(MAPA.titulo).width, tx = W * MAPA.tituloX, ty = H * .935, fw = tw / 2 + 70;
+    let tw = x.measureText(MAPA.titulo).width; const tx = W * MAPA.tituloX, ty = H * .935, fw = tw / 2 + 70;
     const faixaPintada = arteUI('faixa');
+    // No canto de cima a fita não pode chegar ao castelo de Tocairn: a letra fica um pouco menor.
+    if (faixaPintada) { x.font = `700 64px ${FONT_TITLE}`; tw = x.measureText(MAPA.titulo).width; }
     if (faixaPintada) {
       // A fita pintada (arte/interface/faixa.png): o corpo liso ocupa uns 70% da largura, e as pontas caem dos lados.
       const fwP = (tw + 110) / .76, fhP = fwP * faixaPintada.naturalHeight / faixaPintada.naturalWidth;
       // Não pode sair do mapa: se o título estiver muito à esquerda, a fita entra um pouco.
-      const txP = Math.max(tx, fwP / 2 + 70), tyP = ty - 85;  // mais acima: em baixo ficava escondida pelas cartas
-      x.drawImage(faixaPintada, txP - fwP / 2, tyP - 24 - fhP * .4, fwP, fhP);
-      x.fillStyle = '#2a1a0d';
-      x.fillText(MAPA.titulo, txP, tyP);
+      // Vai para o canto de cima, sobre as montanhas: em baixo ficava tapada pelas cartas e por cima de Feldon.
+      const txP = fwP / 2 + 50, tyP = H * .1;
+      const topoF = tyP - 24 - fhP * .4;
+      x.drawImage(faixaPintada, txP - fwP / 2, topoF, fwP, fhP);
+      // O corpo liso da fita vai de 8% a 59% da altura da pintura: o título fica a meio dele.
+      x.fillStyle = '#2a1a0d'; x.textBaseline = 'middle';
+      x.fillText(MAPA.titulo, txP, topoF + fhP * .335 + 4);
+      x.textBaseline = 'alphabetic';
     }
     const fita = (d, cor) => {
       x.fillStyle = cor;

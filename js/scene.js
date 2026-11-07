@@ -688,8 +688,18 @@ function createWorld(canvasEl) {
     sombraDe(x, z, 2.1);
     const pts = [[0, 0], [.46, 0], [.5, .05], [.5, .42], [.42, .54], [.2, .6], [.2, .72], [.26, .75], [.15, .76], [.12, .6], [0, .58]].map(p => new THREE.Vector2(p[0], p[1]));
     // O vidro pintado (arte/interface/tinteiro.png): verde-negro, com tinta seca a escorrer; dá a volta ao frasco.
-    const vidroPintado = arteUI('tinteiro') ? tex.arteRepetida('interface/tinteiro', [2, 1]) : null;
-    const vidro = shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 28), new THREE.MeshPhysicalMaterial({ color: vidroPintado ? 0xffffff : 0x14202c, map: vidroPintado, roughness: vidroPintado ? .22 : .32, roughnessMap: vidroPintado ? null : gasto, metalness: 0, clearcoat: .8, clearcoatRoughness: .2, envMapIntensity: 1.3 })));
+    // A pintura é quase preta e, debaixo do verniz, não se via: vai clareada para o verde e as escorridas aparecerem.
+    let vidroPintado = null;
+    if (arteUI('tinteiro')) {
+      const i = arteUI('tinteiro'), cv = document.createElement('canvas');
+      cv.width = i.naturalWidth; cv.height = i.naturalHeight;
+      const cx = cv.getContext('2d');
+      cx.filter = 'brightness(2.4) contrast(1.15) saturate(1.5)'; cx.drawImage(i, 0, 0);
+      vidroPintado = new THREE.CanvasTexture(cv);
+      vidroPintado.colorSpace = THREE.SRGBColorSpace; vidroPintado.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      vidroPintado.wrapS = vidroPintado.wrapT = THREE.RepeatWrapping; vidroPintado.repeat.set(2, 1);
+    }
+    const vidro = shadowed(new THREE.Mesh(new THREE.LatheGeometry(pts, 28), new THREE.MeshPhysicalMaterial({ color: vidroPintado ? 0xffffff : 0x14202c, map: vidroPintado, roughness: vidroPintado ? .22 : .32, roughnessMap: vidroPintado ? null : gasto, metalness: 0, clearcoat: vidroPintado ? .45 : .8, clearcoatRoughness: .25, envMapIntensity: vidroPintado ? .8 : 1.3 })));
     vidro.position.set(x, 0, z);
     scene.add(vidro);
     // Um aro de latão no gargalo, e a tinta escura lá dentro.
@@ -709,14 +719,15 @@ function createWorld(canvasEl) {
       for (let i = 0; i < p.count; i++) {
         const y = p.getY(i);
         uv.setXY(i, p.getX(i) / .7 + .5, y / 2.9);
-        p.setX(i, p.getX(i) + y * y * .05);
+        // Em baixo é só o cano (fino, para caber na boca do frasco); as barbas começam mais acima.
+        p.setX(i, p.getX(i) * Math.min(1, .2 + y * .9) + y * y * .05);
       }
     }
     const pluma = new THREE.Mesh(geoPena, new THREE.MeshStandardMaterial({ map: tex.pena(), roughness: .85, side: THREE.DoubleSide }));
     pluma.castShadow = true;
-    // A pena sai do gargalo, inclinada para fora: antes ia quase deitada e atravessava o vidro.
-    pluma.position.set(x, .55, z);
-    pluma.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(.55, .75, -.38).normalize());
+    // A pena mergulha na tinta pela boca e sai quase direita: inclinada demais, cortava o ombro do vidro.
+    pluma.position.set(x, .5, z);
+    pluma.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(.2, .94, -.14).normalize());
     pluma.rotateY(.6);
     scene.add(pluma);
   })();

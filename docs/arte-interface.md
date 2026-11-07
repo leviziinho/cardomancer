@@ -57,3 +57,15 @@ A rosa dos ventos e a carta do Destino já existiam (`arte/icones/rosa.png` e `d
 ---
 
 **Ordem sugerida**, do que mais se nota para o que menos: A (painéis e botões), `verso.png`, `medalhao.png`, `selos-chance.png`, depois o mapa e os objetos.
+
+---
+
+## E. Tampo da mesa, de novo (pedido a 6 nov.)
+
+A pintura atual (`mesa2.png`) tem só 1254 pontos e manchas de aguarela grandes: repetida pela mesa, fica mole e parece pixelada. A nova deve ter **detalhe fino e nítido** e ser **contínua** (os lados encaixam).
+
+| Ficheiro | Prompt |
+|---|---|
+| `mesa3.png` | Seamless tileable texture, top-down orthographic view of an old tavern table top: 6 long dark oak planks running horizontally, each the full width of the image, with thin dark gaps between them. Crisp fine wood grain lines, a few small knots, shallow scratches, faint ring stains from cups, worn lighter edges on the planks. Rich dark brown with warm reddish tones, matte, even flat lighting, no shadows, no objects, no vignette. Sharp photographic detail, not blurry, not painterly blobs. Left and right edges and top and bottom edges tile seamlessly. Square 1:1, highest resolution. |
+
+Guardar em `arte/mesa3.png`; o gerador usa-a no lugar da `mesa2.png`. Se o ChatGPT só der 1024 pontos, vale a pena passar por um ampliador (por ex. Upscayl, gratuito) para 2048 antes de guardar.

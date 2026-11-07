@@ -275,10 +275,11 @@ for f in imagens(''):
         dados['logo'] = texto(img, 84)
         print('logo')
     # O tampo da mesa, quadrado e contínuo; repete-se no jogo.
-    # Se houver uma versão nova (mesa2.png), é ela que conta.
-    if os.path.splitext(f)[0].lower() == ('mesa2' if os.path.exists(os.path.join(ARTE, 'mesa2.png')) else 'mesa'):
+    # Conta a versão mais nova que houver: mesa3.png, depois mesa2.png, depois mesa.png.
+    mesa_atual = next((n for n in ('mesa3', 'mesa2', 'mesa') if os.path.exists(os.path.join(ARTE, n + '.png'))), None)
+    if os.path.splitext(f)[0].lower() == mesa_atual:
         img = Image.open(os.path.join(ARTE, f)).convert('RGB')
-        img.thumbnail((1536, 1536), Image.LANCZOS)
+        img.thumbnail((2048, 2048), Image.LANCZOS)
         # A pintura é suave e, repetida na mesa inteira, parecia desfocada: um pouco de nitidez nos veios.
         img = img.filter(ImageFilter.UnsharpMask(radius=2, percent=90, threshold=2))
         dados['mesa'] = texto(img, 88)
